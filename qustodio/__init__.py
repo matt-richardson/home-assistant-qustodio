@@ -86,3 +86,42 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             # Unexpected errors
             _LOGGER.exception("Unexpected error updating Qustodio data")
             raise UpdateFailed(f"Unexpected error: {err}") from err
+
+
+def setup_profile_entities(
+    coordinator: QustodioDataUpdateCoordinator,
+    entry: ConfigEntry,
+    entity_class: type,
+) -> list:
+    """Create entities for each profile in the config entry.
+
+    Args:
+        coordinator: The data update coordinator
+        entry: The config entry
+        entity_class: The entity class to instantiate
+
+    Returns:
+        List of entity instances
+    """
+    profiles = entry.data.get("profiles", {})
+    return [entity_class(coordinator, profile_data)
+            for profile_data in profiles.values()]
+
+
+def is_profile_available(
+    coordinator: DataUpdateCoordinator, profile_id: str
+) -> bool:
+    """Check if a profile is available in coordinator data.
+
+    Args:
+        coordinator: The data update coordinator
+        profile_id: The profile ID to check
+
+    Returns:
+        True if profile data is available
+    """
+    return (
+        coordinator.last_update_success
+        and coordinator.data is not None
+        and profile_id in coordinator.data
+    )

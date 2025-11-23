@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import is_profile_available, setup_profile_entities
 from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, MANUFACTURER
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,13 +23,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Qustodio sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    profiles = entry.data.get("profiles", {})
-
-    entities = []
-    for profile_id, profile_data in profiles.items():
-        entities.append(QustodioSensor(coordinator, profile_data))
-
+    entities = setup_profile_entities(coordinator, entry, QustodioSensor)
     async_add_entities(entities)
 
 
@@ -92,8 +87,4 @@ class QustodioSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return (
-            self.coordinator.last_update_success
-            and self.coordinator.data is not None
-            and self._profile_id in self.coordinator.data
-        )
+        return is_profile_available(self.coordinator, self._profile_id)
