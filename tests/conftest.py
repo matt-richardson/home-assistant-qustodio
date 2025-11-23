@@ -238,6 +238,21 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
             "quota": 120,
             "time": 45.5,
         },
+        "profile_2": {
+            "id": "profile_2",
+            "uid": "uid_2",
+            "name": "Child Two",
+            "is_online": False,
+            "unauthorized_remove": False,
+            "device_tampered": None,
+            "current_device": None,
+            "latitude": None,
+            "longitude": None,
+            "accuracy": 0,
+            "lastseen": "2025-11-23T09:15:00Z",
+            "quota": 60,
+            "time": 70.2,
+        },
     }
     coordinator.last_update_success = True
     coordinator.async_request_refresh = AsyncMock()
