@@ -135,6 +135,142 @@ class TestValidateInput:
                 )
 
 
+class TestUserFlow:
+    """Tests for async_step_user flow."""
+
+    async def test_user_step_success(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+    ) -> None:
+        """Test successful user step creates entry."""
+        from qustodio.config_flow import ConfigFlow
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = mock_profile_data
+
+            flow = ConfigFlow()
+            flow.hass = hass
+
+            result = await flow.async_step_user(
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                }
+            )
+
+            assert result["type"] == "create_entry"
+            assert result["title"] == "Qustodio (test@example.com)"
+            assert result["data"][CONF_USERNAME] == "test@example.com"
+            assert result["data"]["profiles"] == mock_profile_data
+
+    async def test_user_step_form(self, hass: HomeAssistant) -> None:
+        """Test showing form when no user input."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+
+        result = await flow.async_step_user(None)
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
+        assert result["errors"] == {}
+
+    async def test_user_step_cannot_connect(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test user step with connection error."""
+        from qustodio.config_flow import ConfigFlow
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection failed")
+
+            flow = ConfigFlow()
+            flow.hass = hass
+
+            result = await flow.async_step_user(
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                }
+            )
+
+            assert result["type"] == "form"
+            assert result["errors"]["base"] == "cannot_connect"
+
+    async def test_user_step_invalid_auth(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test user step with invalid credentials."""
+        from qustodio.config_flow import ConfigFlow
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
+
+            flow = ConfigFlow()
+            flow.hass = hass
+
+            result = await flow.async_step_user(
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "wrong_password",
+                }
+            )
+
+            assert result["type"] == "form"
+            assert result["errors"]["base"] == "invalid_auth"
+
+    async def test_user_step_unknown_error(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test user step with unexpected error."""
+        from qustodio.config_flow import ConfigFlow
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = Exception("Unexpected error")
+
+            flow = ConfigFlow()
+            flow.hass = hass
+
+            result = await flow.async_step_user(
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                }
+            )
+
+            assert result["type"] == "form"
+            assert result["errors"]["base"] == "unknown"
+
+    async def test_validate_input_generic_exception(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test validate_input with generic QustodioException."""
+        from qustodio.config_flow import CannotConnect, validate_input
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = QustodioException("Generic error")
+
+            with pytest.raises(CannotConnect):
+                await validate_input(
+                    hass,
+                    {
+                        CONF_USERNAME: "test@example.com",
+                        CONF_PASSWORD: "password",
+                    },
+                )
+
+
 class TestOptionsFlow:
     """Tests for Qustodio options flow."""
 
