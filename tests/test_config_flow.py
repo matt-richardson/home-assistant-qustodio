@@ -274,3 +274,150 @@ class TestOptionsFlow:
 
         assert OptionsFlowHandler is not None
         assert hasattr(OptionsFlowHandler, "__init__")
+
+
+class TestReauthFlow:
+    """Tests for reauthentication flow."""
+
+    async def test_reauth_step_initiates_flow(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test reauth step initiates the reauthentication flow."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+
+        with patch.object(hass.config_entries, "async_get_entry", return_value=mock_config_entry):
+            result = await flow.async_step_reauth(entry_data={})
+
+            assert result["type"] == FlowResultType.FORM
+            assert result["step_id"] == "reauth_confirm"
+            assert flow._reauth_entry == mock_config_entry
+
+    async def test_reauth_confirm_success(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+    ) -> None:
+        """Test successful reauthentication updates credentials."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+        flow._reauth_entry = mock_config_entry
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = mock_profile_data
+
+            result = await flow.async_step_reauth_confirm(
+                {
+                    CONF_PASSWORD: "new_password",
+                }
+            )
+
+            assert result["type"] == FlowResultType.ABORT
+            assert result["reason"] == "reauth_successful"
+
+    async def test_reauth_confirm_shows_form(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test reauth confirm shows form with pre-filled username."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+        flow._reauth_entry = mock_config_entry
+
+        result = await flow.async_step_reauth_confirm(None)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+        assert result["description_placeholders"]["username"] == "test@example.com"
+
+    async def test_reauth_confirm_invalid_auth(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test reauthentication with invalid credentials."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+        flow._reauth_entry = mock_config_entry
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
+
+            result = await flow.async_step_reauth_confirm(
+                {
+                    CONF_PASSWORD: "wrong_password",
+                }
+            )
+
+            assert result["type"] == FlowResultType.FORM
+            assert result["errors"]["base"] == "invalid_auth"
+
+    async def test_reauth_confirm_cannot_connect(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test reauthentication with connection error."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+        flow._reauth_entry = mock_config_entry
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection failed")
+
+            result = await flow.async_step_reauth_confirm(
+                {
+                    CONF_PASSWORD: "password",
+                }
+            )
+
+            assert result["type"] == FlowResultType.FORM
+            assert result["errors"]["base"] == "cannot_connect"
+
+    async def test_reauth_confirm_unknown_error(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test reauthentication with unexpected error."""
+        from qustodio.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = hass
+        flow.context = {"entry_id": mock_config_entry.entry_id}
+        flow._reauth_entry = mock_config_entry
+
+        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.login.side_effect = Exception("Unexpected error")
+
+            result = await flow.async_step_reauth_confirm(
+                {
+                    CONF_PASSWORD: "password",
+                }
+            )
+
+            assert result["type"] == FlowResultType.FORM
+            assert result["errors"]["base"] == "unknown"

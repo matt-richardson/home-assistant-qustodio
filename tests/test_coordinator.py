@@ -114,3 +114,31 @@ class TestQustodioDataUpdateCoordinator:
 
         with pytest.raises(UpdateFailed, match="Unexpected error"):
             await coordinator._async_update_data()
+
+    async def test_coordinator_triggers_reauth_on_auth_failure(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test coordinator triggers reauth flow on authentication failure."""
+        from qustodio.const import DOMAIN
+        from unittest.mock import Mock
+
+        mock_qustodio_api.get_data.side_effect = QustodioAuthenticationError("Token expired")
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api)
+
+        # Set up hass.data with the coordinator
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = coordinator
+
+        # Mock async_get_entry and async_start_reauth
+        mock_config_entry.async_start_reauth = Mock()
+        hass.config_entries.async_get_entry = Mock(return_value=mock_config_entry)
+
+        with pytest.raises(UpdateFailed, match="Authentication failed"):
+            await coordinator._async_update_data()
+
+        # Verify reauth was triggered
+        mock_config_entry.async_start_reauth.assert_called_once_with(hass)

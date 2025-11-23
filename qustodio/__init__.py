@@ -73,6 +73,19 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         except QustodioAuthenticationError as err:
             # Authentication errors should trigger a reauth flow
             _LOGGER.error("Authentication failed: %s", err)
+            # Get the config entry from hass data
+            entry_id = None
+            for entry_id_key, coordinator in self.hass.data.get(DOMAIN, {}).items():
+                if coordinator == self:
+                    entry_id = entry_id_key
+                    break
+
+            if entry_id:
+                entry = self.hass.config_entries.async_get_entry(entry_id)
+                if entry:
+                    _LOGGER.info("Triggering reauthentication flow for entry %s", entry_id)
+                    entry.async_start_reauth(self.hass)
+
             raise UpdateFailed(f"Authentication failed: {err}") from err
         except QustodioConnectionError as err:
             # Connection errors are usually temporary

@@ -118,21 +118,25 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ### Current Gaps
 - Basic username/password config flow
-- No reauthentication flow
+- ~~No reauthentication flow~~ ✅ **Reauthentication flow implemented**
 - Limited validation
-- Profiles snapshot at setup (no refresh)
+- ~~Profiles snapshot at setup (no refresh)~~ ✅ **Profiles refresh on reauth**
 - No options flow for runtime configuration
 
 ### Improvements Needed
+- [x] Reauthentication flow when tokens expire ✅ (2025-11-23)
+  - [x] `async_step_reauth()` and `async_step_reauth_confirm()` methods ✅
+  - [x] Pre-fills username from existing config ✅
+  - [x] Updates credentials and refreshes profiles ✅
+  - [x] Coordinator triggers reauth on authentication failure ✅
+  - [x] 7 comprehensive tests for reauth flow ✅
 - [ ] Enhance config flow with:
   - More validation (email format, password requirements)
   - Better error messages (10+ specific error types)
-  - Reauthentication flow when tokens expire
   - Options flow for:
     - Update interval configuration
     - Enable/disable specific profiles
     - GPS tracking opt-in/opt-out
-- [ ] Add profile refresh capability
 - [ ] Implement proper unique ID generation
 - [ ] Add duplicate entry prevention
 - [ ] Improve strings.json with detailed descriptions
@@ -143,14 +147,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ### Current Gaps
 - ~~No retry mechanism for transient failures~~ ✅ **Retry logic with exponential backoff implemented**
-- Token expiration not handled gracefully
+- ~~Token expiration not handled gracefully~~ ✅ **Reauthentication flow implemented**
 - Limited user feedback on errors
 - ~~No rate limit handling~~ ✅ **Rate limit detection with retry**
 - ~~Timeout is fixed~~ ✅ **Configurable timeout via RetryConfig**
 
 ### Improvements Needed
-- [ ] Implement graceful token refresh
-- [ ] Add automatic reauthentication on token expiry
+- [x] Implement graceful token refresh ✅ (2025-11-23)
+- [x] Add automatic reauthentication on token expiry ✅ (2025-11-23)
 - [x] Implement rate limit detection and backoff ✅ (2025-11-23)
 - [x] Add configurable timeout with defaults ✅ (2025-11-23)
 - [ ] Provide user-friendly error notifications
@@ -303,8 +307,8 @@ This document outlines planned improvements to bring the Qustodio integration up
 7. [ ] Base entity class to reduce duplication (Phase 3)
 8. [x] Session management and retry logic ✅ **(2025-11-23 - Pylint 10.00/10)**
 
-### Phase 3: Features (Medium Priority)
-1. Reauthentication flow
+### Phase 3: Features (Medium Priority - IN PROGRESS)
+1. [x] Reauthentication flow ✅ **(2025-11-23)**
 2. Options flow for configuration
 3. Additional entity types (binary sensors, diagnostics)
 4. Enhanced entity attributes
@@ -321,19 +325,19 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ## Success Metrics
 
-- **Test Coverage**: >95% (Target) - ✅ **95.14% ACHIEVED - TARGET MET** (Phase 2 COMPLETE)
-  - 122 tests passing (45 API, 13 config flow, 7 coordinator, 24 sensor, 22 device tracker, 11 init)
+- **Test Coverage**: >95% (Target) - ✅ **95% ACHIEVED - TARGET MET** (Phase 2 COMPLETE)
+  - 129 tests passing (45 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 11 init)
   - 100% coverage: const.py, exceptions.py, sensor.py, device_tracker.py, __init__.py
-  - 97% coverage: config_flow.py
+  - 98% coverage: config_flow.py (includes reauthentication flow)
   - 91% coverage: qustodioapi.py (includes retry/session management)
-  - Remaining uncovered lines are non-critical debug/warning paths (22 lines total)
+  - Remaining uncovered lines are non-critical debug/warning paths (24 lines total)
 - **CI/CD**: Automated testing on all PRs - TODO (Phase 3)
 - **Documentation**: Complete README + technical specs - ✅ README complete, API documentation added
 - **Code Quality**: All linters passing with zero warnings - ✅ ACHIEVED (Pylint 10.00/10, perfect score)
 - **Error Handling**: Specific exceptions for all error cases - ✅ DONE
 - **Retry Logic**: Exponential backoff with jitter - ✅ DONE (2025-11-23)
 - **Session Management**: Connection pooling and cleanup - ✅ DONE (2025-11-23)
-- **User Experience**: Clear error messages and reauthentication flow - Partial (reconfigure step added)
+- **User Experience**: Clear error messages and reauthentication flow - ✅ DONE (2025-11-23)
 - **Developer Experience**: One-command dev environment setup - ✅ DONE (dev.sh, setup-venv.sh)
 - **Releases**: Automated semantic versioning - TODO (Phase 4)
 

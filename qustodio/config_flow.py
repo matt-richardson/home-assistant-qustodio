@@ -65,6 +65,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     """Handle a config flow for Qustodio."""
 
     VERSION = 1
+    _reauth_entry: config_entries.ConfigEntry | None = None
 
     @staticmethod
     def async_get_options_flow(
@@ -100,6 +101,63 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                 return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors)
+
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]  # pylint: disable=unused-argument
+    ) -> ConfigFlowResult:
+        """Handle reauthentication when credentials expire."""
+        # Store the config entry for later update
+        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle reauthentication confirmation."""
+        errors: dict[str, str] = {}
+
+        # Ensure we have a reauth entry
+        assert self._reauth_entry is not None
+
+        if user_input is not None:
+            # Merge with existing config (username doesn't change)
+            username = self._reauth_entry.data[CONF_USERNAME]
+            data = {
+                CONF_USERNAME: username,
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+            }
+
+            try:
+                info = await validate_input(self.hass, data)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception during reauth")
+                errors["base"] = "unknown"
+            else:
+                # Update the config entry with new credentials and refreshed profiles
+                data["profiles"] = info["profiles"]
+                return self.async_update_reload_and_abort(
+                    self._reauth_entry,
+                    data=data,
+                )
+
+        # Show form with username pre-filled (read-only)
+        username = self._reauth_entry.data[CONF_USERNAME]
+
+        reauth_schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME, default=username, description={"suggested_value": username}): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=reauth_schema,
+            errors=errors,
+            description_placeholders={"username": username},
+        )
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
