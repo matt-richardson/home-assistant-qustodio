@@ -1,4 +1,5 @@
 """Qustodio device tracker platform."""
+
 from __future__ import annotations
 
 import logging
@@ -20,13 +21,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up Qustodio device tracker based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     profiles = entry.data.get("profiles", {})
-    
+
     entities = []
     for profile_id, profile_data in profiles.items():
         entities.append(QustodioDeviceTracker(coordinator, profile_data))
-    
+
     async_add_entities(entities)
 
 
@@ -38,10 +39,10 @@ class QustodioDeviceTracker(CoordinatorEntity, TrackerEntity):
         super().__init__(coordinator)
         self._profile_id = profile_data["id"]
         self._profile_name = profile_data["name"]
-        
+
         self._attr_name = f"Qustodio {self._profile_name}"
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._profile_id}"
-        
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._profile_id)},
             "name": self._profile_name,

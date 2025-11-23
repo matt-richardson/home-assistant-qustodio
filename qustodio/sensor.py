@@ -1,4 +1,5 @@
 """Qustodio sensor platform."""
+
 from __future__ import annotations
 
 import logging
@@ -21,13 +22,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up Qustodio sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     profiles = entry.data.get("profiles", {})
-    
+
     entities = []
     for profile_id, profile_data in profiles.items():
         entities.append(QustodioSensor(coordinator, profile_data))
-    
+
     async_add_entities(entities)
 
 
@@ -39,14 +40,14 @@ class QustodioSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._profile_id = profile_data["id"]
         self._profile_name = profile_data["name"]
-        
+
         self._attr_name = f"Qustodio {self._profile_name}"
         self._attr_unique_id = f"{DOMAIN}_{self._profile_id}"
         self._attr_attribution = ATTRIBUTION
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_suggested_display_precision = 1
-        
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._profile_id)},
             "name": self._profile_name,
@@ -67,7 +68,7 @@ class QustodioSensor(CoordinatorEntity, SensorEntity):
             data = self.coordinator.data[self._profile_id]
             time_used = data.get("time", 0)
             quota = data.get("quota", 0)
-            
+
             if time_used < quota:
                 return ICON_IN_TIME
         return ICON_NO_TIME
