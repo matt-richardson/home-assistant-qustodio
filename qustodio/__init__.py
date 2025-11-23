@@ -104,9 +104,7 @@ def setup_profile_entities(
         List of entity instances
     """
     profiles = entry.data.get("profiles", {})
-    return [
-        entity_class(coordinator, profile_data) for profile_data in profiles.values()
-    ]
+    return [entity_class(coordinator, profile_data) for profile_data in profiles.values()]
 
 
 def is_profile_available(coordinator: DataUpdateCoordinator, profile_id: str) -> bool:
@@ -119,8 +117,4 @@ def is_profile_available(coordinator: DataUpdateCoordinator, profile_id: str) ->
     Returns:
         True if profile data is available
     """
-    return (
-        coordinator.last_update_success
-        and coordinator.data is not None
-        and profile_id in coordinator.data
-    )
+    return coordinator.last_update_success and coordinator.data is not None and profile_id in coordinator.data

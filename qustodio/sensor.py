@@ -18,9 +18,7 @@ from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, MANUFACTURER
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up Qustodio sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = setup_profile_entities(coordinator, entry, QustodioSensor)
@@ -34,18 +32,34 @@ class QustodioSensor(CoordinatorEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._profile_id = profile_data["id"]
-        self._profile_name = profile_data["name"]
-
-        self._attr_name = f"Qustodio {self._profile_name}"
         self._attr_unique_id = f"{DOMAIN}_{self._profile_id}"
-        self._attr_attribution = ATTRIBUTION
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_suggested_display_precision = 1
 
-        self._attr_device_info = {
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        if self.coordinator.data and self._profile_id in self.coordinator.data:
+            profile_name = self.coordinator.data[self._profile_id].get("name", "Unknown")
+            return f"Qustodio {profile_name}"
+        return f"Qustodio {self._profile_id}"
+
+    @property
+    def attribution(self) -> str:
+        """Return the attribution."""
+        return ATTRIBUTION
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Return device information."""
+        if self.coordinator.data and self._profile_id in self.coordinator.data:
+            profile_name = self.coordinator.data[self._profile_id].get("name", "Unknown")
+        else:
+            profile_name = self._profile_id
+        return {
             "identifiers": {(DOMAIN, self._profile_id)},
-            "name": self._profile_name,
+            "name": profile_name,
             "manufacturer": MANUFACTURER,
         }
 

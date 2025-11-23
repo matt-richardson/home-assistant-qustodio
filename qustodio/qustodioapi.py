@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, date
 from typing import Any
 
@@ -18,6 +19,18 @@ from .exceptions import (
     QustodioRateLimitError,
 )
 
+
+@dataclass
+class ProfileContext:
+    """Context for processing a profile."""
+
+    session: aiohttp.ClientSession
+    headers: dict[str, Any]
+    profile: dict[str, Any]
+    devices: dict[str, Any]
+    dow: str
+
+
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
 
@@ -27,9 +40,7 @@ URL_ACCOUNT = "https://api.qustodio.com/v1/accounts/me"
 URL_PROFILES = "https://api.qustodio.com/v1/accounts/{}/profiles/"
 URL_RULES = "https://api.qustodio.com/v1/accounts/{}/profiles/{}/rules?app_rules=1"
 URL_DEVICES = "https://api.qustodio.com/v1/accounts/{}/devices"
-URL_HOURLY_SUMMARY = (
-    "https://api.qustodio.com/v2/accounts/{}/profiles/{}/summary_hourly?date={}"
-)
+URL_HOURLY_SUMMARY = "https://api.qustodio.com/v2/accounts/{}/profiles/{}/summary_hourly?date={}"
 URL_ACTIVITY = "https://api.qustodio.com/v1/accounts/{}/profiles/{}/activity"
 
 # Client credentials - these are extracted from the mobile app and may change
@@ -61,11 +72,7 @@ class QustodioApi:
             QustodioAPIError: API returned unexpected error
             QustodioDataError: Response missing expected data
         """
-        if (
-            self._access_token is not None
-            and self._expires_in is not None
-            and self._expires_in > datetime.now()
-        ):
+        if self._access_token is not None and self._expires_in is not None and self._expires_in > datetime.now():
             return LOGIN_RESULT_OK
 
         _LOGGER.debug("Logging in to Qustodio API")
@@ -86,9 +93,7 @@ class QustodioApi:
                 async with session.post(URL_LOGIN, data=data) as response:
                     if response.status == 401:
                         _LOGGER.error("Unauthorized: Invalid credentials")
-                        raise QustodioAuthenticationError(
-                            "Invalid username or password"
-                        )
+                        raise QustodioAuthenticationError("Invalid username or password")
 
                     if response.status == 429:
                         _LOGGER.error("Rate limit exceeded")
@@ -96,9 +101,7 @@ class QustodioApi:
 
                     if response.status != 200:
                         text = await response.text()
-                        _LOGGER.error(
-                            "Login failed with status %s: %s", response.status, text
-                        )
+                        _LOGGER.error("Login failed with status %s: %s", response.status, text)
                         raise QustodioAPIError(
                             f"Login failed with status {response.status}",
                             status_code=response.status,
@@ -111,9 +114,7 @@ class QustodioApi:
                         raise QustodioDataError("Response missing access token")
 
                     self._access_token = response_data["access_token"]
-                    self._expires_in = datetime.now() + timedelta(
-                        seconds=response_data.get("expires_in", 3600)
-                    )
+                    self._expires_in = datetime.now() + timedelta(seconds=response_data.get("expires_in", 3600))
                     _LOGGER.debug("Login successful")
                     return LOGIN_RESULT_OK
 
@@ -130,16 +131,12 @@ class QustodioApi:
             raise QustodioConnectionError("Connection timeout during login") from err
         except aiohttp.ClientError as err:
             _LOGGER.error("Login connection error: %s", err)
-            raise QustodioConnectionError(
-                f"Connection error during login: {err}"
-            ) from err
+            raise QustodioConnectionError(f"Connection error during login: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected login error: %s", err)
             raise QustodioAPIError(f"Unexpected error during login: {err}") from err
 
-    async def _fetch_account_info(
-        self, session: aiohttp.ClientSession, headers: dict[str, str]
-    ) -> None:
+    async def _fetch_account_info(self, session: aiohttp.ClientSession, headers: dict[str, str]) -> None:
         """Fetch and store account information."""
         async with session.get(URL_ACCOUNT, headers=headers) as response:
             if response.status == 401:
@@ -159,16 +156,12 @@ class QustodioApi:
             self._account_id = account_data["id"]
             self._account_uid = account_data.get("uid", account_data["id"])
 
-    async def _fetch_devices(
-        self, session: aiohttp.ClientSession, headers: dict[str, str]
-    ) -> dict[str, Any]:
+    async def _fetch_devices(self, session: aiohttp.ClientSession, headers: dict[str, str]) -> dict[str, Any]:
         """Fetch devices from API."""
         _LOGGER.debug("Getting devices")
         devices = {}
         try:
-            async with session.get(
-                URL_DEVICES.format(self._account_id), headers=headers
-            ) as response:
+            async with session.get(URL_DEVICES.format(self._account_id), headers=headers) as response:
                 if response.status == 200:
                     devices_data = await response.json()
                     devices = {device["id"]: device for device in devices_data}
@@ -178,14 +171,10 @@ class QustodioApi:
             _LOGGER.warning("Error getting devices: %s", err)
         return devices
 
-    async def _fetch_profiles(
-        self, session: aiohttp.ClientSession, headers: dict[str, str]
-    ) -> list[dict[str, Any]]:
+    async def _fetch_profiles(self, session: aiohttp.ClientSession, headers: dict[str, str]) -> list[dict[str, Any]]:
         """Fetch profiles from API."""
         _LOGGER.debug("Getting profiles")
-        async with session.get(
-            URL_PROFILES.format(self._account_id), headers=headers
-        ) as response:
+        async with session.get(URL_PROFILES.format(self._account_id), headers=headers) as response:
             if response.status == 401:
                 raise QustodioAuthenticationError("Token expired or invalid")
             if response.status == 429:
@@ -279,47 +268,30 @@ class QustodioApi:
             ) as response:
                 if response.status == 200:
                     hourly_data = await response.json()
-                    total_time = sum(
-                        entry.get("screen_time_seconds", 0) for entry in hourly_data
-                    )
+                    total_time = sum(entry.get("screen_time_seconds", 0) for entry in hourly_data)
                     return round(total_time / 60, 1)  # Convert to minutes
-                _LOGGER.debug(
-                    "Hourly summary not available for profile %s", profile_name
-                )
+                _LOGGER.debug("Hourly summary not available for profile %s", profile_name)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            _LOGGER.warning(
-                "Failed to get screen time for profile %s: %s", profile_name, err
-            )
+            _LOGGER.warning("Failed to get screen time for profile %s: %s", profile_name, err)
         return 0
 
-    async def _process_profile(
-        self,
-        session: aiohttp.ClientSession,
-        headers: dict[str, str],
-        profile: dict[str, Any],
-        devices: dict[str, Any],
-        dow: str,
-    ) -> dict[str, Any]:
+    async def _process_profile(self, ctx: ProfileContext) -> dict[str, Any]:
         """Process a single profile and gather all its data."""
-        _LOGGER.debug("Processing profile: %s", profile["name"])
+        _LOGGER.debug("Processing profile: %s", ctx.profile["name"])
         profile_data = {
-            "id": profile["id"],
-            "uid": profile.get("uid", profile["id"]),
-            "name": profile["name"],
-            "is_online": profile.get("status", {}).get("is_online", False),
+            "id": ctx.profile["id"],
+            "uid": ctx.profile.get("uid", ctx.profile["id"]),
+            "name": ctx.profile["name"],
+            "is_online": ctx.profile.get("status", {}).get("is_online", False),
             "unauthorized_remove": False,
             "device_tampered": None,
         }
 
-        self._check_device_tampering(profile_data, profile, devices)
-        self._set_location_data(profile_data, profile, devices)
+        self._check_device_tampering(profile_data, ctx.profile, ctx.devices)
+        self._set_location_data(profile_data, ctx.profile, ctx.devices)
 
-        profile_data["quota"] = await self._fetch_quota(
-            session, headers, profile_data, dow
-        )
-        profile_data["time"] = await self._fetch_screen_time(
-            session, headers, profile_data
-        )
+        profile_data["quota"] = await self._fetch_quota(ctx.session, ctx.headers, profile_data, ctx.dow)
+        profile_data["time"] = await self._fetch_screen_time(ctx.session, ctx.headers, profile_data)
 
         return profile_data
 
@@ -369,9 +341,8 @@ class QustodioApi:
                         _LOGGER.warning("Profile missing required fields, skipping")
                         continue
 
-                    profile_data = await self._process_profile(
-                        session, headers, profile, devices, dow
-                    )
+                    ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices, dow=dow)
+                    profile_data = await self._process_profile(ctx)
                     data[profile_data["id"]] = profile_data
 
                 self._session = None
@@ -387,18 +358,12 @@ class QustodioApi:
             raise
         except asyncio.TimeoutError as err:
             _LOGGER.error("Timeout getting data from Qustodio API")
-            raise QustodioConnectionError(
-                "Connection timeout while fetching data"
-            ) from err
+            raise QustodioConnectionError("Connection timeout while fetching data") from err
         except aiohttp.ClientError as err:
             _LOGGER.error("Connection error getting data from Qustodio API: %s", err)
-            raise QustodioConnectionError(
-                f"Connection error while fetching data: {err}"
-            ) from err
+            raise QustodioConnectionError(f"Connection error while fetching data: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
-            raise QustodioAPIError(
-                f"Unexpected error while fetching data: {err}"
-            ) from err
+            raise QustodioAPIError(f"Unexpected error while fetching data: {err}") from err
         finally:
             self._session = None

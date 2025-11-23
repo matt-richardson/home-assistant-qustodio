@@ -66,7 +66,7 @@ async def validate_input(_hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         raise CannotConnect from err
 
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Qustodio."""
 
     VERSION = 1
@@ -78,9 +78,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle reconfiguration of the integration."""
+        return await self.async_step_user(user_input)
+
+    def is_matching(self, other_flow: config_entries.ConfigFlow) -> bool:
+        """Return True if other_flow is matching this flow."""
+        return False
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -98,9 +104,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 user_input["profiles"] = info["profiles"]
                 return self.async_create_entry(title=info["title"], data=user_input)
 
-        return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
-        )
+        return self.async_show_form(step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors)
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):

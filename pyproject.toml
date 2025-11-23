@@ -1,0 +1,19 @@
+[tool.black]
+line-length = 120
+target-version = ['py311']
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = [
+    "venv/",
+    ".venv/",
+    "homeassistant_test/",
+]
+
+[[tool.mypy.overrides]]
+module = "homeassistant.*"
+ignore_errors = true
