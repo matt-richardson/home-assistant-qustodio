@@ -437,12 +437,7 @@ class TestQustodioOptionsFlow:
     ) -> None:
         """Test options flow initialization."""
         from custom_components.qustodio.config_flow import OptionsFlowHandler
-        from custom_components.qustodio.const import (
-            CONF_ENABLE_GPS_TRACKING,
-            CONF_UPDATE_INTERVAL,
-            DEFAULT_ENABLE_GPS_TRACKING,
-            DEFAULT_UPDATE_INTERVAL,
-        )
+        from custom_components.qustodio.const import CONF_ENABLE_GPS_TRACKING, CONF_UPDATE_INTERVAL
 
         flow = OptionsFlowHandler(mock_config_entry)
 
