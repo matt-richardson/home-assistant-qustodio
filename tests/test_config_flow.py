@@ -10,8 +10,12 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from qustodio.config_flow import CannotConnect, ConfigFlow, InvalidAuth
-from qustodio.exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from custom_components.qustodio.config_flow import CannotConnect, ConfigFlow, InvalidAuth
+from custom_components.qustodio.exceptions import (
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioException,
+)
 
 
 class TestConfigFlow:
@@ -50,9 +54,9 @@ class TestValidateInput:
         mock_profile_data: dict[str, Any],
     ) -> None:
         """Test successful input validation."""
-        from qustodio.config_flow import validate_input
+        from custom_components.qustodio.config_flow import validate_input
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
             result = await validate_input(
@@ -72,9 +76,9 @@ class TestValidateInput:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with no profiles."""
-        from qustodio.config_flow import validate_input
+        from custom_components.qustodio.config_flow import validate_input
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.get_data.return_value = {}
 
             result = await validate_input(
@@ -94,9 +98,9 @@ class TestValidateInput:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with invalid auth."""
-        from qustodio.config_flow import validate_input
+        from custom_components.qustodio.config_flow import validate_input
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
 
             with pytest.raises(InvalidAuth):
@@ -114,9 +118,9 @@ class TestValidateInput:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with connection error."""
-        from qustodio.config_flow import validate_input
+        from custom_components.qustodio.config_flow import validate_input
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection timeout")
 
             with pytest.raises(CannotConnect):
@@ -139,9 +143,9 @@ class TestUserFlow:
         mock_profile_data: dict[str, Any],
     ) -> None:
         """Test successful user step creates entry."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
             flow = ConfigFlow()
@@ -161,7 +165,7 @@ class TestUserFlow:
 
     async def test_user_step_form(self, hass: HomeAssistant) -> None:
         """Test showing form when no user input."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
@@ -178,9 +182,9 @@ class TestUserFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with connection error."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection failed")
 
             flow = ConfigFlow()
@@ -202,9 +206,9 @@ class TestUserFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with invalid credentials."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
 
             flow = ConfigFlow()
@@ -226,9 +230,9 @@ class TestUserFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with unexpected error."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = Exception("Unexpected error")
 
             flow = ConfigFlow()
@@ -250,9 +254,9 @@ class TestUserFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input with generic QustodioException."""
-        from qustodio.config_flow import CannotConnect, validate_input
+        from custom_components.qustodio.config_flow import CannotConnect, validate_input
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioException("Generic error")
 
             with pytest.raises(CannotConnect):
@@ -270,7 +274,7 @@ class TestOptionsFlow:
 
     async def test_options_flow_exists(self) -> None:
         """Test that OptionsFlowHandler class exists."""
-        from qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
 
         assert OptionsFlowHandler is not None
         assert hasattr(OptionsFlowHandler, "__init__")
@@ -285,7 +289,7 @@ class TestReauthFlow:
         mock_config_entry: Any,
     ) -> None:
         """Test reauth step initiates the reauthentication flow."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
@@ -306,14 +310,14 @@ class TestReauthFlow:
         mock_profile_data: dict[str, Any],
     ) -> None:
         """Test successful reauthentication updates credentials."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
             result = await flow.async_step_reauth_confirm(
@@ -331,7 +335,7 @@ class TestReauthFlow:
         mock_config_entry: Any,
     ) -> None:
         """Test reauth confirm shows form with pre-filled username."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
@@ -351,14 +355,14 @@ class TestReauthFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test reauthentication with invalid credentials."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
 
             result = await flow.async_step_reauth_confirm(
@@ -377,14 +381,14 @@ class TestReauthFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test reauthentication with connection error."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection failed")
 
             result = await flow.async_step_reauth_confirm(
@@ -403,14 +407,14 @@ class TestReauthFlow:
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test reauthentication with unexpected error."""
-        from qustodio.config_flow import ConfigFlow
+        from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
         flow.hass = hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
-        with patch("qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
             mock_qustodio_api.login.side_effect = Exception("Unexpected error")
 
             result = await flow.async_step_reauth_confirm(

@@ -9,15 +9,15 @@ from unittest.mock import AsyncMock, Mock, patch
 import aiohttp
 import pytest
 
-from qustodio.const import LOGIN_RESULT_OK
-from qustodio.exceptions import (
+from custom_components.qustodio.const import LOGIN_RESULT_OK
+from custom_components.qustodio.exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
     QustodioConnectionError,
     QustodioDataError,
     QustodioRateLimitError,
 )
-from qustodio.qustodioapi import QustodioApi, RetryConfig
+from custom_components.qustodio.qustodioapi import QustodioApi, RetryConfig
 
 
 class TestQustodioApiLogin:

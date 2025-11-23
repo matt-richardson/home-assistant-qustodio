@@ -15,7 +15,7 @@ case "$1" in
         ;;
     "test-cov")
         echo "🧪 Running tests with coverage..."
-        pytest tests/ --cov=qustodio --cov-report=html --cov-report=term-missing --cov-fail-under=95
+        pytest tests/ --cov=custom_components/qustodio --cov-report=html --cov-report=term-missing --cov-fail-under=95
         ;;
     "test-single")
         if [ -z "$2" ]; then
@@ -29,18 +29,18 @@ case "$1" in
     "lint")
         echo "🔍 Running linting..."
         echo "Running black..."
-        black --check qustodio/ tests/
+        black --check custom_components/ tests/
         echo "Running flake8..."
-        flake8 qustodio/ tests/
+        flake8 custom_components/ tests/
         echo "Running mypy..."
-        mypy qustodio/
+        mypy custom_components/
         echo "Running pylint..."
-        pylint qustodio/
+        pylint custom_components/
         ;;
     "format")
         echo "🎨 Formatting code..."
-        black qustodio/ tests/
-        isort qustodio/ tests/
+        black custom_components/ tests/
+        isort custom_components/ tests/
         ;;
     "ha-test")
         echo "🏠 Starting Home Assistant test instance..."
@@ -57,13 +57,13 @@ case "$1" in
     "validate")
         echo "✅ Running full validation suite..."
         echo "🎨 Formatting code..."
-        black qustodio/ tests/
-        isort qustodio/ tests/
+        black custom_components/ tests/
+        isort custom_components/ tests/
         echo "🔍 Running linting..."
-        flake8 qustodio/ tests/
-        pylint qustodio/
+        flake8 custom_components/ tests/
+        pylint custom_components/
         echo "🧪 Running tests with coverage..."
-        pytest tests/ --cov=qustodio --cov-report=html --cov-report=term-missing --cov-fail-under=95
+        pytest tests/ --cov=custom_components/qustodio --cov-report=html --cov-report=term-missing --cov-fail-under=95
         echo "🏠 Validating Home Assistant configuration..."
         cd homeassistant_test && hass --config . --script check_config
         ;;
@@ -82,7 +82,7 @@ case "$1" in
     "install")
         echo "📦 Installing integration for testing..."
         mkdir -p homeassistant_test/custom_components
-        ln -sf $(pwd)/qustodio homeassistant_test/custom_components/qustodio
+        ln -sf $(pwd)/custom_components/qustodio homeassistant_test/custom_components/qustodio
         echo "✅ Integration installed in test Home Assistant instance"
         ;;
     "help"|*)

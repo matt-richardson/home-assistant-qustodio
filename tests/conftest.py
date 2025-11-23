@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
-from qustodio.const import DOMAIN
+from custom_components.qustodio.const import DOMAIN
 
 
 @pytest.fixture

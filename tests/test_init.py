@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from qustodio import (
+from custom_components.qustodio import (
     QustodioDataUpdateCoordinator,
     async_setup_entry,
     async_unload_entry,
     is_profile_available,
     setup_profile_entities,
 )
-from qustodio.const import DOMAIN
+from custom_components.qustodio.const import DOMAIN
 
 
 class TestAsyncSetupEntry:
@@ -30,8 +30,11 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test successful setup of config entry."""
         with (
-            patch("qustodio.QustodioApi", return_value=mock_qustodio_api),
-            patch("qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock),
+            patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch(
+                "custom_components.qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh",
+                new_callable=AsyncMock,
+            ),
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
@@ -55,8 +58,11 @@ class TestAsyncSetupEntry:
         hass.data[DOMAIN] = {"other_entry": "some_data"}
 
         with (
-            patch("qustodio.QustodioApi", return_value=mock_qustodio_api),
-            patch("qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock),
+            patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch(
+                "custom_components.qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh",
+                new_callable=AsyncMock,
+            ),
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 

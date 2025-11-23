@@ -9,8 +9,8 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from qustodio import QustodioDataUpdateCoordinator
-from qustodio.exceptions import (
+from custom_components.qustodio import QustodioDataUpdateCoordinator
+from custom_components.qustodio.exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
     QustodioConnectionError,
@@ -122,7 +122,7 @@ class TestQustodioDataUpdateCoordinator:
         mock_config_entry: Any,
     ) -> None:
         """Test coordinator triggers reauth flow on authentication failure."""
-        from qustodio.const import DOMAIN
+        from custom_components.qustodio.const import DOMAIN
         from unittest.mock import Mock
 
         mock_qustodio_api.get_data.side_effect = QustodioAuthenticationError("Token expired")

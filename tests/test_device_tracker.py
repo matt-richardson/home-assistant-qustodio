@@ -7,8 +7,8 @@ from unittest.mock import Mock
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.core import HomeAssistant
 
-from qustodio.const import ATTRIBUTION, DOMAIN
-from qustodio.device_tracker import QustodioDeviceTracker, async_setup_entry
+from custom_components.qustodio.const import ATTRIBUTION, DOMAIN
+from custom_components.qustodio.device_tracker import QustodioDeviceTracker, async_setup_entry
 
 
 class TestQustodioDeviceTrackerSetup:
