@@ -24,7 +24,7 @@
             "module": "pytest",
             "args": [
                 "tests/",
-                "--cov=qustodio",
+                "--cov=custom_components/qustodio",
                 "--cov-report=html",
                 "--cov-report=term-missing",
                 "--cov-report=xml:coverage.xml",
@@ -97,7 +97,7 @@
             "request": "launch",
             "module": "black",
             "args": [
-                "qustodio/",
+                "custom_components/",
                 "tests/"
             ],
             "console": "integratedTerminal",
@@ -111,7 +111,7 @@
             "module": "black",
             "args": [
                 "--check",
-                "qustodio/",
+                "custom_components/",
                 "tests/"
             ],
             "console": "integratedTerminal",
@@ -124,7 +124,7 @@
             "request": "launch",
             "module": "flake8",
             "args": [
-                "qustodio/",
+                "custom_components/",
                 "tests/",
                 "--max-line-length=120",
                 "--extend-ignore=E203,W503"
@@ -139,7 +139,7 @@
             "request": "launch",
             "module": "pylint",
             "args": [
-                "qustodio/"
+                "custom_components/"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -151,7 +151,7 @@
             "request": "launch",
             "module": "mypy",
             "args": [
-                "qustodio/"
+                "custom_components/"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
