@@ -137,6 +137,192 @@ class QustodioApi:
             _LOGGER.error("Unexpected login error: %s", err)
             raise QustodioAPIError(f"Unexpected error during login: {err}") from err
 
+    async def _fetch_account_info(
+        self, session: aiohttp.ClientSession, headers: dict[str, str]
+    ) -> None:
+        """Fetch and store account information."""
+        async with session.get(URL_ACCOUNT, headers=headers) as response:
+            if response.status == 401:
+                raise QustodioAuthenticationError("Token expired or invalid")
+            if response.status == 429:
+                raise QustodioRateLimitError("API rate limit exceeded")
+            if response.status != 200:
+                raise QustodioAPIError(
+                    f"Failed to get account info: HTTP {response.status}",
+                    status_code=response.status,
+                )
+
+            account_data = await response.json()
+            if "id" not in account_data:
+                raise QustodioDataError("Account data missing required 'id' field")
+
+            self._account_id = account_data["id"]
+            self._account_uid = account_data.get("uid", account_data["id"])
+
+    async def _fetch_devices(
+        self, session: aiohttp.ClientSession, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        """Fetch devices from API."""
+        _LOGGER.debug("Getting devices")
+        devices = {}
+        try:
+            async with session.get(
+                URL_DEVICES.format(self._account_id), headers=headers
+            ) as response:
+                if response.status == 200:
+                    devices_data = await response.json()
+                    devices = {device["id"]: device for device in devices_data}
+                else:
+                    _LOGGER.warning("Failed to get devices: %s", response.status)
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.warning("Error getting devices: %s", err)
+        return devices
+
+    async def _fetch_profiles(
+        self, session: aiohttp.ClientSession, headers: dict[str, str]
+    ) -> list[dict[str, Any]]:
+        """Fetch profiles from API."""
+        _LOGGER.debug("Getting profiles")
+        async with session.get(
+            URL_PROFILES.format(self._account_id), headers=headers
+        ) as response:
+            if response.status == 401:
+                raise QustodioAuthenticationError("Token expired or invalid")
+            if response.status == 429:
+                raise QustodioRateLimitError("API rate limit exceeded")
+            if response.status != 200:
+                raise QustodioAPIError(
+                    f"Failed to get profiles: HTTP {response.status}",
+                    status_code=response.status,
+                )
+
+            profiles_data = await response.json()
+            if not isinstance(profiles_data, list):
+                raise QustodioDataError("Profiles data is not a list")
+            return profiles_data
+
+    def _check_device_tampering(
+        self,
+        profile_data: dict[str, Any],
+        profile: dict[str, Any],
+        devices: dict[str, Any],
+    ) -> None:
+        """Check for unauthorized device removal."""
+        device_ids = profile.get("device_ids", [])
+        for device_id in device_ids:
+            if device_id in devices:
+                device = devices[device_id]
+                alerts = device.get("alerts", {})
+                if alerts.get("unauthorized_remove", False):
+                    profile_data["unauthorized_remove"] = True
+                    profile_data["device_tampered"] = device.get("name", "Unknown")
+
+    def _set_location_data(
+        self,
+        profile_data: dict[str, Any],
+        profile: dict[str, Any],
+        devices: dict[str, Any],
+    ) -> None:
+        """Set current device and location data."""
+        status = profile.get("status", {})
+        location = status.get("location", {})
+        device_id = location.get("device")
+
+        if profile_data["is_online"] and device_id and device_id in devices:
+            profile_data["current_device"] = devices[device_id].get("name")
+        else:
+            profile_data["current_device"] = None
+
+        profile_data["latitude"] = location.get("latitude")
+        profile_data["longitude"] = location.get("longitude")
+        profile_data["accuracy"] = location.get("accuracy", 0)
+        profile_data["lastseen"] = status.get("lastseen")
+
+    async def _fetch_quota(
+        self,
+        session: aiohttp.ClientSession,
+        headers: dict[str, str],
+        profile_data: dict[str, Any],
+        dow: str,
+    ) -> int:
+        """Fetch quota for a profile."""
+        profile_id = profile_data["id"]
+        profile_name = profile_data["name"]
+        try:
+            async with session.get(
+                URL_RULES.format(self._account_id, profile_id),
+                headers=headers,
+            ) as response:
+                if response.status == 200:
+                    rules_data = await response.json()
+                    time_restrictions = rules_data.get("time_restrictions", {})
+                    quotas = time_restrictions.get("quotas", {})
+                    return quotas.get(dow, 0)
+                _LOGGER.debug("No rules found for profile %s", profile_name)
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.warning("Failed to get rules for profile %s: %s", profile_name, err)
+        return 0
+
+    async def _fetch_screen_time(
+        self,
+        session: aiohttp.ClientSession,
+        headers: dict[str, str],
+        profile_data: dict[str, Any],
+    ) -> float:
+        """Fetch screen time for a profile."""
+        profile_uid = profile_data["uid"]
+        profile_name = profile_data["name"]
+        try:
+            async with session.get(
+                URL_HOURLY_SUMMARY.format(self._account_uid, profile_uid, date.today()),
+                headers=headers,
+            ) as response:
+                if response.status == 200:
+                    hourly_data = await response.json()
+                    total_time = sum(
+                        entry.get("screen_time_seconds", 0) for entry in hourly_data
+                    )
+                    return round(total_time / 60, 1)  # Convert to minutes
+                _LOGGER.debug(
+                    "Hourly summary not available for profile %s", profile_name
+                )
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.warning(
+                "Failed to get screen time for profile %s: %s", profile_name, err
+            )
+        return 0
+
+    async def _process_profile(
+        self,
+        session: aiohttp.ClientSession,
+        headers: dict[str, str],
+        profile: dict[str, Any],
+        devices: dict[str, Any],
+        dow: str,
+    ) -> dict[str, Any]:
+        """Process a single profile and gather all its data."""
+        _LOGGER.debug("Processing profile: %s", profile["name"])
+        profile_data = {
+            "id": profile["id"],
+            "uid": profile.get("uid", profile["id"]),
+            "name": profile["name"],
+            "is_online": profile.get("status", {}).get("is_online", False),
+            "unauthorized_remove": False,
+            "device_tampered": None,
+        }
+
+        self._check_device_tampering(profile_data, profile, devices)
+        self._set_location_data(profile_data, profile, devices)
+
+        profile_data["quota"] = await self._fetch_quota(
+            session, headers, profile_data, dow
+        )
+        profile_data["time"] = await self._fetch_screen_time(
+            session, headers, profile_data
+        )
+
+        return profile_data
+
     async def get_data(self) -> dict[str, Any]:
         """Get data from Qustodio API.
 
@@ -165,61 +351,15 @@ class QustodioApi:
                 }
 
                 # Get account info
-                async with session.get(URL_ACCOUNT, headers=headers) as response:
-                    if response.status == 401:
-                        raise QustodioAuthenticationError("Token expired or invalid")
-                    if response.status == 429:
-                        raise QustodioRateLimitError("API rate limit exceeded")
-                    if response.status != 200:
-                        raise QustodioAPIError(
-                            f"Failed to get account info: HTTP {response.status}",
-                            status_code=response.status,
-                        )
+                await self._fetch_account_info(session, headers)
 
-                    account_data = await response.json()
-                    if "id" not in account_data:
-                        raise QustodioDataError(
-                            "Account data missing required 'id' field"
-                        )
-
-                    self._account_id = account_data["id"]
-                    self._account_uid = account_data.get("uid", account_data["id"])
-
-                _LOGGER.debug("Getting devices")
-                devices = {}
-                try:
-                    async with session.get(
-                        URL_DEVICES.format(self._account_id), headers=headers
-                    ) as response:
-                        if response.status == 200:
-                            devices_data = await response.json()
-                            devices = {device["id"]: device for device in devices_data}
-                        else:
-                            _LOGGER.warning(
-                                "Failed to get devices: %s", response.status
-                            )
-                except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-                    _LOGGER.warning("Error getting devices: %s", err)
+                # Get devices
+                devices = await self._fetch_devices(session, headers)
 
                 # Get profiles
-                _LOGGER.debug("Getting profiles")
-                async with session.get(
-                    URL_PROFILES.format(self._account_id), headers=headers
-                ) as response:
-                    if response.status == 401:
-                        raise QustodioAuthenticationError("Token expired or invalid")
-                    if response.status == 429:
-                        raise QustodioRateLimitError("API rate limit exceeded")
-                    if response.status != 200:
-                        raise QustodioAPIError(
-                            f"Failed to get profiles: HTTP {response.status}",
-                            status_code=response.status,
-                        )
+                profiles_data = await self._fetch_profiles(session, headers)
 
-                    profiles_data = await response.json()
-                    if not isinstance(profiles_data, list):
-                        raise QustodioDataError("Profiles data is not a list")
-
+                # Process each profile
                 days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
                 dow = days[datetime.today().weekday()]
                 data = {}
@@ -229,96 +369,9 @@ class QustodioApi:
                         _LOGGER.warning("Profile missing required fields, skipping")
                         continue
 
-                    _LOGGER.debug("Processing profile: %s", profile["name"])
-                    profile_data = {
-                        "id": profile["id"],
-                        "uid": profile.get("uid", profile["id"]),
-                        "name": profile["name"],
-                        "is_online": profile.get("status", {}).get("is_online", False),
-                        "unauthorized_remove": False,
-                        "device_tampered": None,
-                    }
-
-                    # Check for unauthorized device removal
-                    device_ids = profile.get("device_ids", [])
-                    for device_id in device_ids:
-                        if device_id in devices:
-                            device = devices[device_id]
-                            alerts = device.get("alerts", {})
-                            if alerts.get("unauthorized_remove", False):
-                                profile_data["unauthorized_remove"] = True
-                                profile_data["device_tampered"] = device.get(
-                                    "name", "Unknown"
-                                )
-
-                    # Set current device and location
-                    status = profile.get("status", {})
-                    location = status.get("location", {})
-                    device_id = location.get("device")
-
-                    if profile_data["is_online"] and device_id and device_id in devices:
-                        profile_data["current_device"] = devices[device_id].get("name")
-                    else:
-                        profile_data["current_device"] = None
-
-                    profile_data["latitude"] = location.get("latitude")
-                    profile_data["longitude"] = location.get("longitude")
-                    profile_data["accuracy"] = location.get("accuracy", 0)
-                    profile_data["lastseen"] = status.get("lastseen")
-
-                    profile_data["quota"] = 0
-                    try:
-                        async with session.get(
-                            URL_RULES.format(self._account_id, profile_data["id"]),
-                            headers=headers,
-                        ) as response:
-                            if response.status == 200:
-                                rules_data = await response.json()
-                                time_restrictions = rules_data.get(
-                                    "time_restrictions", {}
-                                )
-                                quotas = time_restrictions.get("quotas", {})
-                                profile_data["quota"] = quotas.get(dow, 0)
-                            else:
-                                _LOGGER.debug(
-                                    "No rules found for profile %s", profile["name"]
-                                )
-                    except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-                        _LOGGER.warning(
-                            "Failed to get rules for profile %s: %s",
-                            profile["name"],
-                            err,
-                        )
-
-                    profile_data["time"] = 0
-                    try:
-                        async with session.get(
-                            URL_HOURLY_SUMMARY.format(
-                                self._account_uid, profile_data["uid"], date.today()
-                            ),
-                            headers=headers,
-                        ) as response:
-                            if response.status == 200:
-                                hourly_data = await response.json()
-                                total_time = sum(
-                                    entry.get("screen_time_seconds", 0)
-                                    for entry in hourly_data
-                                )
-                                profile_data["time"] = round(
-                                    total_time / 60, 1
-                                )  # Convert to minutes
-                            else:
-                                _LOGGER.debug(
-                                    "Hourly summary not available for profile %s",
-                                    profile["name"],
-                                )
-                    except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-                        _LOGGER.warning(
-                            "Failed to get screen time for profile %s: %s",
-                            profile["name"],
-                            err,
-                        )
-
+                    profile_data = await self._process_profile(
+                        session, headers, profile, devices, dow
+                    )
                     data[profile_data["id"]] = profile_data
 
                 self._session = None
