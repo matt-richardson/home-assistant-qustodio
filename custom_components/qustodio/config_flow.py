@@ -74,7 +74,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:  # type: ignore[override]
         """Handle reconfiguration of the integration."""
         return await self.async_step_user(user_input)
 
@@ -82,7 +84,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         """Return True if other_flow is matching this flow."""
         return False
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # type: ignore[override]
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -98,19 +100,23 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
             else:
                 # Store the profiles data in the config entry
                 user_input["profiles"] = info["profiles"]
-                return self.async_create_entry(title=info["title"], data=user_input)
+                return self.async_create_entry(title=info["title"], data=user_input)  # type: ignore[return-value]
 
-        return self.async_show_form(step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors)
+        return self.async_show_form(
+            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+        )  # type: ignore[return-value]
 
     async def async_step_reauth(
         self, entry_data: dict[str, Any]  # pylint: disable=unused-argument
-    ) -> FlowResult:
+    ) -> FlowResult:  # type: ignore[override]
         """Handle reauthentication when credentials expire."""
         # Store the config entry for later update
         self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:  # type: ignore[override]
         """Handle reauthentication confirmation."""
         errors: dict[str, str] = {}
 
@@ -137,7 +143,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
             else:
                 # Update the config entry with new credentials and refreshed profiles
                 data["profiles"] = info["profiles"]
-                return self.async_update_reload_and_abort(
+                return self.async_update_reload_and_abort(  # type: ignore[return-value]
                     self._reauth_entry,
                     data=data,
                 )
@@ -152,7 +158,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
             }
         )
 
-        return self.async_show_form(
+        return self.async_show_form(  # type: ignore[return-value]
             step_id="reauth_confirm",
             data_schema=reauth_schema,
             errors=errors,
