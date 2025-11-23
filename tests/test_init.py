@@ -29,8 +29,9 @@ class TestAsyncSetupEntry:
         mock_profile_data: dict[str, Any],
     ) -> None:
         """Test successful setup of config entry."""
-        with patch("qustodio.QustodioApi", return_value=mock_qustodio_api), patch(
-            "qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock
+        with (
+            patch("qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch("qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock),
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
@@ -53,8 +54,9 @@ class TestAsyncSetupEntry:
         # Pre-populate hass.data with DOMAIN
         hass.data[DOMAIN] = {"other_entry": "some_data"}
 
-        with patch("qustodio.QustodioApi", return_value=mock_qustodio_api), patch(
-            "qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock
+        with (
+            patch("qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch("qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh", new_callable=AsyncMock),
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 

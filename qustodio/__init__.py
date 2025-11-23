@@ -11,12 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
+from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 from .qustodioapi import QustodioApi
-from .exceptions import (
-    QustodioAuthenticationError,
-    QustodioConnectionError,
-    QustodioException,
-)
 
 _LOGGER = logging.getLogger(__name__)
 

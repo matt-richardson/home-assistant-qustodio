@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
-import pytest
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.core import HomeAssistant
 

@@ -3,21 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from qustodio.config_flow import CannotConnect, ConfigFlow, InvalidAuth
-from qustodio.const import DOMAIN
-from qustodio.exceptions import (
-    QustodioAuthenticationError,
-    QustodioConnectionError,
-    QustodioException,
-)
+from qustodio.exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 
 
 class TestConfigFlow:

@@ -101,3 +101,16 @@ class TestQustodioDataUpdateCoordinator:
 
         with pytest.raises(UpdateFailed, match="API error"):
             await coordinator._async_update_data()
+
+    async def test_coordinator_unexpected_exception(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test coordinator with unexpected exception."""
+        mock_qustodio_api.get_data.side_effect = ValueError("Unexpected error")
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api)
+
+        with pytest.raises(UpdateFailed, match="Unexpected error"):
+            await coordinator._async_update_data()

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
@@ -150,6 +149,23 @@ class TestQustodioApiLogin:
             api = QustodioApi("test@example.com", "password")
 
             with pytest.raises(QustodioConnectionError, match="Connection error during login"):
+                await api.login()
+
+    async def test_login_unexpected_error(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test login with unexpected error."""
+        mock_response = Mock()
+        mock_response.__aenter__ = AsyncMock(side_effect=ValueError("Unexpected error"))
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_response)
+
+            api = QustodioApi("test@example.com", "password")
+
+            with pytest.raises(QustodioAPIError, match="Unexpected error during login"):
                 await api.login()
 
 
@@ -344,6 +360,57 @@ class TestQustodioApiHelperMethods:
         with pytest.raises(QustodioDataError, match="Account data missing required 'id' field"):
             await api._fetch_account_info(mock_aiohttp_session, {"Authorization": "Bearer token"})
 
+    async def test_fetch_account_info_token_expired(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test account info fetch with expired token."""
+        account_response = Mock()
+        account_response.__aenter__ = AsyncMock(return_value=account_response)
+        account_response.__aexit__ = AsyncMock(return_value=None)
+        account_response.status = 401
+
+        mock_aiohttp_session.get = Mock(return_value=account_response)
+
+        api = QustodioApi("test@example.com", "password")
+
+        with pytest.raises(QustodioAuthenticationError, match="Token expired or invalid"):
+            await api._fetch_account_info(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
+    async def test_fetch_account_info_rate_limit(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test account info fetch with rate limit."""
+        account_response = Mock()
+        account_response.__aenter__ = AsyncMock(return_value=account_response)
+        account_response.__aexit__ = AsyncMock(return_value=None)
+        account_response.status = 429
+
+        mock_aiohttp_session.get = Mock(return_value=account_response)
+
+        api = QustodioApi("test@example.com", "password")
+
+        with pytest.raises(QustodioRateLimitError, match="API rate limit exceeded"):
+            await api._fetch_account_info(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
+    async def test_fetch_account_info_http_error(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test account info fetch with HTTP error."""
+        account_response = Mock()
+        account_response.__aenter__ = AsyncMock(return_value=account_response)
+        account_response.__aexit__ = AsyncMock(return_value=None)
+        account_response.status = 500
+
+        mock_aiohttp_session.get = Mock(return_value=account_response)
+
+        api = QustodioApi("test@example.com", "password")
+
+        with pytest.raises(QustodioAPIError, match="Failed to get account info: HTTP 500"):
+            await api._fetch_account_info(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
     async def test_fetch_devices_success(
         self,
         mock_aiohttp_session: Mock,
@@ -385,6 +452,78 @@ class TestQustodioApiHelperMethods:
         devices = await api._fetch_devices(mock_aiohttp_session, {"Authorization": "Bearer token"})
 
         assert devices == {}
+
+    async def test_fetch_devices_connection_error(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test devices fetch with connection error returns empty dict."""
+        devices_response = Mock()
+        devices_response.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("Connection failed"))
+        devices_response.__aexit__ = AsyncMock(return_value=None)
+
+        mock_aiohttp_session.get = Mock(return_value=devices_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+
+        devices = await api._fetch_devices(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
+        assert devices == {}
+
+    async def test_fetch_profiles_token_expired(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test profiles fetch with expired token."""
+        profiles_response = Mock()
+        profiles_response.__aenter__ = AsyncMock(return_value=profiles_response)
+        profiles_response.__aexit__ = AsyncMock(return_value=None)
+        profiles_response.status = 401
+
+        mock_aiohttp_session.get = Mock(return_value=profiles_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+
+        with pytest.raises(QustodioAuthenticationError, match="Token expired or invalid"):
+            await api._fetch_profiles(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
+    async def test_fetch_profiles_rate_limit(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test profiles fetch with rate limit."""
+        profiles_response = Mock()
+        profiles_response.__aenter__ = AsyncMock(return_value=profiles_response)
+        profiles_response.__aexit__ = AsyncMock(return_value=None)
+        profiles_response.status = 429
+
+        mock_aiohttp_session.get = Mock(return_value=profiles_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+
+        with pytest.raises(QustodioRateLimitError, match="API rate limit exceeded"):
+            await api._fetch_profiles(mock_aiohttp_session, {"Authorization": "Bearer token"})
+
+    async def test_fetch_profiles_http_error(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test profiles fetch with HTTP error."""
+        profiles_response = Mock()
+        profiles_response.__aenter__ = AsyncMock(return_value=profiles_response)
+        profiles_response.__aexit__ = AsyncMock(return_value=None)
+        profiles_response.status = 500
+
+        mock_aiohttp_session.get = Mock(return_value=profiles_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+
+        with pytest.raises(QustodioAPIError, match="Failed to get profiles: HTTP 500"):
+            await api._fetch_profiles(mock_aiohttp_session, {"Authorization": "Bearer token"})
 
     async def test_check_device_tampering(self) -> None:
         """Test device tampering detection."""

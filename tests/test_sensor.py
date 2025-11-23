@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
-import pytest
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant

@@ -5,16 +5,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import aiohttp
 
 from .const import LOGIN_RESULT_OK
 from .exceptions import (
+    QustodioAPIError,
     QustodioAuthenticationError,
     QustodioConnectionError,
-    QustodioAPIError,
     QustodioDataError,
     QustodioRateLimitError,
 )

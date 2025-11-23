@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -51,17 +52,17 @@ class QustodioSensor(CoordinatorEntity, SensorEntity):
         return ATTRIBUTION
 
     @property
-    def device_info(self) -> dict[str, Any]:
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         if self.coordinator.data and self._profile_id in self.coordinator.data:
             profile_name = self.coordinator.data[self._profile_id].get("name", "Unknown")
         else:
             profile_name = self._profile_id
-        return {
-            "identifiers": {(DOMAIN, self._profile_id)},
-            "name": profile_name,
-            "manufacturer": MANUFACTURER,
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._profile_id)},
+            name=profile_name,
+            manufacturer=MANUFACTURER,
+        )
 
     @property
     def native_value(self) -> float | None:

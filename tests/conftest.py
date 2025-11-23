@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from homeassistant.config_entries import ConfigEntry

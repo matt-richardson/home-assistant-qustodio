@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -14,12 +13,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
+from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 from .qustodioapi import QustodioApi
-from .exceptions import (
-    QustodioAuthenticationError,
-    QustodioConnectionError,
-    QustodioException,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
