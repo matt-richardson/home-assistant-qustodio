@@ -14,8 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import is_profile_available, setup_profile_entities
-from .const import (ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME,
-                    MANUFACTURER)
+from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, MANUFACTURER
 
 _LOGGER = logging.getLogger(__name__)
 

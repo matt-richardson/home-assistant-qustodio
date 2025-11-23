@@ -10,8 +10,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from qustodio import QustodioDataUpdateCoordinator
-from qustodio.exceptions import (QustodioAPIError, QustodioAuthenticationError,
-                                 QustodioConnectionError, QustodioException)
+from qustodio.exceptions import (
+    QustodioAPIError,
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioException,
+)
 
 
 class TestQustodioDataUpdateCoordinator:

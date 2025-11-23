@@ -8,12 +8,10 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import (DataUpdateCoordinator,
-                                                      UpdateFailed)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
-from .exceptions import (QustodioAuthenticationError, QustodioConnectionError,
-                         QustodioException)
+from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +44,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        # Close the API session to prevent resource leaks
+        await coordinator.api.close()
 
     return unload_ok
 

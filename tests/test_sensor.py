@@ -8,8 +8,7 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 
-from qustodio.const import (ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME,
-                            MANUFACTURER)
+from qustodio.const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, MANUFACTURER
 from qustodio.sensor import QustodioSensor, async_setup_entry
 
 

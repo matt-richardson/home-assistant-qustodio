@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -11,9 +12,13 @@ from typing import Any
 import aiohttp
 
 from .const import LOGIN_RESULT_OK
-from .exceptions import (QustodioAPIError, QustodioAuthenticationError,
-                         QustodioConnectionError, QustodioDataError,
-                         QustodioRateLimitError)
+from .exceptions import (
+    QustodioAPIError,
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioDataError,
+    QustodioRateLimitError,
+)
 
 
 @dataclass
@@ -27,8 +32,23 @@ class ProfileContext:
     dow: str
 
 
+@dataclass
+class RetryConfig:
+    """Configuration for retry logic."""
+
+    timeout: int = 15
+    max_attempts: int = 3
+    base_delay: float = 1.0
+    max_delay: float = 30.0
+    exponential_base: int = 2
+
+
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
+RETRY_MAX_ATTEMPTS = 3
+RETRY_BASE_DELAY = 1.0
+RETRY_MAX_DELAY = 30.0
+RETRY_EXPONENTIAL_BASE = 2
 
 # Qustodio API URLs - these are based on reverse engineering and may change
 URL_LOGIN = "https://api.qustodio.com/v1/oauth2/access_token"
@@ -44,21 +64,145 @@ CLIENT_ID = "264ca1d226906aa08b03"
 CLIENT_SECRET = "3e8826cbed3b996f8b206c7d6a4b2321529bc6bd"
 
 
-class QustodioApi:
-    """Qustodio API client."""
+class QustodioApi:  # pylint: disable=too-many-instance-attributes
+    """Qustodio API client.
 
-    def __init__(self, username: str, password: str) -> None:
-        """Initialize the API client."""
+    Note: 8 instance attributes are necessary for API client state management:
+    - Authentication: username, password, access_token, expires_in
+    - Account context: account_id, account_uid
+    - Configuration: retry_config
+    - Session: session (for connection pooling)
+    """
+
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        retry_config: RetryConfig | None = None,
+    ) -> None:
+        """Initialize the API client.
+
+        Args:
+            username: Qustodio account username
+            password: Qustodio account password
+            retry_config: Optional retry configuration
+        """
         self._username = username
         self._password = password
+        self._retry_config = retry_config or RetryConfig()
         self._session: aiohttp.ClientSession | None = None
         self._access_token: str | None = None
         self._expires_in: datetime | None = None
         self._account_id: str | None = None
         self._account_uid: str | None = None
 
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self._retry_config.timeout),
+                headers={"User-Agent": "Qustodio/2.0.0 (Android)"},
+            )
+        return self._session
+
+    async def close(self) -> None:
+        """Close the aiohttp session."""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+            self._session = None
+
+    def _should_retry(self, exception: Exception, attempt: int) -> bool:
+        """Determine if request should be retried.
+
+        Args:
+            exception: The exception that occurred
+            attempt: Current attempt number (1-indexed)
+
+        Returns:
+            True if request should be retried
+        """
+        if attempt >= self._retry_config.max_attempts:
+            return False
+
+        # Don't retry auth errors - they won't succeed without new credentials
+        if isinstance(exception, QustodioAuthenticationError):
+            return False
+
+        # Retry on connection errors, timeouts, and rate limits
+        if isinstance(exception, (QustodioConnectionError, QustodioRateLimitError, asyncio.TimeoutError)):
+            return True
+
+        # Retry on server errors (5xx)
+        if isinstance(exception, QustodioAPIError) and exception.status_code is not None:
+            return 500 <= exception.status_code < 600
+
+        return False
+
+    async def _retry_delay(self, attempt: int) -> None:
+        """Calculate and sleep for retry delay with exponential backoff and jitter.
+
+        Args:
+            attempt: Current attempt number (1-indexed)
+        """
+        # Exponential backoff: base_delay * (2 ^ (attempt - 1))
+        delay = self._retry_config.base_delay * (self._retry_config.exponential_base ** (attempt - 1))
+
+        # Cap at max delay
+        delay = min(delay, self._retry_config.max_delay)
+
+        # Add jitter (±25% of delay)
+        jitter = delay * 0.25 * (2 * random.random() - 1)
+        delay = delay + jitter
+
+        _LOGGER.debug("Retry attempt %d: waiting %.2f seconds", attempt, delay)
+        await asyncio.sleep(delay)
+
+    async def _do_login_request(self, session: aiohttp.ClientSession, data: dict[str, str]) -> str:
+        """Perform the login API request.
+
+        Args:
+            session: The aiohttp session
+            data: Login credentials data
+
+        Returns:
+            LOGIN_RESULT_OK on success
+
+        Raises:
+            QustodioAuthenticationError: Invalid credentials
+            QustodioRateLimitError: Rate limit exceeded
+            QustodioAPIError: API returned error
+            QustodioDataError: Response missing data
+        """
+        async with session.post(URL_LOGIN, data=data) as response:
+            if response.status == 401:
+                _LOGGER.error("Unauthorized: Invalid credentials")
+                raise QustodioAuthenticationError("Invalid username or password")
+
+            if response.status == 429:
+                _LOGGER.error("Rate limit exceeded")
+                raise QustodioRateLimitError("API rate limit exceeded")
+
+            if response.status != 200:
+                text = await response.text()
+                _LOGGER.error("Login failed with status %s: %s", response.status, text)
+                raise QustodioAPIError(
+                    f"Login failed with status {response.status}",
+                    status_code=response.status,
+                )
+
+            response_data = await response.json()
+
+            if "access_token" not in response_data:
+                _LOGGER.error("No access token in response")
+                raise QustodioDataError("Response missing access token")
+
+            self._access_token = response_data["access_token"]
+            self._expires_in = datetime.now() + timedelta(seconds=response_data.get("expires_in", 3600))
+            _LOGGER.debug("Login successful")
+            return LOGIN_RESULT_OK
+
     async def login(self) -> str:
-        """Login to Qustodio API.
+        """Login to Qustodio API with retry logic.
 
         Returns LOGIN_RESULT_OK for backward compatibility.
 
@@ -81,57 +225,47 @@ class QustodioApi:
             "password": self._password,
         }
 
-        try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=TIMEOUT),
-                headers={"User-Agent": "Qustodio/2.0.0 (Android)"},
-            ) as session:
-                async with session.post(URL_LOGIN, data=data) as response:
-                    if response.status == 401:
-                        _LOGGER.error("Unauthorized: Invalid credentials")
-                        raise QustodioAuthenticationError("Invalid username or password")
+        last_exception: Exception | None = None
+        for attempt in range(1, self._retry_config.max_attempts + 1):
+            try:
+                session = await self._get_session()
+                return await self._do_login_request(session, data)
 
-                    if response.status == 429:
-                        _LOGGER.error("Rate limit exceeded")
-                        raise QustodioRateLimitError("API rate limit exceeded")
+            except asyncio.TimeoutError as err:
+                _LOGGER.error("Login timeout (attempt %d/%d)", attempt, self._retry_config.max_attempts)
+                last_exception = QustodioConnectionError("Connection timeout during login")
+                if not self._should_retry(last_exception, attempt):
+                    raise last_exception from err
+                await self._retry_delay(attempt)
+            except aiohttp.ClientError as err:
+                _LOGGER.error(
+                    "Login connection error (attempt %d/%d): %s", attempt, self._retry_config.max_attempts, err
+                )
+                last_exception = QustodioConnectionError(f"Connection error during login: {err}")
+                if not self._should_retry(last_exception, attempt):
+                    raise last_exception from err
+                await self._retry_delay(attempt)
+            except (
+                QustodioAuthenticationError,
+                QustodioRateLimitError,
+                QustodioAPIError,
+                QustodioDataError,
+            ) as err:
+                last_exception = err
+                if not self._should_retry(err, attempt):
+                    raise
+                _LOGGER.warning(
+                    "Retryable error during login (attempt %d/%d)", attempt, self._retry_config.max_attempts
+                )
+                await self._retry_delay(attempt)
+            except Exception as err:
+                _LOGGER.error("Unexpected login error: %s", err)
+                raise QustodioAPIError(f"Unexpected error during login: {err}") from err
 
-                    if response.status != 200:
-                        text = await response.text()
-                        _LOGGER.error("Login failed with status %s: %s", response.status, text)
-                        raise QustodioAPIError(
-                            f"Login failed with status {response.status}",
-                            status_code=response.status,
-                        )
-
-                    response_data = await response.json()
-
-                    if "access_token" not in response_data:
-                        _LOGGER.error("No access token in response")
-                        raise QustodioDataError("Response missing access token")
-
-                    self._access_token = response_data["access_token"]
-                    self._expires_in = datetime.now() + timedelta(seconds=response_data.get("expires_in", 3600))
-                    _LOGGER.debug("Login successful")
-                    return LOGIN_RESULT_OK
-
-        except (
-            QustodioAuthenticationError,
-            QustodioConnectionError,
-            QustodioRateLimitError,
-            QustodioAPIError,
-            QustodioDataError,
-        ):
-            # Re-raise our own exceptions
-            raise
-        except asyncio.TimeoutError as err:
-            _LOGGER.error("Login timeout")
-            raise QustodioConnectionError("Connection timeout during login") from err
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Login connection error: %s", err)
-            raise QustodioConnectionError(f"Connection error during login: {err}") from err
-        except Exception as err:
-            _LOGGER.error("Unexpected login error: %s", err)
-            raise QustodioAPIError(f"Unexpected error during login: {err}") from err
+        # If we exhausted retries, raise the last exception
+        if last_exception:
+            raise last_exception
+        raise QustodioAPIError("Login failed after all retry attempts")
 
     async def _fetch_account_info(self, session: aiohttp.ClientSession, headers: dict[str, str]) -> None:
         """Fetch and store account information."""
@@ -293,7 +427,7 @@ class QustodioApi:
         return profile_data
 
     async def get_data(self) -> dict[str, Any]:
-        """Get data from Qustodio API.
+        """Get data from Qustodio API with retry logic.
 
         Raises:
             QustodioAuthenticationError: Authentication failed
@@ -304,48 +438,43 @@ class QustodioApi:
         _LOGGER.debug("Getting data from Qustodio API")
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=TIMEOUT),
-                headers={"User-Agent": "Qustodio/2.0.0 (Android)"},
-            ) as session:
-                self._session = session
+            # Login will raise exceptions on failure (with retry logic)
+            await self.login()
 
-                # Login will raise exceptions on failure
-                await self.login()
+            session = await self._get_session()
 
-                headers = {
-                    "Authorization": f"Bearer {self._access_token}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                }
+            headers = {
+                "Authorization": f"Bearer {self._access_token}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            }
 
-                # Get account info
-                await self._fetch_account_info(session, headers)
+            # Get account info
+            await self._fetch_account_info(session, headers)
 
-                # Get devices
-                devices = await self._fetch_devices(session, headers)
+            # Get devices
+            devices = await self._fetch_devices(session, headers)
 
-                # Get profiles
-                profiles_data = await self._fetch_profiles(session, headers)
+            # Get profiles
+            profiles_data = await self._fetch_profiles(session, headers)
 
-                # Process each profile
-                days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-                dow = days[datetime.today().weekday()]
-                data = {}
+            # Process each profile
+            days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            dow = days[datetime.today().weekday()]
+            data = {}
 
-                for profile in profiles_data:
-                    if "id" not in profile or "name" not in profile:
-                        _LOGGER.warning("Profile missing required fields, skipping")
-                        continue
+            for profile in profiles_data:
+                if "id" not in profile or "name" not in profile:
+                    _LOGGER.warning("Profile missing required fields, skipping")
+                    continue
 
-                    ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices, dow=dow)
+                ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices, dow=dow)
 
-                    profile_data = await self._process_profile(ctx)
+                profile_data = await self._process_profile(ctx)
 
-                    data[profile_data["id"]] = profile_data
+                data[profile_data["id"]] = profile_data
 
-                self._session = None
-                return data
+            return data
 
         except (
             QustodioAuthenticationError,
@@ -365,5 +494,3 @@ class QustodioApi:
         except Exception as err:
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching data: {err}") from err
-        finally:
-            self._session = None

@@ -60,3 +60,4 @@ homeassistant_test/secrets.yaml
 # OS
 .DS_Store
 Thumbs.db
+QUSTODIO_API_DOCUMENTATION.md

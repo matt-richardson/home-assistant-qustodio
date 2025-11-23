@@ -8,9 +8,13 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from qustodio import (QustodioDataUpdateCoordinator, async_setup_entry,
-                      async_unload_entry, is_profile_available,
-                      setup_profile_entities)
+from qustodio import (
+    QustodioDataUpdateCoordinator,
+    async_setup_entry,
+    async_unload_entry,
+    is_profile_available,
+    setup_profile_entities,
+)
 from qustodio.const import DOMAIN
 
 
@@ -73,8 +77,13 @@ class TestAsyncUnloadEntry:
         mock_config_entry: Mock,
     ) -> None:
         """Test successful unload of config entry."""
-        # Setup existing coordinator in hass.data
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: Mock()}
+        # Setup coordinator with mock API
+        mock_api = AsyncMock()
+        mock_api.close = AsyncMock()
+        mock_coordinator = Mock()
+        mock_coordinator.api = mock_api
+
+        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
         hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
         result = await async_unload_entry(hass, mock_config_entry)
@@ -82,6 +91,7 @@ class TestAsyncUnloadEntry:
         assert result is True
         assert mock_config_entry.entry_id not in hass.data[DOMAIN]
         hass.config_entries.async_unload_platforms.assert_called_once()
+        mock_api.close.assert_called_once()
 
     async def test_unload_entry_failure(
         self,
@@ -98,6 +108,27 @@ class TestAsyncUnloadEntry:
         assert result is False
         assert mock_config_entry.entry_id in hass.data[DOMAIN]
         hass.config_entries.async_unload_platforms.assert_called_once()
+
+    async def test_unload_entry_closes_api_session(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Mock,
+    ) -> None:
+        """Test unload closes API session."""
+        # Setup coordinator with mock API
+        mock_api = AsyncMock()
+        mock_api.close = AsyncMock()
+        mock_coordinator = Mock()
+        mock_coordinator.api = mock_api
+
+        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+
+        result = await async_unload_entry(hass, mock_config_entry)
+
+        assert result is True
+        assert mock_config_entry.entry_id not in hass.data[DOMAIN]
+        mock_api.close.assert_called_once()
 
 
 class TestSetupProfileEntities:

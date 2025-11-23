@@ -10,10 +10,14 @@ import aiohttp
 import pytest
 
 from qustodio.const import LOGIN_RESULT_OK
-from qustodio.exceptions import (QustodioAPIError, QustodioAuthenticationError,
-                                 QustodioConnectionError, QustodioDataError,
-                                 QustodioRateLimitError)
-from qustodio.qustodioapi import QustodioApi
+from qustodio.exceptions import (
+    QustodioAPIError,
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioDataError,
+    QustodioRateLimitError,
+)
+from qustodio.qustodioapi import QustodioApi, RetryConfig
 
 
 class TestQustodioApiLogin:
@@ -584,3 +588,296 @@ class TestQustodioApiHelperMethods:
         assert profile_data["current_device"] is None
         assert profile_data["latitude"] is None
         assert profile_data["longitude"] is None
+
+
+class TestQustodioApiSessionManagement:
+    """Tests for session management."""
+
+    async def test_get_session_creates_new_session(self) -> None:
+        """Test that _get_session creates a new session if none exists."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(timeout=30))
+
+        assert api._session is None
+
+        session = await api._get_session()
+
+        assert session is not None
+        assert api._session is session
+        assert session._timeout.total == 30
+
+        await api.close()
+
+    async def test_get_session_reuses_existing_session(self) -> None:
+        """Test that _get_session reuses existing session."""
+        api = QustodioApi("test@example.com", "password")
+
+        session1 = await api._get_session()
+        session2 = await api._get_session()
+
+        assert session1 is session2
+
+        await api.close()
+
+    async def test_close_session(self) -> None:
+        """Test that close properly closes the session."""
+        api = QustodioApi("test@example.com", "password")
+
+        session = await api._get_session()
+        assert not session.closed
+
+        await api.close()
+
+        assert session.closed
+        assert api._session is None
+
+    async def test_close_session_when_none(self) -> None:
+        """Test that close works when no session exists."""
+        api = QustodioApi("test@example.com", "password")
+
+        # Should not raise
+        await api.close()
+
+        assert api._session is None
+
+    async def test_close_session_already_closed(self) -> None:
+        """Test that close works when session already closed."""
+        api = QustodioApi("test@example.com", "password")
+
+        session = await api._get_session()
+        await session.close()
+
+        # Close sets session to None even if already closed
+        await api.close()
+
+        # Session should be set to None after close
+        assert api._session is None or api._session.closed
+
+
+class TestQustodioApiRetryLogic:
+    """Tests for retry logic."""
+
+    def test_should_retry_connection_error(self) -> None:
+        """Test retry on connection error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error = QustodioConnectionError("Connection failed")
+        assert api._should_retry(error, 1) is True
+        assert api._should_retry(error, 2) is True
+        assert api._should_retry(error, 3) is False
+
+    def test_should_retry_timeout_error(self) -> None:
+        """Test retry on timeout error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error = asyncio.TimeoutError()
+        assert api._should_retry(error, 1) is True
+        assert api._should_retry(error, 2) is True
+        assert api._should_retry(error, 3) is False
+
+    def test_should_retry_rate_limit_error(self) -> None:
+        """Test retry on rate limit error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error = QustodioRateLimitError("Rate limit exceeded")
+        assert api._should_retry(error, 1) is True
+        assert api._should_retry(error, 2) is True
+        assert api._should_retry(error, 3) is False
+
+    def test_should_not_retry_authentication_error(self) -> None:
+        """Test no retry on authentication error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error = QustodioAuthenticationError("Invalid credentials")
+        assert api._should_retry(error, 1) is False
+        assert api._should_retry(error, 2) is False
+
+    def test_should_retry_server_error_5xx(self) -> None:
+        """Test retry on server errors (5xx)."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error_500 = QustodioAPIError("Server error", status_code=500)
+        error_502 = QustodioAPIError("Bad gateway", status_code=502)
+        error_503 = QustodioAPIError("Service unavailable", status_code=503)
+
+        assert api._should_retry(error_500, 1) is True
+        assert api._should_retry(error_502, 1) is True
+        assert api._should_retry(error_503, 1) is True
+
+    def test_should_not_retry_client_error_4xx(self) -> None:
+        """Test no retry on client errors (4xx)."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        error_400 = QustodioAPIError("Bad request", status_code=400)
+        error_404 = QustodioAPIError("Not found", status_code=404)
+
+        assert api._should_retry(error_400, 1) is False
+        assert api._should_retry(error_404, 1) is False
+
+    async def test_retry_delay_exponential_backoff(self) -> None:
+        """Test exponential backoff delay calculation."""
+        api = QustodioApi(
+            "test@example.com",
+            "password",
+            retry_config=RetryConfig(base_delay=1.0, max_delay=10.0),
+        )
+
+        # Mock sleep to capture delay values
+        delays = []
+
+        async def mock_sleep(delay):
+            delays.append(delay)
+
+        with patch("asyncio.sleep", side_effect=mock_sleep):
+            await api._retry_delay(1)
+            await api._retry_delay(2)
+            await api._retry_delay(3)
+
+        # First delay: base_delay * (2^0) = 1.0 ± jitter
+        assert 0.75 <= delays[0] <= 1.25
+
+        # Second delay: base_delay * (2^1) = 2.0 ± jitter
+        assert 1.5 <= delays[1] <= 2.5
+
+        # Third delay: base_delay * (2^2) = 4.0 ± jitter
+        assert 3.0 <= delays[2] <= 5.0
+
+    async def test_retry_delay_max_delay_cap(self) -> None:
+        """Test retry delay is capped at max_delay."""
+        api = QustodioApi(
+            "test@example.com",
+            "password",
+            retry_config=RetryConfig(base_delay=10.0, max_delay=15.0),
+        )
+
+        delays = []
+
+        async def mock_sleep(delay):
+            delays.append(delay)
+
+        with patch("asyncio.sleep", side_effect=mock_sleep):
+            await api._retry_delay(5)  # Would be 10 * (2^4) = 160 without cap
+
+        # Should be capped at max_delay (15.0) ± jitter
+        assert delays[0] <= 18.75  # 15.0 + 25% jitter
+
+    async def test_login_retry_on_timeout(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+    ) -> None:
+        """Test login retries on timeout."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3, base_delay=0.01))
+
+        # First two attempts timeout, third succeeds
+        timeout_response = Mock()
+        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aexit__ = AsyncMock(return_value=None)
+
+        success_response = Mock()
+        success_response.__aenter__ = AsyncMock(return_value=success_response)
+        success_response.__aexit__ = AsyncMock(return_value=None)
+        success_response.status = 200
+        success_response.json = AsyncMock(return_value=mock_api_login_response)
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(side_effect=[timeout_response, timeout_response, success_response])
+
+            result = await api.login()
+
+            assert result == LOGIN_RESULT_OK
+            assert mock_aiohttp_session.post.call_count == 3
+
+        await api.close()
+
+    async def test_login_retry_on_server_error(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+    ) -> None:
+        """Test login retries on server error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3, base_delay=0.01))
+
+        # First attempt returns 500, second succeeds
+        error_response = Mock()
+        error_response.__aenter__ = AsyncMock(return_value=error_response)
+        error_response.__aexit__ = AsyncMock(return_value=None)
+        error_response.status = 500
+        error_response.text = AsyncMock(return_value="Internal Server Error")
+
+        success_response = Mock()
+        success_response.__aenter__ = AsyncMock(return_value=success_response)
+        success_response.__aexit__ = AsyncMock(return_value=None)
+        success_response.status = 200
+        success_response.json = AsyncMock(return_value=mock_api_login_response)
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(side_effect=[error_response, success_response])
+
+            result = await api.login()
+
+            assert result == LOGIN_RESULT_OK
+            assert mock_aiohttp_session.post.call_count == 2
+
+        await api.close()
+
+    async def test_login_no_retry_on_auth_error(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test login does not retry on authentication error."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3))
+
+        auth_error_response = Mock()
+        auth_error_response.__aenter__ = AsyncMock(return_value=auth_error_response)
+        auth_error_response.__aexit__ = AsyncMock(return_value=None)
+        auth_error_response.status = 401
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=auth_error_response)
+
+            with pytest.raises(QustodioAuthenticationError):
+                await api.login()
+
+            # Should only attempt once
+            assert mock_aiohttp_session.post.call_count == 1
+
+        await api.close()
+
+    async def test_login_exhausts_retries(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test login raises error after exhausting retries."""
+        api = QustodioApi("test@example.com", "password", retry_config=RetryConfig(max_attempts=3, base_delay=0.01))
+
+        timeout_response = Mock()
+        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aexit__ = AsyncMock(return_value=None)
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=timeout_response)
+
+            with pytest.raises(QustodioConnectionError, match="Connection timeout during login"):
+                await api.login()
+
+            # Should attempt exactly 3 times
+            assert mock_aiohttp_session.post.call_count == 3
+
+        await api.close()
+
+    async def test_custom_retry_parameters(self) -> None:
+        """Test API client accepts custom retry parameters."""
+        config = RetryConfig(
+            timeout=60,
+            max_attempts=5,
+            base_delay=2.0,
+            max_delay=60.0,
+        )
+        api = QustodioApi("test@example.com", "password", retry_config=config)
+
+        assert api._retry_config.timeout == 60
+        assert api._retry_config.max_attempts == 5
+        assert api._retry_config.base_delay == 2.0
+        assert api._retry_config.max_delay == 60.0
+
+        await api.close()
