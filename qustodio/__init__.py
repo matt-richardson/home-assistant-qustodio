@@ -18,7 +18,9 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.DEVICE_TRACKER]
 
-UPDATE_INTERVAL = timedelta(minutes=1)
+# Update every 5 minutes - parental control data doesn't need real-time updates
+# This reduces API load, prevents rate limiting, and conserves battery on mobile devices
+UPDATE_INTERVAL = timedelta(minutes=5)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
