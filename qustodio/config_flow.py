@@ -1,4 +1,5 @@
 """Config flow for Qustodio integration."""
+
 from __future__ import annotations
 
 import logging
@@ -12,8 +13,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN, LOGIN_RESULT_OK, LOGIN_RESULT_UNAUTHORIZED
+from .const import DOMAIN
 from .qustodioapi import QustodioApi
+from .exceptions import (
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioException,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,30 +35,34 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """Validate the user input allows us to connect.
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
+
+    Raises:
+        InvalidAuth: Invalid credentials
+        CannotConnect: Connection or API errors
     """
     api = QustodioApi(data[CONF_USERNAME], data[CONF_PASSWORD])
-    
-    result = await api.login()
-    
-    if result == LOGIN_RESULT_UNAUTHORIZED:
-        raise InvalidAuth
-    elif result != LOGIN_RESULT_OK:
-        raise CannotConnect
 
-    # Get profiles to store in config entry
     try:
+        await api.login()
+
         profiles = await api.get_data()
         if not profiles:
             _LOGGER.warning("No profiles found for account")
-    except Exception as err:
-        _LOGGER.error("Failed to get profiles: %s", err)
-        raise CannotConnect
-    
-    # Return info that you want to store in the config entry.
-    return {
-        "title": f"Qustodio ({data[CONF_USERNAME]})",
-        "profiles": profiles,
-    }
+
+        return {
+            "title": f"Qustodio ({data[CONF_USERNAME]})",
+            "profiles": profiles,
+        }
+
+    except QustodioAuthenticationError as err:
+        _LOGGER.error("Authentication failed: %s", err)
+        raise InvalidAuth from err
+    except QustodioConnectionError as err:
+        _LOGGER.error("Connection failed: %s", err)
+        raise CannotConnect from err
+    except QustodioException as err:
+        _LOGGER.error("Qustodio API error: %s", err)
+        raise CannotConnect from err
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

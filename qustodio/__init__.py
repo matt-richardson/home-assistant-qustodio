@@ -1,4 +1,5 @@
 """The Qustodio integration."""
+
 from __future__ import annotations
 
 import logging
@@ -11,6 +12,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import DOMAIN
 from .qustodioapi import QustodioApi
+from .exceptions import (
+    QustodioAuthenticationError,
+    QustodioConnectionError,
+    QustodioException,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,9 +31,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     password = entry.data["password"]
 
     api = QustodioApi(username, password)
-    
+
     coordinator = QustodioDataUpdateCoordinator(hass, api)
-    
+
     # Fetch initial data so we have data when entities subscribe
     await coordinator.async_config_entry_first_refresh()
 
@@ -64,5 +70,19 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         """Update data via library."""
         try:
             return await self.api.get_data()
-        except Exception as exception:
-            raise UpdateFailed() from exception
+        except QustodioAuthenticationError as err:
+            # Authentication errors should trigger a reauth flow
+            _LOGGER.error("Authentication failed: %s", err)
+            raise UpdateFailed(f"Authentication failed: {err}") from err
+        except QustodioConnectionError as err:
+            # Connection errors are usually temporary
+            _LOGGER.warning("Connection error: %s", err)
+            raise UpdateFailed(f"Connection error: {err}") from err
+        except QustodioException as err:
+            # Other Qustodio-specific errors
+            _LOGGER.error("Qustodio API error: %s", err)
+            raise UpdateFailed(f"API error: {err}") from err
+        except Exception as err:
+            # Unexpected errors
+            _LOGGER.exception("Unexpected error updating Qustodio data")
+            raise UpdateFailed(f"Unexpected error: {err}") from err
