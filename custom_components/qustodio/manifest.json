@@ -5,12 +5,13 @@
   "dependencies": [],
   "config_flow": true,
   "codeowners": [
-    "@dotkrad"
+    "@matt-richardson"
   ],
   "requirements": [
     "aiohttp>=3.8.0"
   ],
   "homeassistant": "2023.1.0",
+  "issue_tracker": "https://github.com/matt-richardson/home-assistant-qustodio/issues",
   "version": "1.0.0",
   "iot_class": "cloud_polling"
 }
