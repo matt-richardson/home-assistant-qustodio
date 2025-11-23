@@ -1,0 +1,181 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🧪 Run Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "🧪 Run Tests with Coverage",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "--cov=qustodio",
+                "--cov-report=html",
+                "--cov-report=term-missing",
+                "--cov-report=xml:coverage.xml",
+                "--junit-xml=test_results.xml",
+                "--cov-fail-under=95",
+                "-v"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "🧪 Debug Single Test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v",
+                "-s",
+                "-k",
+                "${input:debugTestName}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "🏠 Debug Home Assistant",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "homeassistant",
+            "args": [
+                "--config",
+                "${workspaceFolder}/homeassistant_test",
+                "--debug",
+                "--verbose"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "🔧 Debug API Client",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/debug_api.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "🎨 Format Code",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "black",
+            "args": [
+                "qustodio/",
+                "tests/"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python"
+        },
+        {
+            "name": "🎨 Run Linter (Black)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "black",
+            "args": [
+                "--check",
+                "qustodio/",
+                "tests/"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python"
+        },
+        {
+            "name": "🎨 Run Linter (Flake8)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flake8",
+            "args": [
+                "qustodio/",
+                "tests/",
+                "--max-line-length=120",
+                "--extend-ignore=E203,W503"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python"
+        },
+        {
+            "name": "🎨 Run Linter (pylint)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pylint",
+            "args": [
+                "qustodio/"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python"
+        },
+        {
+            "name": "🎨 Run Linter (mypy)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "mypy",
+            "args": [
+                "qustodio/"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🔍 Run All Linting",
+            "configurations": [
+                "🎨 Run Linter (Black)",
+                "🎨 Run Linter (Flake8)",
+                "🎨 Run Linter (pylint)",
+                "🎨 Run Linter (mypy)"
+            ],
+            "stopAll": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "debugTestName",
+            "description": "Test function name to debug",
+            "default": "test_login",
+            "type": "promptString"
+        }
+    ]
+}

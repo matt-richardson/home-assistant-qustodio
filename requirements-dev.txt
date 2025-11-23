@@ -1,0 +1,38 @@
+# Development requirements for Qustodio Home Assistant integration
+# Requires Python 3.13+
+
+# Home Assistant core
+homeassistant>=2024.1.0
+
+# Core dependencies with compatibility fixes
+aiohttp>=3.8.0
+voluptuous
+async-timeout
+
+# Compatibility fixes for josepy/acme conflict
+josepy<1.14.0
+acme>=1.21.0
+
+# Development tools
+black
+flake8
+mypy
+pylint
+isort
+yamllint
+codespell
+
+# Testing framework
+pytest>=6.2.5
+pytest-asyncio
+pytest-cov
+pytest-xdist
+pytest-mock
+
+# Additional testing utilities
+freezegun  # For date/time mocking
+responses  # For HTTP mocking
+
+# Missing Home Assistant dependencies
+numpy  # Required by stream component
+scipy  # Often required alongside numpy

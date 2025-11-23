@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+test_results.xml
+*.cover
+.hypothesis/
+
+# Linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDEs
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Home Assistant test environment
+homeassistant_test/.storage/
+homeassistant_test/*.log
+homeassistant_test/*.log.*
+homeassistant_test/*.db
+homeassistant_test/*.db-shm
+homeassistant_test/*.db-wal
+homeassistant_test/home-assistant_v2.db
+homeassistant_test/secrets.yaml
+
+# OS
+.DS_Store
+Thumbs.db

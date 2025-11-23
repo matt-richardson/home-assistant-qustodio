@@ -1,0 +1,15 @@
+# Basic Home Assistant configuration for testing Qustodio integration
+
+# Minimal configuration for integration testing
+http:
+api:
+frontend:
+config:
+websocket_api:
+
+logger:
+  default: info
+  logs:
+    custom_components.qustodio: debug
+
+# Qustodio integration will be configured through the UI

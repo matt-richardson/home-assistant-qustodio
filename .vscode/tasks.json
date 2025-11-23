@@ -1,0 +1,173 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Qustodio: Run Tests",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["test"],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Run all tests for the Qustodio integration"
+        },
+        {
+            "label": "Qustodio: Run Tests with Coverage",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["test-cov"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Run tests with coverage reporting (Silver tier: >95%)"
+        },
+        {
+            "label": "Qustodio: Lint Code",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["lint"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$pylint",
+                "$flake8",
+                "$mypy-python"
+            ],
+            "detail": "Run all linting tools (black, flake8, mypy, pylint)"
+        },
+        {
+            "label": "Qustodio: Format Code",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["format"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Format code with black and isort"
+        },
+        {
+            "label": "Qustodio: Full Validation",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["validate"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$pylint",
+                "$flake8",
+                "$mypy-python"
+            ],
+            "detail": "Run full validation suite (format + lint + test + coverage)"
+        },
+        {
+            "label": "Qustodio: Start Home Assistant",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["ha-test"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "isBackground": true,
+            "problemMatcher": [],
+            "detail": "Start Home Assistant test instance (http://localhost:8123)"
+        },
+        {
+            "label": "Qustodio: Clean Files",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": ["clean"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Clean temporary files and caches"
+        },
+        {
+            "label": "Qustodio: Run Single Test",
+            "type": "shell",
+            "command": "./dev.sh",
+            "args": [
+                "test-single",
+                "${input:testName}"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Run a specific test function"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "description": "Test function name to run",
+            "default": "test_login",
+            "type": "promptString"
+        }
+    ]
+}

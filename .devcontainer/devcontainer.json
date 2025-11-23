@@ -1,0 +1,99 @@
+{
+  "name": "Home Assistant Qustodio Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "ms-python.black-formatter",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "ms-python.autopep8",
+        "ms-toolsai.jupyter",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.vscode-json",
+        "bradlc.vscode-tailwindcss",
+        "kevinrose.vsc-python-indent",
+        "ms-python.debugpy",
+        "ms-python.pytest"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "python.formatting.provider": "black",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.linting.mypyEnabled": true,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": [
+          "tests",
+          "-v"
+        ],
+        "files.associations": {
+          "*.yaml": "yaml",
+          "*.yml": "yaml",
+          "*.json": "json"
+        },
+        "yaml.schemas": {
+          "https://json.schemastore.org/github-workflow.json": "/.github/workflows/*.yml"
+        },
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": true
+        },
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/*.pyc": true,
+          "**/.pytest_cache": true,
+          "**/htmlcov": true,
+          "**/.coverage": true,
+          "**/coverage.xml": true,
+          "**/.mypy_cache": true,
+          "**/venv": true,
+          "**/.venv": true
+        }
+      }
+    }
+  },
+
+  "forwardPorts": [8123, 8124, 9123],
+  "portsAttributes": {
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    },
+    "8124": {
+      "label": "Home Assistant Dev",
+      "onAutoForward": "silent"
+    },
+    "9123": {
+      "label": "Debug Server",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+  ],
+
+  "workspaceFolder": "/workspace",
+
+  "remoteUser": "vscode",
+
+  "containerEnv": {
+    "PYTHONPATH": "/workspace",
+    "PYTEST_CURRENT_TEST": "1"
+  }
+}
