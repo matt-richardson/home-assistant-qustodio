@@ -120,6 +120,7 @@ class QustodioApi:
 
         except (
             QustodioAuthenticationError,
+            QustodioConnectionError,
             QustodioRateLimitError,
             QustodioAPIError,
             QustodioDataError,
@@ -350,6 +351,7 @@ class QustodioApi:
 
         except (
             QustodioAuthenticationError,
+            QustodioConnectionError,
             QustodioRateLimitError,
             QustodioAPIError,
             QustodioDataError,
