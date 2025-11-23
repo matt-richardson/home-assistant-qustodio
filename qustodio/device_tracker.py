@@ -11,13 +11,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTRIBUTION, DOMAIN, MANUFACTURER
+from .const import ATTRIBUTION, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Qustodio device tracker based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
@@ -42,12 +44,6 @@ class QustodioDeviceTracker(CoordinatorEntity, TrackerEntity):
 
         self._attr_name = f"Qustodio {self._profile_name}"
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._profile_id}"
-
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, self._profile_id)},
-            "name": self._profile_name,
-            "manufacturer": MANUFACTURER,
-        }
 
     @property
     def latitude(self) -> float | None:

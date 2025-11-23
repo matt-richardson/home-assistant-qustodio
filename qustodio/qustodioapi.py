@@ -44,11 +44,11 @@ class QustodioApi:
         """Initialize the API client."""
         self._username = username
         self._password = password
-        self._session = None
-        self._access_token = None
-        self._expires_in = None
-        self._account_id = None
-        self._account_uid = None
+        self._session: aiohttp.ClientSession | None = None
+        self._access_token: str | None = None
+        self._expires_in: datetime | None = None
+        self._account_id: str | None = None
+        self._account_uid: str | None = None
 
     async def login(self) -> str:
         """Login to Qustodio API.
