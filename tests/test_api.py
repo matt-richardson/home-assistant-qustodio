@@ -10,13 +10,9 @@ import aiohttp
 import pytest
 
 from qustodio.const import LOGIN_RESULT_OK
-from qustodio.exceptions import (
-    QustodioAPIError,
-    QustodioAuthenticationError,
-    QustodioConnectionError,
-    QustodioDataError,
-    QustodioRateLimitError,
-)
+from qustodio.exceptions import (QustodioAPIError, QustodioAuthenticationError,
+                                 QustodioConnectionError, QustodioDataError,
+                                 QustodioRateLimitError)
 from qustodio.qustodioapi import QustodioApi
 
 

@@ -11,13 +11,9 @@ from typing import Any
 import aiohttp
 
 from .const import LOGIN_RESULT_OK
-from .exceptions import (
-    QustodioAPIError,
-    QustodioAuthenticationError,
-    QustodioConnectionError,
-    QustodioDataError,
-    QustodioRateLimitError,
-)
+from .exceptions import (QustodioAPIError, QustodioAuthenticationError,
+                         QustodioConnectionError, QustodioDataError,
+                         QustodioRateLimitError)
 
 
 @dataclass
@@ -343,7 +339,9 @@ class QustodioApi:
                         continue
 
                     ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices, dow=dow)
+
                     profile_data = await self._process_profile(ctx)
+
                     data[profile_data["id"]] = profile_data
 
                 self._session = None

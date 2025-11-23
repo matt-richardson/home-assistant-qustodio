@@ -8,10 +8,12 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (DataUpdateCoordinator,
+                                                      UpdateFailed)
 
 from .const import DOMAIN
-from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from .exceptions import (QustodioAuthenticationError, QustodioConnectionError,
+                         QustodioException)
 from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)

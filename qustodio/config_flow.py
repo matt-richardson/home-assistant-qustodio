@@ -13,7 +13,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
-from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from .exceptions import (QustodioAuthenticationError, QustodioConnectionError,
+                         QustodioException)
 from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)

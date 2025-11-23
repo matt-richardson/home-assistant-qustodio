@@ -11,7 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from qustodio.config_flow import CannotConnect, ConfigFlow, InvalidAuth
-from qustodio.exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from qustodio.exceptions import (QustodioAuthenticationError,
+                                 QustodioConnectionError, QustodioException)
 
 
 class TestConfigFlow:

@@ -8,13 +8,9 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from qustodio import (
-    QustodioDataUpdateCoordinator,
-    async_setup_entry,
-    async_unload_entry,
-    is_profile_available,
-    setup_profile_entities,
-)
+from qustodio import (QustodioDataUpdateCoordinator, async_setup_entry,
+                      async_unload_entry, is_profile_available,
+                      setup_profile_entities)
 from qustodio.const import DOMAIN
 
 
