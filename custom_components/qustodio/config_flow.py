@@ -12,7 +12,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import (
+    CONF_ENABLE_GPS_TRACKING,
+    CONF_UPDATE_INTERVAL,
+    DEFAULT_ENABLE_GPS_TRACKING,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+)
 from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 from .qustodioapi import QustodioApi
 
@@ -171,7 +177,44 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        super().__init__()
+        self._config_entry = config_entry  # type: ignore[misc]
+
+    # Only define config_entry property if the parent class doesn't have it (older HA versions)
+    if not hasattr(config_entries.OptionsFlow, "config_entry"):
+
+        @property  # type: ignore[misc]
+        def config_entry(self) -> config_entries.ConfigEntry:
+            """Return the config entry for older HA versions that don't provide it."""
+            return self._config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # type: ignore[override]
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)  # type: ignore[return-value]
+
+        # Get current values from options or fall back to defaults
+        current_interval = self._config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        current_gps = self._config_entry.options.get(CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING)
+
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_UPDATE_INTERVAL,
+                    default=current_interval,
+                    description={"suggested_value": current_interval},
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+                vol.Optional(
+                    CONF_ENABLE_GPS_TRACKING,
+                    default=current_gps,
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(  # type: ignore[return-value]
+            step_id="init",
+            data_schema=options_schema,
+        )
 
 
 class CannotConnect(HomeAssistantError):

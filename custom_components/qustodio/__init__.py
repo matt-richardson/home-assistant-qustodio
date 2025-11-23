@@ -10,7 +10,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
 from .qustodioapi import QustodioApi
 
@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     api = QustodioApi(username, password)
 
-    coordinator = QustodioDataUpdateCoordinator(hass, api)
+    coordinator = QustodioDataUpdateCoordinator(hass, api, entry)
 
     # Fetch initial data so we have data when entities subscribe
     await coordinator.async_config_entry_first_refresh()
@@ -40,7 +40,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register options update listener
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
+
     return True
+
+
+async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    coordinator: QustodioDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Update the coordinator's update interval if it changed
+    update_interval = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    new_interval = timedelta(minutes=update_interval)
+
+    if coordinator.update_interval != new_interval:
+        _LOGGER.info("Updating coordinator interval to %s minutes", update_interval)
+        coordinator.update_interval = new_interval
+        # Request a refresh with the new interval
+        await coordinator.async_request_refresh()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -56,14 +74,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the API."""
 
-    def __init__(self, hass: HomeAssistant, api: QustodioApi) -> None:
+    def __init__(self, hass: HomeAssistant, api: QustodioApi, entry: ConfigEntry) -> None:
         """Initialize."""
         self.api = api
+        self.entry = entry
+
+        # Get update interval from options or use default
+        update_interval_minutes = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        update_interval = timedelta(minutes=update_interval_minutes)
+
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=UPDATE_INTERVAL,
+            update_interval=update_interval,
         )
 
     async def _async_update_data(self):

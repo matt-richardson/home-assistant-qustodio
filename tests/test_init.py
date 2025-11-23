@@ -195,3 +195,62 @@ class TestIsProfileAvailable:
         mock_coordinator.data = {"profile_2": {"name": "Test"}}
 
         assert is_profile_available(mock_coordinator, "profile_1") is False
+
+
+class TestAsyncUpdateOptions:
+    """Tests for async_update_options function."""
+
+    async def test_update_interval_changed(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_coordinator: Mock,
+    ) -> None:
+        """Test updating the interval when it changes."""
+        from datetime import timedelta
+        from custom_components.qustodio import async_update_options
+        from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
+
+        # Set up hass data with coordinator
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
+        # Set current interval
+        mock_coordinator.update_interval = timedelta(minutes=5)
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        # Update options with new interval
+        mock_config_entry.options = {CONF_UPDATE_INTERVAL: 10}
+
+        await async_update_options(hass, mock_config_entry)
+
+        # Verify interval was updated
+        assert mock_coordinator.update_interval == timedelta(minutes=10)
+        mock_coordinator.async_request_refresh.assert_called_once()
+
+    async def test_update_interval_unchanged(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+        mock_coordinator: Mock,
+    ) -> None:
+        """Test that refresh is not triggered when interval doesn't change."""
+        from datetime import timedelta
+        from custom_components.qustodio import async_update_options
+        from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
+
+        # Set up hass data with coordinator
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
+        # Set current interval
+        mock_coordinator.update_interval = timedelta(minutes=10)
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        # Update options with same interval
+        mock_config_entry.options = {CONF_UPDATE_INTERVAL: 10}
+
+        await async_update_options(hass, mock_config_entry)
+
+        # Verify refresh was not called
+        mock_coordinator.async_request_refresh.assert_not_called()

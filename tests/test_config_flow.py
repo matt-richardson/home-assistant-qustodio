@@ -425,3 +425,78 @@ class TestReauthFlow:
 
             assert result["type"] == FlowResultType.FORM
             assert result["errors"]["base"] == "unknown"
+
+
+class TestQustodioOptionsFlow:
+    """Test Qustodio options flow."""
+
+    async def test_options_flow_init(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test options flow initialization."""
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.const import (
+            CONF_ENABLE_GPS_TRACKING,
+            CONF_UPDATE_INTERVAL,
+            DEFAULT_ENABLE_GPS_TRACKING,
+            DEFAULT_UPDATE_INTERVAL,
+        )
+
+        flow = OptionsFlowHandler(mock_config_entry)
+
+        result = await flow.async_step_init()
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "init"
+        # Check that defaults are used when no options are set
+        schema = result["data_schema"].schema
+        assert CONF_UPDATE_INTERVAL in schema
+        assert CONF_ENABLE_GPS_TRACKING in schema
+
+    async def test_options_flow_with_existing_options(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test options flow with existing options."""
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.const import CONF_ENABLE_GPS_TRACKING, CONF_UPDATE_INTERVAL
+
+        # Set up existing options
+        mock_config_entry.options = {
+            CONF_UPDATE_INTERVAL: 10,
+            CONF_ENABLE_GPS_TRACKING: False,
+        }
+
+        flow = OptionsFlowHandler(mock_config_entry)
+
+        result = await flow.async_step_init()
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "init"
+
+    async def test_options_flow_save(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test saving options."""
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.const import CONF_ENABLE_GPS_TRACKING, CONF_UPDATE_INTERVAL
+
+        flow = OptionsFlowHandler(mock_config_entry)
+
+        result = await flow.async_step_init(
+            {
+                CONF_UPDATE_INTERVAL: 15,
+                CONF_ENABLE_GPS_TRACKING: False,
+            }
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"] == {
+            CONF_UPDATE_INTERVAL: 15,
+            CONF_ENABLE_GPS_TRACKING: False,
+        }

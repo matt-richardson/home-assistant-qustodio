@@ -8,6 +8,14 @@
           "username": "Username (Email)",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Qustodio",
+        "description": "Your Qustodio credentials need to be updated. Please enter your password for {username}.",
+        "data": {
+          "username": "Username (Email)",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -17,6 +25,22 @@
     },
     "abort": {
       "already_configured": "Qustodio is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Qustodio Options",
+        "description": "Configure Qustodio integration options",
+        "data": {
+          "update_interval": "Update interval (minutes)",
+          "enable_gps_tracking": "Enable GPS tracking"
+        },
+        "data_description": {
+          "update_interval": "How often to fetch data from Qustodio (1-60 minutes). Lower values provide more real-time data but increase API usage.",
+          "enable_gps_tracking": "Enable GPS device tracking for profiles. Disable to only show screen time sensors."
+        }
+      }
     }
   }
 }

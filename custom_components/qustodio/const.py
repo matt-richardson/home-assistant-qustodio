@@ -15,3 +15,11 @@ ICON_NO_TIME = "mdi:timer-off-outline"
 LOGIN_RESULT_OK = "OK"
 LOGIN_RESULT_UNAUTHORIZED = "UNAUTHORIZED"
 LOGIN_RESULT_ERROR = "ERROR"
+
+# Configuration options
+CONF_UPDATE_INTERVAL = "update_interval"
+CONF_ENABLE_GPS_TRACKING = "enable_gps_tracking"
+
+# Default values
+DEFAULT_UPDATE_INTERVAL = 5  # minutes
+DEFAULT_ENABLE_GPS_TRACKING = True

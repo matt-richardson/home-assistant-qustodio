@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import setup_profile_entities
-from .const import ATTRIBUTION, DOMAIN
+from .const import ATTRIBUTION, CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING, DOMAIN
 from .entity import QustodioBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,6 +23,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Qustodio device tracker based on a config entry."""
+    # Check if GPS tracking is enabled
+    gps_enabled = entry.options.get(CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING)
+
+    if not gps_enabled:
+        _LOGGER.info("GPS tracking is disabled for this integration")
+        return
+
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = setup_profile_entities(coordinator, entry, QustodioDeviceTracker)
     async_add_entities(entities)
