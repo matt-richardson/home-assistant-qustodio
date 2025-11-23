@@ -107,7 +107,8 @@ class TestQustodioSensor:
         device_info = sensor.device_info
 
         assert device_info["identifiers"] == {(DOMAIN, "profile_1")}
-        assert device_info["name"] == "profile_1"
+        # Base entity now uses profile name from init as fallback
+        assert device_info["name"] == "Child One"
         assert device_info["manufacturer"] == MANUFACTURER
 
     def test_native_value_with_data(self, mock_coordinator: Mock) -> None:

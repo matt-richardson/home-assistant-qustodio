@@ -168,23 +168,26 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ### Current Gaps
 - Limited entity attributes
-- No base entity class (code duplication)
+- ~~No base entity class (code duplication)~~ ✅ **Base entity class implemented**
 - Icons are basic
-- No entity availability tracking refinement
-- Missing device info structure
+- ~~No entity availability tracking refinement~~ ✅ **Availability tracking centralized**
+- ~~Missing device info structure~~ ✅ **Device info standardized**
 
 ### Improvements Needed
-- [ ] Create `QustodioBaseEntity` class to reduce duplication
+- [x] Create `QustodioBaseEntity` class to reduce duplication ✅ (2025-11-23)
+  - [x] Centralized device info generation ✅
+  - [x] Common availability tracking ✅
+  - [x] Shared profile data accessor ✅
+  - [x] Profile name fallback handling ✅
+- [x] Enhance device info with manufacturer "Qustodio" ✅ (Already done)
 - [ ] Enhance device info with:
-  - Manufacturer: "Qustodio"
-  - Model: Child's name
+  - Model: Child's name (currently used as device name)
   - Serial number: Profile UID
 - [ ] Add more state attributes to sensors:
   - Last update timestamp
   - API status
   - More device details
 - [ ] Improve icon selection logic
-- [ ] Add proper entity availability tracking
 - [ ] Consider additional entity types:
   - Binary sensors (is_online, has_quota_remaining, tamper_detected)
   - Switches (pause protection, enable alerts)
@@ -292,10 +295,10 @@ This document outlines planned improvements to bring the Qustodio integration up
 8. [x] API client refactored with helper methods ✅
 
 ### Phase 2: Quality (High Priority - COMPLETE ✅)
-1. [x] Comprehensive test coverage (>95%) - **✅ 95.14% achieved - TARGET MET** ✅
+1. [x] Comprehensive test coverage (>95%) - **✅ 95% achieved - TARGET MET** ✅
    - [x] API client tests (45 tests including retry/session) ✅
-   - [x] Config flow tests (13 tests) ✅ **97% coverage**
-   - [x] Coordinator tests (7 tests) ✅
+   - [x] Config flow tests (19 tests) ✅ **98% coverage**
+   - [x] Coordinator tests (8 tests) ✅
    - [x] Sensor tests (24 tests) ✅ **100% coverage**
    - [x] Device tracker tests (22 tests) ✅ **100% coverage**
    - [x] Init tests (11 tests including session cleanup) ✅ **100% coverage**
@@ -304,7 +307,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 4. [x] Zero linting warnings achieved (Black, flake8, mypy, pylint 10/10) ✅
 5. [x] Developer environment setup ✅
 6. [x] Composition pattern implemented (helper functions vs inheritance) ✅
-7. [ ] Base entity class to reduce duplication (Phase 3)
+7. [x] Base entity class to reduce duplication ✅ **(2025-11-23)**
 8. [x] Session management and retry logic ✅ **(2025-11-23 - Pylint 10.00/10)**
 
 ### Phase 3: Features (Medium Priority - IN PROGRESS)
@@ -327,7 +330,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 - **Test Coverage**: >95% (Target) - ✅ **95% ACHIEVED - TARGET MET** (Phase 2 COMPLETE)
   - 129 tests passing (45 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 11 init)
-  - 100% coverage: const.py, exceptions.py, sensor.py, device_tracker.py, __init__.py
+  - 100% coverage: const.py, exceptions.py, sensor.py, device_tracker.py, __init__.py, entity.py
   - 98% coverage: config_flow.py (includes reauthentication flow)
   - 91% coverage: qustodioapi.py (includes retry/session management)
   - Remaining uncovered lines are non-critical debug/warning paths (24 lines total)
