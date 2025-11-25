@@ -1,16 +1,16 @@
 {
   "domain": "qustodio",
   "name": "Qustodio",
-  "documentation": "https://github.com/custom-components/qustodio",
-  "dependencies": [],
-  "config_flow": true,
   "codeowners": [
     "@matt-richardson"
   ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/custom-components/qustodio",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/matt-richardson/home-assistant-qustodio/issues",
   "requirements": [
     "aiohttp>=3.8.0"
   ],
-  "issue_tracker": "https://github.com/matt-richardson/home-assistant-qustodio/issues",
-  "version": "1.0.0",
-  "iot_class": "cloud_polling"
+  "version": "1.0.0"
 }
