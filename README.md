@@ -2,7 +2,7 @@
 
 A Home Assistant custom integration for monitoring Qustodio parental control data.
 
-Rewrite of [dotKrad/hass-qustodio](https://github.com/dotKrad/hass-qustodio). Old repository not maintained, code rewritten for Home Assistant 2025.7+ and latest Qustodio API.
+Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork of [dotKrad/hass-qustodio](https://github.com/dotKrad/hass-qustodio). Thanks to both for their contributions and the groundwork in discovering the Qustodio API.
 
 ## Features
 
