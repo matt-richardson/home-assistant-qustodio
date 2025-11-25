@@ -42,5 +42,45 @@
         }
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "is_online": {
+        "name": "Online"
+      },
+      "has_quota_remaining": {
+        "name": "Has Quota Remaining"
+      },
+      "internet_paused": {
+        "name": "Internet Paused"
+      },
+      "protection_disabled": {
+        "name": "Protection Disabled"
+      },
+      "panic_button_active": {
+        "name": "Panic Button Active"
+      },
+      "navigation_locked": {
+        "name": "Navigation Locked"
+      },
+      "unauthorized_remove": {
+        "name": "Tampering Detected"
+      },
+      "has_questionable_events": {
+        "name": "Questionable Events"
+      },
+      "location_tracking_enabled": {
+        "name": "Location Tracking"
+      },
+      "browser_locked": {
+        "name": "Browser Locked"
+      },
+      "vpn_disabled": {
+        "name": "VPN Disabled"
+      },
+      "computer_locked": {
+        "name": "Computer Locked"
+      }
+    }
   }
 }

@@ -16,7 +16,7 @@ from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.DEVICE_TRACKER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.DEVICE_TRACKER, Platform.BINARY_SENSOR]
 
 # Update every 5 minutes - parental control data doesn't need real-time updates
 # This reduces API load, prevents rate limiting, and conserves battery on mobile devices

@@ -116,7 +116,7 @@ class TestQustodioSensor:
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        assert sensor.native_value == 45.5
+        assert sensor.native_value == 120
 
     def test_native_value_without_data(self, mock_coordinator: Mock) -> None:
         """Test native value when coordinator has no data."""
@@ -140,7 +140,7 @@ class TestQustodioSensor:
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        # profile_1 has time=45.5 and quota=120, so within quota
+        # profile_1 has time=120 and quota=300, so within quota
         assert sensor.icon == ICON_IN_TIME
 
     def test_icon_over_quota(self, mock_coordinator: Mock) -> None:
@@ -182,11 +182,11 @@ class TestQustodioSensor:
 
         assert attributes is not None
         assert attributes["attribution"] == ATTRIBUTION
-        assert attributes["time"] == 45.5
+        assert attributes["time"] == 120
         assert attributes["current_device"] == "iPhone 12"
         assert attributes["is_online"] is True
-        assert attributes["quota"] == 120
-        assert attributes["unauthorized_remove"] is False
+        assert attributes["quota"] == 300
+        assert attributes["unauthorized_remove"] is True
         assert attributes["device_tampered"] is None
 
     def test_extra_state_attributes_without_data(self, mock_coordinator: Mock) -> None:
