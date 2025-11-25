@@ -49,7 +49,7 @@ class TestQustodioDeviceTracker:
 
         assert tracker._profile_id == "profile_1"
         assert tracker._profile_name == "Child One"
-        assert tracker.name == "Qustodio Child One"
+        assert tracker.name == "Child One"
         assert tracker.unique_id == f"{DOMAIN}_tracker_profile_1"
 
     def test_latitude_with_data(self, mock_coordinator: Mock) -> None:

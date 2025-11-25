@@ -42,8 +42,8 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         data = self._get_profile_data()
         if data:
             profile_name = data.get("name", "Unknown")
-            return f"Qustodio {profile_name}"
-        return f"Qustodio {self._profile_id}"
+            return profile_name
+        return self._profile_id
 
     @property
     def attribution(self) -> str:

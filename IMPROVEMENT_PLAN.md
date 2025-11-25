@@ -1,12 +1,14 @@
 # Qustodio Integration Improvement Plan
 
 ## Overview
+
 This document outlines planned improvements to bring the Qustodio integration up to the same level of polish as the Firefly Cloud integration.
 
 **Current State**: Functional integration with complete local dev environment ✅
 **Target State**: Production-grade Silver-tier integration with comprehensive testing and documentation
 
 **Completed Setup (2025-11-23):**
+
 - ✅ Full development environment with venv and Home Assistant 2025.6.3
 - ✅ VSCode debugging configurations (10 debug configs)
 - ✅ Dev container setup
@@ -19,6 +21,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 1. Code Quality & Architecture
 
 ### Current Gaps
+
 - ~~No test coverage (0%)~~ ✅ **96.22% coverage achieved** (186 tests passing)
 - ~~Broad exception catching masks issues~~ ✅ **Custom exception hierarchy implemented**
 - ~~No retry/backoff logic for failed API calls~~ ✅ **Exponential backoff with jitter implemented**
@@ -27,6 +30,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 - ~~Update interval is aggressive (1 minute)~~ ✅ **Optimized to 5 minutes**
 
 ### Improvements Needed
+
 - [x] Add comprehensive test suite (target >95% coverage) - **✅ 96.22% achieved - TARGET EXCEEDED** ✅
   - [x] Unit tests for API client (45 tests) ✅
   - [x] Integration tests for coordinator (8 tests) ✅
@@ -54,6 +58,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 2. Documentation
 
 ### Current Gaps
+
 - ~~Minimal README (175 bytes)~~ ✅ DONE
 - ~~No installation instructions~~ ✅ DONE
 - ~~No configuration guide~~ ✅ DONE
@@ -63,6 +68,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 - Limited inline documentation
 
 ### Improvements Needed
+
 - [x] Expand README.md with:
   - [x] Installation instructions (HACS and manual)
   - [ ] Configuration walkthrough with screenshots
@@ -81,12 +87,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 3. Testing & Quality Assurance
 
 ### Current Gaps
+
 - ~~No automated testing (0% coverage)~~ ✅ **96.22% coverage achieved** (186 tests)
 - ~~No linting enforcement~~ ✅ Tools configured
 - ~~No CI/CD pipeline~~ ✅ **GitHub Actions workflows configured**
 - ~~No code coverage tracking~~ ✅ pytest-cov integrated
 
 ### Improvements Needed
+
 - [x] Create comprehensive test suite: ✅ **96.22% coverage** (Phase 2 COMPLETE)
   - [x] `tests/conftest.py` - Shared fixtures and mocks ✅
   - [x] `tests/test_init.py` - Setup/unload/reload tests (13 tests) ✅
@@ -119,6 +127,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 4. Configuration & Setup
 
 ### Current Gaps
+
 - Basic username/password config flow
 - ~~No reauthentication flow~~ ✅ **Reauthentication flow implemented**
 - Limited validation
@@ -126,6 +135,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 - ~~No options flow for runtime configuration~~ ✅ **Options flow implemented**
 
 ### Improvements Needed
+
 - [x] Reauthentication flow when tokens expire ✅ (2025-11-23)
   - [x] `async_step_reauth()` and `async_step_reauth_confirm()` methods ✅
   - [x] Pre-fills username from existing config ✅
@@ -150,6 +160,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 5. Error Handling & Resilience
 
 ### Current Gaps
+
 - ~~No retry mechanism for transient failures~~ ✅ **Retry logic with exponential backoff implemented**
 - ~~Token expiration not handled gracefully~~ ✅ **Reauthentication flow implemented**
 - Limited user feedback on errors
@@ -157,6 +168,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 - ~~Timeout is fixed~~ ✅ **Configurable timeout via RetryConfig**
 
 ### Improvements Needed
+
 - [x] Implement graceful token refresh ✅ (2025-11-23)
 - [x] Add automatic reauthentication on token expiry ✅ (2025-11-23)
 - [x] Implement rate limit detection and backoff ✅ (2025-11-23)
@@ -171,6 +183,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 6. Entity Enhancements
 
 ### Current Gaps
+
 - Limited entity attributes
 - ~~No base entity class (code duplication)~~ ✅ **Base entity class implemented**
 - Icons are basic
@@ -178,6 +191,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 - ~~Missing device info structure~~ ✅ **Device info standardized**
 
 ### Improvements Needed
+
 - [x] Create `QustodioBaseEntity` class to reduce duplication ✅ (2025-11-23)
   - [x] Centralized device info generation ✅
   - [x] Common availability tracking ✅
@@ -205,12 +219,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 7. Developer Experience
 
 ### Current Gaps
+
 - ~~No development container~~ ✅ DONE
 - ~~No helper scripts~~ ✅ DONE
 - No pre-commit hooks
 - No contribution guidelines
 
 ### Improvements Needed
+
 - [x] Create `.devcontainer/` setup:
   - [x] devcontainer.json configuration
   - [x] post-create.sh script
@@ -236,12 +252,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 8. Release Management
 
 ### Current Gaps
+
 - No versioning strategy
 - No changelog
 - No automated releases
 - Manual version bumps
 
 ### Improvements Needed
+
 - [ ] Implement semantic versioning
 - [ ] Use conventional commits
 - [ ] Set up release-please for automation
@@ -255,11 +273,13 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 9. HACS Integration
 
 ### Current Gaps
+
 - Missing hacs.json
 - No HACS validation in CI
 - Limited metadata
 
 ### Improvements Needed
+
 - [ ] Create `hacs.json` with proper configuration
 - [ ] Add HACS validation to CI pipeline
 - [ ] Include screenshots for HACS listing
@@ -272,12 +292,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 10. API Stability & Maintainability
 
 ### Current Gaps
+
 - Hardcoded OAuth client credentials (vulnerable to changes)
 - Reverse-engineered API endpoints
 - No API versioning
 - User Agent spoofing
 
 ### Improvements Needed
+
 - [ ] Document all API endpoints with examples
 - [ ] Add API version detection/handling
 - [ ] Implement fallbacks for API changes
@@ -292,6 +314,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## Implementation Priority
 
 ### Phase 1: Foundation (Complete - 100% ✅)
+
 1. [x] Custom exception hierarchy ✅
 2. [x] Basic test suite (>50% coverage) ✅ **60% coverage achieved**
 3. [x] Improved error handling with specific exceptions ✅
@@ -302,6 +325,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 8. [x] API client refactored with helper methods ✅
 
 ### Phase 2: Quality (High Priority - COMPLETE ✅)
+
 1. [x] Comprehensive test coverage (>95%) - **✅ 96.22% achieved - TARGET EXCEEDED** ✅
    - [x] API client tests (45 tests including retry/session) ✅ **91% coverage**
    - [x] Config flow tests (19 tests) ✅ **96% coverage**
@@ -323,6 +347,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 8. [x] Session management and retry logic ✅ **(2025-11-23 - Pylint 10.00/10)**
 
 ### Phase 3: Features (Medium Priority - 80% COMPLETE)
+
 1. [x] Reauthentication flow ✅ **(2025-11-23)**
 2. [x] Options flow for configuration ✅ **(2025-11-23)**
    - [x] Update interval (1-60 minutes) ✅
@@ -341,6 +366,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 5. [ ] Technical documentation (CLAUDE.md, qustodio-api-docs.md)
 
 ### Phase 4: Polish (Nice-to-Have - 70% COMPLETE)
+
 1. [x] Release automation ✅ **(2025-11-25)**
    - [x] CHANGELOG.md with complete project history ✅
    - [x] Release-please configuration (already set up) ✅
@@ -364,8 +390,8 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Added pre-commit to requirements-dev.txt ✅
 5. [ ] Advanced configuration options (enable/disable profiles, more validation)
 6. [ ] API abstraction layer and documentation (endpoint docs, version detection)
-7. [ ] Remove "Qustodio" prefix from all sensors
-8. [ ] if there is more than one device Can we split the sensors by device? and have 
+7. [x] Remove "Qustodio" prefix from all sensors ✅
+8. [ ] if there is more than one device can we split the sensors by device? and have a total sensor as well?
 
 ---
 
@@ -373,7 +399,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 - **Test Coverage**: >95% (Target) - **✅ 96.22% ACHIEVED - TARGET EXCEEDED** ✅
   - 186 tests passing (45 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 13 init, 43 binary sensor)
-  - 100% coverage: const.py, exceptions.py, sensor.py, entity.py, __init__.py, binary_sensor.py
+  - 100% coverage: const.py, exceptions.py, sensor.py, entity.py, **init**.py, binary_sensor.py
   - 96% coverage: config_flow.py (includes reauthentication + options flow), device_tracker.py
   - 91% coverage: qustodioapi.py (includes retry/session management)
   - **Phase 2 COMPLETE**: All quality gates passed **(2025-11-25)**

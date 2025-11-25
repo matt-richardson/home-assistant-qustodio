@@ -59,7 +59,7 @@ class TestQustodioSensor:
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        assert sensor.name == "Qustodio Child One"
+        assert sensor.name == "Child One"
 
     def test_name_without_data(self, mock_coordinator: Mock) -> None:
         """Test sensor name when coordinator has no data."""
@@ -69,14 +69,14 @@ class TestQustodioSensor:
         # Clear coordinator data
         mock_coordinator.data = None
 
-        assert sensor.name == "Qustodio profile_1"
+        assert sensor.name == "profile_1"
 
     def test_name_profile_not_in_data(self, mock_coordinator: Mock) -> None:
         """Test sensor name when profile not in coordinator data."""
         profile_data = {"id": "profile_999", "name": "Unknown Profile"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        assert sensor.name == "Qustodio profile_999"
+        assert sensor.name == "profile_999"
 
     def test_attribution(self, mock_coordinator: Mock) -> None:
         """Test sensor attribution."""
