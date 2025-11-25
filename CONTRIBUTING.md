@@ -34,10 +34,14 @@ This project follows the [Home Assistant Code of Conduct](https://www.home-assis
 # Run the setup script
 ./setup-venv.sh
 
+# Set up pre-commit hooks (recommended)
+./setup-pre-commit.sh
+
 # Or manually:
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements-dev.txt
+pre-commit install --hook-type pre-commit --hook-type commit-msg
 ```
 
 ### Using the Dev Script
@@ -51,6 +55,23 @@ The `dev.sh` script provides convenient commands:
 ./dev.sh format        # Format code with black
 ./dev.sh validate      # Run HACS/hassfest validation
 ```
+
+### Pre-commit Hooks
+
+Pre-commit hooks automatically run checks before each commit:
+
+```bash
+# Installed hooks run automatically on commit
+git commit -m "feat: add new feature"
+
+# Run manually on all files
+pre-commit run --all-files
+
+# Skip hooks if needed (use sparingly)
+git commit --no-verify
+```
+
+Hooks include: black, isort, flake8, mypy, trailing whitespace, commit message validation
 
 ## Making Changes
 

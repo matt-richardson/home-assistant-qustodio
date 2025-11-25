@@ -121,6 +121,7 @@ lsof -ti:8123 | xargs kill -9
 ```bash
 ./dev.sh clean
 ./setup-venv.sh
+./setup-pre-commit.sh  # Optional: set up git hooks
 ```
 
 **Integration not loading:**

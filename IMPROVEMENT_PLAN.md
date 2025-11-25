@@ -340,7 +340,7 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Base entity helper for consistent attributes ✅
 5. [ ] Technical documentation (CLAUDE.md, qustodio-api-docs.md)
 
-### Phase 4: Polish (Nice-to-Have - 50% COMPLETE)
+### Phase 4: Polish (Nice-to-Have - 70% COMPLETE)
 1. [x] Release automation ✅ **(2025-11-25)**
    - [x] CHANGELOG.md with complete project history ✅
    - [x] Release-please configuration (already set up) ✅
@@ -355,7 +355,13 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Commit message conventions documented ✅
    - [x] Code style and testing requirements ✅
    - [x] Pull request process documented ✅
-4. [ ] Pre-commit git hooks (linting, formatting, commit-msg validation)
+4. [x] Pre-commit git hooks ✅ **(2025-11-25)**
+   - [x] .pre-commit-config.yaml with comprehensive hooks ✅
+   - [x] setup-pre-commit.sh installation script ✅
+   - [x] Hooks: black, isort, flake8, mypy, commit-msg validation ✅
+   - [x] YAML/markdown linting ✅
+   - [x] Documentation in CONTRIBUTING.md ✅
+   - [x] Added pre-commit to requirements-dev.txt ✅
 5. [ ] Advanced configuration options (enable/disable profiles, more validation)
 6. [ ] API abstraction layer and documentation (endpoint docs, version detection)
 7. [ ] Remove "Qustodio" prefix from all sensors

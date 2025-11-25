@@ -21,6 +21,7 @@ pylint
 isort
 yamllint
 codespell
+pre-commit
 
 # Testing framework
 pytest>=6.2.5
