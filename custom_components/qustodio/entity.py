@@ -8,7 +8,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import is_profile_available
-from .const import DOMAIN, MANUFACTURER
+from .const import ATTRIBUTION, DOMAIN, MANUFACTURER
 
 
 class QustodioBaseEntity(CoordinatorEntity):
@@ -62,3 +62,22 @@ class QustodioBaseEntity(CoordinatorEntity):
         if self.coordinator.data and self._profile_id in self.coordinator.data:
             return self.coordinator.data[self._profile_id]
         return None
+
+    def _build_base_attributes(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Build base attributes common to all entity types.
+
+        Args:
+            data: Profile data from coordinator
+
+        Returns:
+            Dictionary of common attributes
+        """
+        return {
+            "attribution": ATTRIBUTION,
+            "profile_id": self._profile_id,
+            "profile_uid": data.get("uid"),
+            "is_online": data.get("is_online"),
+            "current_device": data.get("current_device"),
+            "unauthorized_remove": data.get("unauthorized_remove"),
+            "device_tampered": data.get("device_tampered"),
+        }

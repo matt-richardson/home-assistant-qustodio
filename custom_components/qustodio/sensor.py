@@ -82,18 +82,17 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         quota_remaining = max(0, quota - time_used) if quota and time_used is not None else None
         percentage_used = round((time_used / quota) * 100, 1) if quota and time_used is not None and quota > 0 else None
 
-        attributes = {
-            "attribution": ATTRIBUTION,
-            "profile_id": self._profile_id,
-            "profile_uid": data.get("uid"),
-            "time_used_minutes": time_used,
-            "quota_minutes": quota,
-            "quota_remaining_minutes": quota_remaining,
-            "percentage_used": percentage_used,
-            "current_device": data.get("current_device"),
-            "is_online": data.get("is_online"),
-            "unauthorized_remove": data.get("unauthorized_remove"),
-            "device_tampered": data.get("device_tampered"),
-        }
+        # Start with base attributes
+        attributes = self._build_base_attributes(data)
+
+        # Add sensor-specific attributes
+        attributes.update(
+            {
+                "time_used_minutes": time_used,
+                "quota_minutes": quota,
+                "quota_remaining_minutes": quota_remaining,
+                "percentage_used": percentage_used,
+            }
+        )
 
         return attributes

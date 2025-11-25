@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import setup_profile_entities
-from .const import ATTRIBUTION, CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING, DOMAIN
+from .const import CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING, DOMAIN
 from .entity import QustodioBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,16 +74,15 @@ class QustodioDeviceTracker(QustodioBaseEntity, TrackerEntity):
         if not data:
             return None
 
-        attributes = {
-            "attribution": ATTRIBUTION,
-            "profile_id": self._profile_id,
-            "profile_uid": data.get("uid"),
-            "last_seen": data.get("lastseen"),
-            "is_online": data.get("is_online"),
-            "current_device": data.get("current_device"),
-            "location_accuracy_meters": data.get("accuracy", 0),
-            "unauthorized_remove": data.get("unauthorized_remove"),
-            "device_tampered": data.get("device_tampered"),
-        }
+        # Start with base attributes
+        attributes = self._build_base_attributes(data)
+
+        # Add device tracker-specific attributes
+        attributes.update(
+            {
+                "last_seen": data.get("lastseen"),
+                "location_accuracy_meters": data.get("accuracy", 0),
+            }
+        )
 
         return attributes
