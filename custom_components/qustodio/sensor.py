@@ -72,14 +72,28 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         data = self._get_profile_data()
-        if data:
-            return {
-                "attribution": ATTRIBUTION,
-                "time": data.get("time"),
-                "current_device": data.get("current_device"),
-                "is_online": data.get("is_online"),
-                "quota": data.get("quota"),
-                "unauthorized_remove": data.get("unauthorized_remove"),
-                "device_tampered": data.get("device_tampered"),
-            }
-        return None
+        if not data:
+            return None
+
+        time_used = data.get("time", 0)
+        quota = data.get("quota", 0)
+
+        # Calculate derived metrics
+        quota_remaining = max(0, quota - time_used) if quota and time_used is not None else None
+        percentage_used = round((time_used / quota) * 100, 1) if quota and time_used is not None and quota > 0 else None
+
+        attributes = {
+            "attribution": ATTRIBUTION,
+            "profile_id": self._profile_id,
+            "profile_uid": data.get("uid"),
+            "time_used_minutes": time_used,
+            "quota_minutes": quota,
+            "quota_remaining_minutes": quota_remaining,
+            "percentage_used": percentage_used,
+            "current_device": data.get("current_device"),
+            "is_online": data.get("is_online"),
+            "unauthorized_remove": data.get("unauthorized_remove"),
+            "device_tampered": data.get("device_tampered"),
+        }
+
+        return attributes

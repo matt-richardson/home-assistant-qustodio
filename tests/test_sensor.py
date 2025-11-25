@@ -182,10 +182,14 @@ class TestQustodioSensor:
 
         assert attributes is not None
         assert attributes["attribution"] == ATTRIBUTION
-        assert attributes["time"] == 120
+        assert attributes["profile_id"] == "profile_1"
+        assert attributes["profile_uid"] == "uid_1"
+        assert attributes["time_used_minutes"] == 120
+        assert attributes["quota_minutes"] == 300
+        assert attributes["quota_remaining_minutes"] == 180
+        assert attributes["percentage_used"] == 40.0
         assert attributes["current_device"] == "iPhone 12"
         assert attributes["is_online"] is True
-        assert attributes["quota"] == 300
         assert attributes["unauthorized_remove"] is True
         assert attributes["device_tampered"] is None
 
@@ -257,10 +261,12 @@ class TestQustodioSensor:
 
         attributes = sensor.extra_state_attributes
         assert attributes is not None
-        assert attributes["time"] is None
+        assert attributes["time_used_minutes"] == 0
+        assert attributes["quota_minutes"] == 0
+        assert attributes["quota_remaining_minutes"] is None
+        assert attributes["percentage_used"] is None
         assert attributes["current_device"] is None
         assert attributes["is_online"] is None
-        assert attributes["quota"] is None
 
     def test_sensor_offline_profile(self, mock_coordinator: Mock) -> None:
         """Test sensor with offline profile."""
@@ -272,9 +278,13 @@ class TestQustodioSensor:
 
         attributes = sensor.extra_state_attributes
         assert attributes is not None
+        assert attributes["profile_id"] == "profile_2"
+        assert attributes["profile_uid"] == "uid_2"
+        assert attributes["time_used_minutes"] == 70.2
+        assert attributes["quota_minutes"] == 60
+        assert attributes["quota_remaining_minutes"] == 0
+        assert attributes["percentage_used"] == 117.0
         assert attributes["is_online"] is False
         assert attributes["current_device"] is None
-        assert attributes["time"] == 70.2
-        assert attributes["quota"] == 60
         assert attributes["unauthorized_remove"] is False
         assert attributes["device_tampered"] is None

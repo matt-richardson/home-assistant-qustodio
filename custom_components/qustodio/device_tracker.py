@@ -71,11 +71,19 @@ class QustodioDeviceTracker(QustodioBaseEntity, TrackerEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         data = self._get_profile_data()
-        if data:
-            return {
-                "attribution": ATTRIBUTION,
-                "last_seen": data.get("lastseen"),
-                "is_online": data.get("is_online"),
-                "current_device": data.get("current_device"),
-            }
-        return None
+        if not data:
+            return None
+
+        attributes = {
+            "attribution": ATTRIBUTION,
+            "profile_id": self._profile_id,
+            "profile_uid": data.get("uid"),
+            "last_seen": data.get("lastseen"),
+            "is_online": data.get("is_online"),
+            "current_device": data.get("current_device"),
+            "location_accuracy_meters": data.get("accuracy", 0),
+            "unauthorized_remove": data.get("unauthorized_remove"),
+            "device_tampered": data.get("device_tampered"),
+        }
+
+        return attributes
