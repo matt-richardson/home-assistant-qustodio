@@ -10,10 +10,12 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 - **GPS Device Tracking**: Track device locations in real-time
 - **Profile Monitoring**: Support for multiple child profiles
 - **Tamper Detection**: Alerts when protection is disabled
+- **Diagnostics Support**: Built-in diagnostics with automatic data redaction for troubleshooting
 
 ## Installation
 
 ### HACS (Recommended)
+
 1. Open HACS in Home Assistant
 2. Go to "Integrations"
 3. Click the three dots → "Custom repositories"
@@ -22,6 +24,7 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 6. Restart Home Assistant
 
 ### Manual Installation
+
 1. Copy the `qustodio` folder to `custom_components/`
 2. Restart Home Assistant
 
@@ -65,6 +68,7 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 ### VSCode Debugging
 
 Press `F5` to debug with breakpoints:
+
 - **🏠 Debug Home Assistant** - Full HA with breakpoints
 - **🧪 Run Tests** / **Debug Single Test** - Test debugging
 - **🎨 Format Code** / **Run Linter** - Code quality tools
@@ -109,15 +113,21 @@ Provides consistent environment with Python 3.13, all tools pre-installed, and p
 ### Troubleshooting
 
 **Port 8123 in use:**
+
 ```bash
 lsof -ti:8123 | xargs kill -9
 ```
 
 **VSCode not using venv:**
+
 1. `Cmd+Shift+P` → "Python: Select Interpreter"
 2. Choose `./venv/bin/python`
 
+**Enable diagnostics and DEBUG logging:**
+See [DIAGNOSTICS_README.md](DIAGNOSTICS_README.md) for detailed information on using the diagnostics feature.
+
 **Dependencies issues:**
+
 ```bash
 ./dev.sh clean
 ./setup-venv.sh
@@ -125,6 +135,7 @@ lsof -ti:8123 | xargs kill -9
 ```
 
 **Integration not loading:**
+
 ```bash
 ls -la homeassistant_test/custom_components/  # Check symlink
 ./dev.sh install  # Recreate symlink
@@ -137,24 +148,28 @@ ls -la homeassistant_test/custom_components/  # Check symlink
 See [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) for the full roadmap to production quality:
 
 ### Phase 1: Foundation (In Progress)
+
 - Custom exception hierarchy
 - Basic test suite (>50% coverage)
 - Improved error handling and logging
 - Session management and retry logic
 
 ### Phase 2: Quality
+
 - Comprehensive tests (>95% coverage)
 - CI/CD pipeline with GitHub Actions
 - Code quality tools (black, flake8, mypy, pylint)
 - Developer tooling improvements
 
 ### Phase 3: Features
+
 - Reauthentication flow
 - Options flow for configuration
 - Additional entity types
 - Enhanced entity attributes
 
 ### Phase 4: Polish
+
 - Release automation
 - HACS integration
 - Contribution guidelines

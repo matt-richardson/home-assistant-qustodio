@@ -157,6 +157,62 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         _LOGGER.debug("Retry attempt %d: waiting %.2f seconds", attempt, delay)
         await asyncio.sleep(delay)
 
+    def _log_api_response(self, endpoint: str, status: int, data: Any = None, error: str | None = None) -> None:
+        """Log API response for debugging (with sensitive data redacted).
+
+        Args:
+            endpoint: API endpoint name (e.g., "login", "profiles", "devices")
+            status: HTTP status code
+            data: Response data (will be redacted if sensitive)
+            error: Error message if request failed
+        """
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            log_data = {"endpoint": endpoint, "status": status}
+
+            if error:
+                log_data["error"] = error
+            elif data is not None:
+                # Redact sensitive fields and log full data
+                redacted = self._redact_sensitive_data(data)
+                log_data["data"] = redacted
+
+            _LOGGER.debug("API Response: %s", log_data)
+
+    def _redact_sensitive_data(self, data: Any) -> Any:
+        """Redact sensitive data from logging.
+
+        Args:
+            data: Data structure to redact
+
+        Returns:
+            Copy of data with sensitive fields redacted
+        """
+        if isinstance(data, dict):
+            redacted = {}
+            sensitive_keys = {
+                "access_token",
+                "password",
+                "token",
+                "email",
+                "latitude",
+                "longitude",
+                "id",
+                "uid",
+                "device_id",
+                "lastseen",
+            }
+            for key, value in data.items():
+                if key in sensitive_keys:
+                    redacted[key] = "**REDACTED**"
+                elif isinstance(value, (dict, list)):
+                    redacted[key] = self._redact_sensitive_data(value)
+                else:
+                    redacted[key] = value
+            return redacted
+        if isinstance(data, list):
+            return [self._redact_sensitive_data(item) for item in data]
+        return data
+
     async def _do_login_request(self, session: aiohttp.ClientSession, data: dict[str, str]) -> str:
         """Perform the login API request.
 
@@ -191,6 +247,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                 )
 
             response_data = await response.json()
+            self._log_api_response("login", response.status, response_data)
 
             if "access_token" not in response_data:
                 _LOGGER.error("No access token in response")
@@ -281,6 +338,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                 )
 
             account_data = await response.json()
+            self._log_api_response("account", response.status, account_data)
+
             if "id" not in account_data:
                 raise QustodioDataError("Account data missing required 'id' field")
 
@@ -295,8 +354,10 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             async with session.get(URL_DEVICES.format(self._account_id), headers=headers) as response:
                 if response.status == 200:
                     devices_data = await response.json()
+                    self._log_api_response("devices", response.status, devices_data)
                     devices = {device["id"]: device for device in devices_data}
                 else:
+                    self._log_api_response("devices", response.status, error=f"HTTP {response.status}")
                     _LOGGER.warning("Failed to get devices: %s", response.status)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.warning("Error getting devices: %s", err)
@@ -317,6 +378,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                 )
 
             profiles_data = await response.json()
+            self._log_api_response("profiles", response.status, profiles_data)
+
             if not isinstance(profiles_data, list):
                 raise QustodioDataError("Profiles data is not a list")
             return profiles_data
@@ -375,9 +438,11 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             ) as response:
                 if response.status == 200:
                     rules_data = await response.json()
+                    self._log_api_response(f"rules/{profile_name}", response.status, rules_data)
                     time_restrictions = rules_data.get("time_restrictions", {})
                     quotas = time_restrictions.get("quotas", {})
                     return quotas.get(dow, 0)
+                self._log_api_response(f"rules/{profile_name}", response.status, error=f"HTTP {response.status}")
                 _LOGGER.debug("No rules found for profile %s", profile_name)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.warning("Failed to get rules for profile %s: %s", profile_name, err)
@@ -399,8 +464,10 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             ) as response:
                 if response.status == 200:
                     hourly_data = await response.json()
+                    self._log_api_response(f"screen_time/{profile_name}", response.status, hourly_data)
                     total_time = sum(entry.get("screen_time_seconds", 0) for entry in hourly_data)
                     return round(total_time / 60, 1)  # Convert to minutes
+                self._log_api_response(f"screen_time/{profile_name}", response.status, error=f"HTTP {response.status}")
                 _LOGGER.debug("Hourly summary not available for profile %s", profile_name)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.warning("Failed to get screen time for profile %s: %s", profile_name, err)

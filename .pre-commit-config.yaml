@@ -71,7 +71,7 @@ repos:
     hooks:
       - id: markdownlint
         args: ['--fix']
-        exclude: ^(CHANGELOG\.md|CONTRIBUTING\.md|IMPROVEMENT_PLAN\.md)$
+        exclude: ^(CHANGELOG\.md|CONTRIBUTING\.md|IMPROVEMENT_PLAN\.md|DEVICE_SPLITTING_ANALYSIS\.md|DIAGNOSTICS_README\.md|README\.md)$
 # Configuration for pre-commit
 default_language_version:
   python: python3.11
