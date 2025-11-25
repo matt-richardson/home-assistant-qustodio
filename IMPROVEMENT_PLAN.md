@@ -19,7 +19,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 1. Code Quality & Architecture
 
 ### Current Gaps
-- ~~No test coverage (0%)~~ ✅ **95.50% coverage achieved**
+- ~~No test coverage (0%)~~ ✅ **94.74% coverage achieved** (175 tests passing)
 - ~~Broad exception catching masks issues~~ ✅ **Custom exception hierarchy implemented**
 - ~~No retry/backoff logic for failed API calls~~ ✅ **Exponential backoff with jitter implemented**
 - ~~Fixed 15-second timeout may be insufficient~~ ✅ **Configurable timeout via RetryConfig**
@@ -27,13 +27,14 @@ This document outlines planned improvements to bring the Qustodio integration up
 - ~~Update interval is aggressive (1 minute)~~ ✅ **Optimized to 5 minutes**
 
 ### Improvements Needed
-- [x] Add comprehensive test suite (target >95% coverage) - **COMPLETE - 95.14% achieved** ✅
+- [ ] Add comprehensive test suite (target >95% coverage) - **94.74% achieved** - Binary sensor tests needed
   - [x] Unit tests for API client (45 tests) ✅
   - [x] Integration tests for coordinator (7 tests) ✅
-  - [x] Config flow tests (13 tests) ✅
+  - [x] Config flow tests (19 tests) ✅
   - [x] Sensor platform tests (24 tests) ✅
   - [x] Device tracker platform tests (22 tests) ✅
-  - [x] Init tests (11 tests) ✅
+  - [x] Init tests (13 tests) ✅
+  - [ ] Binary sensor platform tests (0 tests) - **11 uncovered lines**
 - [x] Implement custom exception hierarchy ✅ (2025-11-23)
   - `QustodioException` (base)
   - `QustodioAuthenticationError`
@@ -80,20 +81,21 @@ This document outlines planned improvements to bring the Qustodio integration up
 ## 3. Testing & Quality Assurance
 
 ### Current Gaps
-- ~~No automated testing (0% coverage)~~ ✅ **95.50% coverage achieved**
+- ~~No automated testing (0% coverage)~~ ✅ **94.74% coverage achieved** (175 tests)
 - ~~No linting enforcement~~ ✅ Tools configured
 - ~~No CI/CD pipeline~~ ✅ **GitHub Actions workflows configured**
 - ~~No code coverage tracking~~ ✅ pytest-cov integrated
 
 ### Improvements Needed
-- [x] Create comprehensive test suite: ✅
+- [ ] Create comprehensive test suite: **94.74% coverage** (need binary sensor tests)
   - [x] `tests/conftest.py` - Shared fixtures and mocks ✅
-  - [x] `tests/test_init.py` - Setup/unload/reload tests (10 tests) ✅
-  - [x] `tests/test_api.py` - API client tests (27 tests) ✅
-  - [x] `tests/test_coordinator.py` - Data update coordinator tests (7 tests) ✅
-  - [x] `tests/test_config_flow.py` - Configuration flow tests (13 tests) ✅
+  - [x] `tests/test_init.py` - Setup/unload/reload tests (13 tests) ✅
+  - [x] `tests/test_api.py` - API client tests (45 tests) ✅
+  - [x] `tests/test_coordinator.py` - Data update coordinator tests (8 tests) ✅
+  - [x] `tests/test_config_flow.py` - Configuration flow tests (19 tests) ✅
   - [x] `tests/test_sensor.py` - Sensor platform tests (24 tests) ✅
   - [x] `tests/test_device_tracker.py` - Device tracker tests (22 tests) ✅
+  - [ ] `tests/test_binary_sensor.py` - Binary sensor tests (0 tests) - **NEEDED**
 - [x] Add `dev.sh` helper script with commands:
   - [x] test, test-cov, test-single
   - [x] lint (black, flake8, mypy, pylint)
@@ -191,9 +193,10 @@ This document outlines planned improvements to bring the Qustodio integration up
   - More device details
 - [ ] Improve icon selection logic
 - [ ] Consider additional entity types:
-  - Binary sensors (is_online, has_quota_remaining, tamper_detected)
-  - Switches (pause protection, enable alerts)
-  - Diagnostic sensors (API response time, update success rate)
+  - [x] Binary sensors implemented (12 sensors: online, calls_allowed, messages_allowed, social_allowed, games_allowed, browsing_allowed, protection_enabled, tamper_detected, time_limits_enabled, web_filter_enabled, app_limits_enabled, location_tracking_enabled) ✅
+  - [ ] Binary sensor tests (0 tests - NEEDED)
+  - [ ] Switches (pause protection, enable alerts)
+  - [ ] Diagnostic sensors (API response time, update success rate)
 
 ---
 
@@ -296,14 +299,15 @@ This document outlines planned improvements to bring the Qustodio integration up
 7. [x] VSCode debugging configurations ✅
 8. [x] API client refactored with helper methods ✅
 
-### Phase 2: Quality (High Priority - COMPLETE ✅)
-1. [x] Comprehensive test coverage (>95%) - **✅ 95% achieved - TARGET MET** ✅
-   - [x] API client tests (45 tests including retry/session) ✅
-   - [x] Config flow tests (19 tests) ✅ **98% coverage**
+### Phase 2: Quality (High Priority - 99% COMPLETE)
+1. [ ] Comprehensive test coverage (>95%) - **94.74% achieved - 0.26% below target**
+   - [x] API client tests (45 tests including retry/session) ✅ **91% coverage**
+   - [x] Config flow tests (19 tests) ✅ **96% coverage**
    - [x] Coordinator tests (8 tests) ✅
    - [x] Sensor tests (24 tests) ✅ **100% coverage**
-   - [x] Device tracker tests (22 tests) ✅ **100% coverage**
-   - [x] Init tests (11 tests including session cleanup) ✅ **100% coverage**
+   - [x] Device tracker tests (22 tests) ✅ **96% coverage**
+   - [x] Init tests (13 tests including session cleanup) ✅ **100% coverage**
+   - [ ] Binary sensor tests (0 tests) - **94% coverage, 11 lines uncovered**
 2. [x] CI/CD pipeline with GitHub Actions ✅ **(2025-11-23)**
    - [x] Matrix testing (Python 3.11, 3.12, 3.13) ✅
    - [x] Linting gates (black, flake8, mypy, pylint) ✅
@@ -316,35 +320,40 @@ This document outlines planned improvements to bring the Qustodio integration up
 7. [x] Base entity class to reduce duplication ✅ **(2025-11-23)**
 8. [x] Session management and retry logic ✅ **(2025-11-23 - Pylint 10.00/10)**
 
-### Phase 3: Features (Medium Priority - IN PROGRESS)
+### Phase 3: Features (Medium Priority - 40% COMPLETE)
 1. [x] Reauthentication flow ✅ **(2025-11-23)**
 2. [x] Options flow for configuration ✅ **(2025-11-23)**
    - [x] Update interval (1-60 minutes) ✅
    - [x] GPS tracking toggle ✅
    - [x] Dynamic updates without reload ✅
-3. Additional entity types (binary sensors, diagnostics)
-4. Enhanced entity attributes
-5. Technical documentation
+3. [ ] Additional entity types
+   - [x] Binary sensors implemented (12 sensors: online, calls, messages, social, games, browsing, protection, tamper, limits) ✅
+   - [ ] Binary sensor tests (0 tests written)
+   - [ ] Diagnostic sensors (API response time, update success rate)
+4. [ ] Enhanced entity attributes (last update timestamp, API status, more device details)
+5. [ ] Technical documentation (CLAUDE.md, qustodio-api-docs.md)
 
-### Phase 4: Polish (Nice-to-Have)
-1. Release automation
-2. HACS integration enhancements
-3. Contribution guidelines
-4. Advanced configuration options
-5. API abstraction layer
+### Phase 4: Polish (Nice-to-Have - 0% COMPLETE)
+1. [ ] Release automation (semantic versioning, release-please, CHANGELOG.md, automated tagging)
+2. [ ] HACS integration enhancements (hacs.json, screenshots, validation in CI)
+3. [ ] Contribution guidelines (CONTRIBUTING.md, issue/PR templates, commit conventions)
+4. [ ] Pre-commit git hooks (linting, formatting, commit-msg validation)
+5. [ ] Advanced configuration options (enable/disable profiles, more validation)
+6. [ ] API abstraction layer and documentation (endpoint docs, version detection)
 
 ---
 
 ## Success Metrics
 
-- **Test Coverage**: >95% (Target) - ✅ **95% ACHIEVED - TARGET MET** (Phase 2 COMPLETE)
-  - 134 tests passing (45 API, 22 config flow, 8 coordinator, 24 sensor, 22 device tracker, 13 init)
+- **Test Coverage**: >95% (Target) - **94.74% ACHIEVED - 0.26% below target**
+  - 175 tests passing (45 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 13 init, 0 binary sensor)
   - 100% coverage: const.py, exceptions.py, sensor.py, entity.py, __init__.py
   - 96% coverage: config_flow.py (includes reauthentication + options flow), device_tracker.py
+  - 94% coverage: binary_sensor.py (11 uncovered lines - NO TESTS)
   - 91% coverage: qustodioapi.py (includes retry/session management)
-  - Remaining uncovered lines are non-critical debug/warning paths (28 lines total)
+  - **Blocker**: Binary sensor tests needed to reach 95% target (estimated 15-20 tests)
 - **CI/CD**: Automated testing on all PRs - ✅ DONE (2025-11-23)
-- **Documentation**: Complete README + technical specs - ✅ README complete, API documentation added
+- **Documentation**: Complete README + technical specs - ✅ README complete, technical docs pending (CLAUDE.md, qustodio-api-docs.md)
 - **Code Quality**: All linters passing with zero warnings - ✅ ACHIEVED (Pylint 10.00/10, perfect score)
 - **Error Handling**: Specific exceptions for all error cases - ✅ DONE
 - **Retry Logic**: Exponential backoff with jitter - ✅ DONE (2025-11-23)
