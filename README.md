@@ -124,7 +124,7 @@ lsof -ti:8123 | xargs kill -9
 2. Choose `./venv/bin/python`
 
 **Enable diagnostics and DEBUG logging:**
-See [DIAGNOSTICS_README.md](DIAGNOSTICS_README.md) for detailed information on using the diagnostics feature.
+See [docs/diagnostics_readme.md](docs/diagnostics_readme.md) for detailed information on using the diagnostics feature.
 
 **Dependencies issues:**
 
@@ -145,7 +145,7 @@ ls -la homeassistant_test/custom_components/  # Check symlink
 
 ## Roadmap
 
-See [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) for the full roadmap to production quality:
+See [docs/improvement_plan.md](docs/improvement_plan.md) for the full roadmap to production quality:
 
 ### Phase 1: Foundation (In Progress)
 
