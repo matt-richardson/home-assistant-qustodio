@@ -340,13 +340,26 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Base entity helper for consistent attributes ✅
 5. [ ] Technical documentation (CLAUDE.md, qustodio-api-docs.md)
 
-### Phase 4: Polish (Nice-to-Have - 0% COMPLETE)
-1. [ ] Release automation (semantic versioning, release-please, CHANGELOG.md, automated tagging)
-2. [ ] HACS integration enhancements (hacs.json, screenshots, validation in CI)
-3. [ ] Contribution guidelines (CONTRIBUTING.md, issue/PR templates, commit conventions)
+### Phase 4: Polish (Nice-to-Have - 50% COMPLETE)
+1. [x] Release automation ✅ **(2025-11-25)**
+   - [x] CHANGELOG.md with complete project history ✅
+   - [x] Release-please configuration (already set up) ✅
+   - [x] Semantic versioning in place ✅
+   - [x] Automated tagging via release-please ✅
+2. [x] HACS integration enhancements ✅ **(2025-11-25)**
+   - [x] Enhanced hacs.json with domains and render_readme ✅
+   - [x] HACS validation in CI (already configured) ✅
+   - [ ] Screenshots for HACS listing
+3. [x] Contribution guidelines ✅ **(2025-11-25)**
+   - [x] CONTRIBUTING.md with comprehensive guidelines ✅
+   - [x] Commit message conventions documented ✅
+   - [x] Code style and testing requirements ✅
+   - [x] Pull request process documented ✅
 4. [ ] Pre-commit git hooks (linting, formatting, commit-msg validation)
 5. [ ] Advanced configuration options (enable/disable profiles, more validation)
 6. [ ] API abstraction layer and documentation (endpoint docs, version detection)
+7. [ ] Remove "Qustodio" prefix from all sensors
+8. [ ] if there is more than one device Can we split the sensors by device? and have 
 
 ---
 
