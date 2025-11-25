@@ -122,6 +122,14 @@ class TestQustodioBinarySensorHasQuotaRemaining:
         mock_coordinator.data["profile_1"]["quota"] = None
         assert sensor.is_on is None
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorInternetPaused:
     """Tests for InternetPaused binary sensor."""
@@ -148,6 +156,14 @@ class TestQustodioBinarySensorInternetPaused:
         sensor = QustodioBinarySensorInternetPaused(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorInternetPaused(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
 
 
 class TestQustodioBinarySensorProtectionDisabled:
@@ -177,6 +193,14 @@ class TestQustodioBinarySensorProtectionDisabled:
 
         assert sensor.is_on is False
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorPanicButtonActive:
     """Tests for PanicButtonActive binary sensor."""
@@ -204,6 +228,14 @@ class TestQustodioBinarySensorPanicButtonActive:
         sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
 
 
 class TestQustodioBinarySensorNavigationLocked:
@@ -233,6 +265,14 @@ class TestQustodioBinarySensorNavigationLocked:
 
         assert sensor.is_on is False
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorNavigationLocked(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorUnauthorizedRemove:
     """Tests for UnauthorizedRemove binary sensor."""
@@ -260,6 +300,14 @@ class TestQustodioBinarySensorUnauthorizedRemove:
         sensor = QustodioBinarySensorUnauthorizedRemove(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorUnauthorizedRemove(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
 
 
 class TestQustodioBinarySensorHasQuestionableEvents:
@@ -289,6 +337,14 @@ class TestQustodioBinarySensorHasQuestionableEvents:
 
         assert sensor.is_on is False
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorLocationTrackingEnabled:
     """Tests for LocationTrackingEnabled binary sensor."""
@@ -315,6 +371,14 @@ class TestQustodioBinarySensorLocationTrackingEnabled:
         sensor = QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
 
 
 class TestQustodioBinarySensorBrowserLocked:
@@ -344,6 +408,14 @@ class TestQustodioBinarySensorBrowserLocked:
 
         assert sensor.is_on is False
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorVpnDisabled:
     """Tests for VpnDisabled binary sensor."""
@@ -372,6 +444,14 @@ class TestQustodioBinarySensorVpnDisabled:
 
         assert sensor.is_on is False
 
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
 
 class TestQustodioBinarySensorComputerLocked:
     """Tests for ComputerLocked binary sensor."""
@@ -399,6 +479,14 @@ class TestQustodioBinarySensorComputerLocked:
         sensor = QustodioBinarySensorComputerLocked(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorComputerLocked(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
 
 
 class TestQustodioBinarySensorAttribution:
