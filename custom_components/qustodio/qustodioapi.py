@@ -67,8 +67,8 @@ CLIENT_SECRET = "3e8826cbed3b996f8b206c7d6a4b2321529bc6bd"
 class QustodioApi:  # pylint: disable=too-many-instance-attributes
     """Qustodio API client.
 
-    Note: 8 instance attributes are necessary for API client state management:
-    - Authentication: username, password, access_token, expires_in
+    Note: 9 instance attributes are necessary for API client state management:
+    - Authentication: username, password, access_token, refresh_token, expires_in
     - Account context: account_id, account_uid
     - Configuration: retry_config
     - Session: session (for connection pooling)
@@ -92,6 +92,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         self._retry_config = retry_config or RetryConfig()
         self._session: aiohttp.ClientSession | None = None
         self._access_token: str | None = None
+        self._refresh_token: str | None = None
         self._expires_in: datetime | None = None
         self._account_id: str | None = None
         self._account_uid: str | None = None
@@ -213,6 +214,65 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             return [self._redact_sensitive_data(item) for item in data]
         return data
 
+    async def _do_refresh_request(self, session: aiohttp.ClientSession) -> str:
+        """Perform token refresh using refresh token.
+
+        Args:
+            session: The aiohttp session
+
+        Returns:
+            LOGIN_RESULT_OK on success
+
+        Raises:
+            QustodioAuthenticationError: Refresh token invalid or expired
+            QustodioRateLimitError: Rate limit exceeded
+            QustodioAPIError: API returned error
+            QustodioDataError: Response missing data
+        """
+        if not self._refresh_token:
+            raise QustodioAuthenticationError("No refresh token available")
+
+        data = {
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+        }
+
+        async with session.post(URL_LOGIN, data=data) as response:
+            if response.status == 401:
+                _LOGGER.warning("Refresh token expired or invalid, will try password auth")
+                # Clear the refresh token as it's no longer valid
+                self._refresh_token = None
+                raise QustodioAuthenticationError("Refresh token expired or invalid")
+
+            if response.status == 429:
+                _LOGGER.error("Rate limit exceeded during token refresh")
+                raise QustodioRateLimitError("API rate limit exceeded")
+
+            if response.status != 200:
+                text = await response.text()
+                _LOGGER.error("Token refresh failed with status %s: %s", response.status, text)
+                raise QustodioAPIError(
+                    f"Token refresh failed with status {response.status}",
+                    status_code=response.status,
+                )
+
+            response_data = await response.json()
+            self._log_api_response("refresh_token", response.status, response_data)
+
+            if "access_token" not in response_data:
+                _LOGGER.error("No access token in refresh response")
+                raise QustodioDataError("Response missing access token")
+
+            self._access_token = response_data["access_token"]
+            self._expires_in = datetime.now() + timedelta(seconds=response_data.get("expires_in", 3600))
+            # Update refresh token if a new one is provided
+            if "refresh_token" in response_data:
+                self._refresh_token = response_data["refresh_token"]
+            _LOGGER.debug("Token refresh successful")
+            return LOGIN_RESULT_OK
+
     async def _do_login_request(self, session: aiohttp.ClientSession, data: dict[str, str]) -> str:
         """Perform the login API request.
 
@@ -255,11 +315,17 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
 
             self._access_token = response_data["access_token"]
             self._expires_in = datetime.now() + timedelta(seconds=response_data.get("expires_in", 3600))
+            # Store refresh token if provided
+            if "refresh_token" in response_data:
+                self._refresh_token = response_data["refresh_token"]
+                _LOGGER.debug("Refresh token stored for future use")
             _LOGGER.debug("Login successful")
             return LOGIN_RESULT_OK
 
-    async def login(self) -> str:
+    async def login(self) -> str:  # pylint: disable=too-many-branches
         """Login to Qustodio API with retry logic.
+
+        Attempts to use refresh token if available, falls back to password authentication.
 
         Returns LOGIN_RESULT_OK for backward compatibility.
 
@@ -269,10 +335,25 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             QustodioAPIError: API returned unexpected error
             QustodioDataError: Response missing expected data
         """
+        # If we have a valid access token, no need to login
         if self._access_token is not None and self._expires_in is not None and self._expires_in > datetime.now():
             return LOGIN_RESULT_OK
 
-        _LOGGER.debug("Logging in to Qustodio API")
+        # Try token refresh first if we have a refresh token
+        if self._refresh_token:
+            _LOGGER.debug("Attempting token refresh")
+            try:
+                session = await self._get_session()
+                return await self._do_refresh_request(session)
+            except QustodioAuthenticationError:
+                # Refresh token is invalid/expired, fall through to password auth
+                _LOGGER.info("Refresh token failed, falling back to password authentication")
+            except (QustodioConnectionError, QustodioRateLimitError, QustodioAPIError) as err:
+                # For other errors, retry the refresh
+                _LOGGER.warning("Token refresh error: %s, will retry with password auth", err)
+
+        # Fall back to password authentication
+        _LOGGER.debug("Logging in to Qustodio API with password")
 
         data = {
             "client_id": CLIENT_ID,

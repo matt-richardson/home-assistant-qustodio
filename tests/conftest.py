@@ -90,6 +90,7 @@ def mock_api_login_response() -> dict[str, Any]:
         "access_token": "test_access_token_12345",
         "expires_in": 3600,
         "token_type": "bearer",
+        "refresh_token": "test_refresh_token_12345",
     }
 
 

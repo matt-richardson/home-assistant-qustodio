@@ -169,6 +169,213 @@ class TestQustodioApiLogin:
                 await api.login()
 
 
+class TestQustodioApiRefreshToken:
+    """Tests for QustodioApi refresh token flow."""
+
+    async def test_login_with_refresh_token_success(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_aiohttp_response: Mock,
+    ) -> None:
+        """Test successful login using refresh token."""
+        # Initial login response with refresh token
+        initial_login_response = {
+            "access_token": "initial_access_token",
+            "expires_in": 3600,
+            "token_type": "bearer",
+            "refresh_token": "test_refresh_token",
+        }
+
+        # Refresh token response
+        refresh_response = {
+            "access_token": "refreshed_access_token",
+            "expires_in": 3600,
+            "token_type": "bearer",
+            "refresh_token": "new_refresh_token",
+        }
+
+        mock_aiohttp_response.json.side_effect = [initial_login_response, refresh_response]
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_aiohttp_response)
+
+            api = QustodioApi("test@example.com", "password")
+
+            # First login - get refresh token
+            result = await api.login()
+            assert result == LOGIN_RESULT_OK
+            assert api._access_token == "initial_access_token"
+            assert api._refresh_token == "test_refresh_token"
+
+            # Expire the access token to force refresh
+            api._access_token = None
+            api._expires_in = None
+
+            # Second login - use refresh token
+            result = await api.login()
+            assert result == LOGIN_RESULT_OK
+            assert api._access_token == "refreshed_access_token"
+            assert api._refresh_token == "new_refresh_token"
+
+    async def test_login_stores_refresh_token(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_aiohttp_response: Mock,
+    ) -> None:
+        """Test that refresh token is stored on login."""
+        login_response = {
+            "access_token": "test_access_token",
+            "expires_in": 3600,
+            "token_type": "bearer",
+            "refresh_token": "test_refresh_token_12345",
+        }
+        mock_aiohttp_response.json.return_value = login_response
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_aiohttp_response)
+
+            api = QustodioApi("test@example.com", "password")
+            await api.login()
+
+            assert api._refresh_token == "test_refresh_token_12345"
+
+    async def test_refresh_token_fallback_to_password(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test fallback to password auth when refresh token fails."""
+        # First response: refresh token fails with 401
+        refresh_fail_response = Mock()
+        refresh_fail_response.__aenter__ = AsyncMock(return_value=refresh_fail_response)
+        refresh_fail_response.__aexit__ = AsyncMock(return_value=None)
+        refresh_fail_response.status = 401
+        refresh_fail_response.text = AsyncMock(return_value="Unauthorized")
+
+        # Second response: password auth succeeds
+        password_success_response = Mock()
+        password_success_response.__aenter__ = AsyncMock(return_value=password_success_response)
+        password_success_response.__aexit__ = AsyncMock(return_value=None)
+        password_success_response.status = 200
+        password_success_response.json = AsyncMock(
+            return_value={
+                "access_token": "new_access_token",
+                "expires_in": 3600,
+                "token_type": "bearer",
+                "refresh_token": "new_refresh_token",
+            }
+        )
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(side_effect=[refresh_fail_response, password_success_response])
+
+            api = QustodioApi("test@example.com", "password")
+            api._refresh_token = "expired_refresh_token"
+
+            result = await api.login()
+
+            assert result == LOGIN_RESULT_OK
+            assert api._access_token == "new_access_token"
+            assert api._refresh_token == "new_refresh_token"
+
+    async def test_refresh_token_clears_invalid_token(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test that invalid refresh token is cleared."""
+        # Refresh token fails with 401
+        refresh_fail_response = Mock()
+        refresh_fail_response.__aenter__ = AsyncMock(return_value=refresh_fail_response)
+        refresh_fail_response.__aexit__ = AsyncMock(return_value=None)
+        refresh_fail_response.status = 401
+        refresh_fail_response.text = AsyncMock(return_value="Unauthorized")
+
+        # Password auth succeeds
+        password_success_response = Mock()
+        password_success_response.__aenter__ = AsyncMock(return_value=password_success_response)
+        password_success_response.__aexit__ = AsyncMock(return_value=None)
+        password_success_response.status = 200
+        password_success_response.json = AsyncMock(
+            return_value={
+                "access_token": "new_access_token",
+                "expires_in": 3600,
+                "token_type": "bearer",
+            }
+        )
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(side_effect=[refresh_fail_response, password_success_response])
+
+            api = QustodioApi("test@example.com", "password")
+            api._refresh_token = "invalid_refresh_token"
+
+            await api.login()
+
+            # Refresh token should be cleared after 401
+            assert api._refresh_token is None
+
+    async def test_refresh_token_no_token_falls_back(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_aiohttp_response: Mock,
+    ) -> None:
+        """Test that login without refresh token uses password auth."""
+        login_response = {
+            "access_token": "test_access_token",
+            "expires_in": 3600,
+            "token_type": "bearer",
+        }
+        mock_aiohttp_response.json.return_value = login_response
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_aiohttp_response)
+
+            api = QustodioApi("test@example.com", "password")
+            api._refresh_token = None
+
+            result = await api.login()
+
+            assert result == LOGIN_RESULT_OK
+            assert api._access_token == "test_access_token"
+
+    async def test_refresh_token_rate_limit_fallback(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test fallback to password auth when refresh token hits rate limit."""
+        # Refresh token fails with rate limit
+        refresh_fail_response = Mock()
+        refresh_fail_response.__aenter__ = AsyncMock(return_value=refresh_fail_response)
+        refresh_fail_response.__aexit__ = AsyncMock(return_value=None)
+        refresh_fail_response.status = 429
+        refresh_fail_response.text = AsyncMock(return_value="Rate limit exceeded")
+
+        # Password auth succeeds
+        password_success_response = Mock()
+        password_success_response.__aenter__ = AsyncMock(return_value=password_success_response)
+        password_success_response.__aexit__ = AsyncMock(return_value=None)
+        password_success_response.status = 200
+        password_success_response.json = AsyncMock(
+            return_value={
+                "access_token": "new_access_token",
+                "expires_in": 3600,
+                "token_type": "bearer",
+            }
+        )
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(side_effect=[refresh_fail_response, password_success_response])
+
+            api = QustodioApi("test@example.com", "password")
+            api._refresh_token = "valid_refresh_token"
+
+            result = await api.login()
+
+            assert result == LOGIN_RESULT_OK
+            assert api._access_token == "new_access_token"
+            # Refresh token should still be there (wasn't invalidated, just rate limited)
+            assert api._refresh_token == "valid_refresh_token"
+
+
 class TestQustodioApiGetData:
     """Tests for QustodioApi.get_data()."""
 

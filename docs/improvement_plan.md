@@ -18,7 +18,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ---
 
-## 1. Code Quality & Architecture
+## 1. Code Quality & Architecture ✅
 
 ### Current Gaps
 
@@ -75,20 +75,22 @@ This document outlines planned improvements to bring the Qustodio integration up
   - [x] Feature descriptions (sensors, device trackers)
   - [x] Troubleshooting section
   - [ ] Known limitations
-- [ ] Create documentation:
-  - [ ] `CLAUDE.md` - Development guidance and architecture
-  - [ ] `qustodio-api-docs.md` - API endpoint documentation
+- [x] Create documentation: ✅ **(2025-11-26)**
+  - [x] `docs/qustodio_api_documentation.md` - Complete API endpoint documentation ✅
+  - [x] `docs/diagnostics_readme.md` - Diagnostics feature documentation ✅
+  - [x] `docs/device_splitting_analysis.md` - Device splitting feasibility analysis ✅
+  - [x] `docs/contributing.md` - Contribution guidelines ✅
 - [x] Add `.devcontainer/README.md` for development setup
 - [ ] Improve inline code comments and docstrings
 - [ ] Add examples of automations using the integration
 
 ---
 
-## 3. Testing & Quality Assurance
+## 3. Testing & Quality Assurance ✅
 
 ### Current Gaps
 
-- ~~No automated testing (0% coverage)~~ ✅ **96.22% coverage achieved** (186 tests)
+- ~~No automated testing (0% coverage)~~ ✅ **96.22% coverage achieved** (194 tests)
 - ~~No linting enforcement~~ ✅ Tools configured
 - ~~No CI/CD pipeline~~ ✅ **GitHub Actions workflows configured**
 - ~~No code coverage tracking~~ ✅ pytest-cov integrated
@@ -104,6 +106,7 @@ This document outlines planned improvements to bring the Qustodio integration up
   - [x] `tests/test_sensor.py` - Sensor platform tests (24 tests) ✅
   - [x] `tests/test_device_tracker.py` - Device tracker tests (22 tests) ✅
   - [x] `tests/test_binary_sensor.py` - Binary sensor tests (43 tests) ✅ **(2025-11-25)**
+  - [x] `tests/test_diagnostics.py` - Diagnostics tests (8 tests) ✅ **(2025-11-26)**
 - [x] Add `dev.sh` helper script with commands:
   - [x] test, test-cov, test-single
   - [x] lint (black, flake8, mypy, pylint)
@@ -211,19 +214,21 @@ This document outlines planned improvements to bring the Qustodio integration up
 - [ ] Consider additional entity types:
   - [x] Binary sensors implemented (12 sensors: online, calls_allowed, messages_allowed, social_allowed, games_allowed, browsing_allowed, protection_enabled, tamper_detected, time_limits_enabled, web_filter_enabled, app_limits_enabled, location_tracking_enabled) ✅
   - [x] Binary sensor tests (43 tests) ✅ **100% coverage** **(2025-11-25)**
+  - [x] Diagnostics support (native HA diagnostics + API response logging) ✅ **(2025-11-26)**
+  - [x] Diagnostics tests (8 tests) ✅ **97% coverage** **(2025-11-26)**
   - [ ] Switches (pause protection, enable alerts)
   - [ ] Diagnostic sensors (API response time, update success rate)
 
 ---
 
-## 7. Developer Experience
+## 7. Developer Experience ✅
 
 ### Current Gaps
 
 - ~~No development container~~ ✅ DONE
 - ~~No helper scripts~~ ✅ DONE
-- No pre-commit hooks
-- No contribution guidelines
+- ~~No pre-commit hooks~~ ✅ DONE (2025-11-25)
+- ~~No contribution guidelines~~ ✅ DONE (2025-11-25)
 
 ### Improvements Needed
 
@@ -237,36 +242,38 @@ This document outlines planned improvements to bring the Qustodio integration up
   - [x] launch.json (10 debug configurations)
   - [x] tasks.json (8 tasks)
   - [x] settings.json (auto-select venv)
-- [ ] Set up git hooks:
-  - [ ] Pre-commit: linting and formatting
-  - [ ] Commit-msg: conventional commit validation
-- [ ] Create `CONTRIBUTING.md` with:
-  - [ ] Code style guidelines
-  - [ ] Testing requirements
-  - [ ] Pull request process
-  - [ ] Commit message conventions
-- [ ] Create issue and PR templates
+- [x] Set up git hooks: ✅ **(2025-11-25)**
+  - [x] Pre-commit: linting and formatting ✅
+  - [x] Commit-msg: conventional commit validation ✅
+  - [x] .pre-commit-config.yaml with comprehensive hooks ✅
+  - [x] setup-pre-commit.sh installation script ✅
+- [x] Create `CONTRIBUTING.md` with: ✅ **(2025-11-25)**
+  - [x] Code style guidelines ✅
+  - [x] Testing requirements ✅
+  - [x] Pull request process ✅
+  - [x] Commit message conventions ✅
+- [ ] ~Create issue and PR templates~
 
 ---
 
-## 8. Release Management
+## 8. Release Management ✅
 
 ### Current Gaps
 
-- No versioning strategy
-- No changelog
-- No automated releases
-- Manual version bumps
+- ~~No versioning strategy~~ ✅ DONE (2025-11-25)
+- ~~No changelog~~ ✅ DONE (2025-11-25)
+- ~~No automated releases~~ ✅ DONE (2025-11-25)
+- ~~Manual version bumps~~ ✅ Automated via release-please
 
 ### Improvements Needed
 
-- [ ] Implement semantic versioning
-- [ ] Use conventional commits
-- [ ] Set up release-please for automation
-- [ ] Create `CHANGELOG.md`
-- [ ] Add release workflow to GitHub Actions
-- [ ] Tag releases properly
-- [ ] Update manifest.json version automatically
+- [x] Implement semantic versioning ✅ **(2025-11-25)**
+- [x] Use conventional commits ✅ **(2025-11-25)**
+- [x] Set up release-please for automation ✅ **(2025-11-25)**
+- [x] Create `CHANGELOG.md` ✅ **(2025-11-25)**
+- [x] Add release workflow to GitHub Actions ✅ **(2025-11-25)**
+- [x] Tag releases properly ✅ (via release-please)
+- [x] Update manifest.json version automatically ✅ (via release-please)
 
 ---
 
@@ -274,18 +281,18 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ### Current Gaps
 
-- Missing hacs.json
-- No HACS validation in CI
-- Limited metadata
+- ~~Missing hacs.json~~ ✅ DONE (2025-11-25)
+- ~~No HACS validation in CI~~ ✅ DONE (2025-11-25)
+- ~~Limited metadata~~ ✅ Enhanced (2025-11-25)
 
 ### Improvements Needed
 
-- [ ] Create `hacs.json` with proper configuration
-- [ ] Add HACS validation to CI pipeline
+- [x] Create `hacs.json` with proper configuration ✅ **(2025-11-25)**
+- [x] Add HACS validation to CI pipeline ✅ **(2025-11-25)**
 - [ ] Include screenshots for HACS listing
-- [ ] Write clear HACS-compatible README
-- [ ] Add proper categories and keywords
-- [ ] Set up issue tracker URL
+- [x] Write clear HACS-compatible README ✅
+- [x] Add proper categories and keywords ✅
+- [x] Set up issue tracker URL ✅
 
 ---
 
@@ -357,6 +364,7 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Binary sensors implemented (12 sensors) ✅ **(2025-11-23)**
    - [x] Binary sensor tests (43 tests) ✅ **100% coverage** **(2025-11-25)**
    - [ ] Diagnostic sensors (API response time, update success rate)
+   - [ ] Additional sensors from API capabilities (see priorities below)
 4. [x] Enhanced entity attributes ✅ **(2025-11-25)**
    - [x] Profile metadata (profile_id, profile_uid) ✅
    - [x] Calculated metrics (quota_remaining_minutes, percentage_used) ✅
@@ -389,22 +397,217 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Documentation in CONTRIBUTING.md ✅
    - [x] Added pre-commit to requirements-dev.txt ✅
 5. [ ] Advanced configuration options (enable/disable profiles, more validation)
-6. [ ] API abstraction layer and documentation (endpoint docs, version detection)
+6. [x] API abstraction layer and documentation (endpoint docs, version detection) ✅ **(2025-11-26)**
+   - [x] Complete API documentation with all endpoints ✅
+   - [x] Real API response examples ✅
+   - [x] Current usage and future enhancements documented ✅
 7. [x] Remove "Qustodio" prefix from all sensors ✅
-8. [ ] if there is more than one device can we split the sensors by device? and have a total sensor as well?
+8. [x] Device splitting analysis ✅ **(2025-11-26)** - **FEASIBLE** for device-level entities (location, status, version) but NOT for per-device screen time (see `docs/device_splitting_analysis.md`)
+   - [ ] **Implementation**: Phase 1 - Per-device trackers and status sensors (opt-in via config option)
+9. [x] Implement Refresh Token Flow ✅ **(2025-11-26)** - OAuth 2.0 refresh tokens now used to reduce password authentication
+   - [x] Store refresh tokens from login responses ✅
+   - [x] Implement `_do_refresh_request()` method ✅
+   - [x] Update `login()` to try refresh before password auth ✅
+   - [x] Graceful fallback on 401 (expired) and 429 (rate limit) ✅
+   - [x] 6 comprehensive tests for refresh token flow ✅
+   - [x] Updated API documentation with refresh token details ✅
+
+---
+
+## Future Sensor Enhancements
+
+Based on comprehensive API capability analysis (see `docs/qustodio_api_documentation.md`), these additional sensors could be implemented. Organized by data source endpoint and priority.
+
+### Profile Information Sensors (from /profiles endpoint)
+
+#### High Priority
+- [ ] **Sensor**: `profile_questionable_events` - Count of flagged events today
+- [ ] **Sensor**: `profile_device_count` - Number of devices assigned
+
+#### Medium Priority
+- [ ] **Sensor**: `profile_age` - Calculated from birth_date
+- [ ] **Binary Sensor**: `profile_has_active_routine` - Whether a routine is active
+- [ ] **Binary Sensor**: `profile_school_linked` - LineWise Student integration status
+- [ ] **Attribute**: `device_ids` - List of assigned device IDs
+- [ ] **Attribute**: `location_type` - Location type code
+- [ ] **Attribute**: `location_place` - Named place if available
+
+### Time Restrictions & Screen Time Sensors (from /rules endpoint)
+
+#### High Priority
+- [ ] **Binary Sensor**: `internet_paused` - Whether internet is currently paused
+- [ ] **Sensor**: `internet_pause_ends_at` - When pause ends (if paused)
+- [ ] **Binary Sensor**: `navigation_locked` - Whether navigation is locked
+- [ ] **Binary Sensor**: `computer_locked` - Whether computer is locked
+- [ ] **Sensor**: `weekend_screen_time_quota` - Weekend quota in minutes
+- [ ] **Binary Sensor**: `multi_device_quota` - Whether quota applies across devices
+
+#### Medium Priority
+- [ ] **Sensor**: `allowed_time_ranges_today` - Time ranges allowed today
+
+### App Monitoring Sensors (from /rules endpoint)
+
+#### High Priority
+- [ ] **Sensor**: `installed_apps_count` - Number of monitored apps
+- [ ] **Sensor**: `gaming_apps_count` - Number of gaming apps
+- [ ] **Sensor**: `social_media_apps_count` - Number of social media apps
+- [ ] **Sensor**: `education_apps_count` - Number of education apps
+- [ ] **Sensor**: `blocked_apps_count` - Number of blocked apps
+
+#### Medium Priority
+- [ ] **Attribute**: `top_apps` - Top 10 installed apps with details
+- [ ] **Attribute**: `restricted_apps` - Apps with time restrictions
+
+### Web Filtering Sensors (from /rules endpoint)
+
+#### High Priority
+- [ ] **Sensor**: `web_blocked_categories_count` - Number of blocked categories
+- [ ] **Sensor**: `web_blocked_domains_count` - Number of blocked domains
+
+#### Medium Priority
+- [ ] **Binary Sensor**: `web_safe_search_enabled` - Safe search enforcement
+- [ ] **Binary Sensor**: `web_allow_unknown_sites` - Allow unclassified sites
+- [ ] **Attribute**: `web_blocked_categories` - List of blocked category IDs
+- [ ] **Attribute**: `web_blocked_domains` - List of blocked domain names
+
+### Location & Safety Sensors (from /rules endpoint)
+
+#### High Priority
+- [ ] **Binary Sensor**: `location_tracking_enabled` - Location services active
+- [ ] **Binary Sensor**: `panic_button_configured` - Panic button set up
+
+#### Medium Priority
+- [ ] **Sensor**: `location_update_frequency` - Update frequency in seconds
+- [ ] **Sensor**: `panic_mode` - Panic button mode (0 = email)
+- [ ] **Binary Sensor**: `safe_network_protection_disabled` - Protection off on safe networks
+
+### Social Media Monitoring Sensors (from /rules endpoint)
+
+#### Medium Priority
+- [ ] **Binary Sensor**: `social_monitoring_enabled` - Social media monitoring active
+- [ ] **Binary Sensor**: `whatsapp_monitored` - WhatsApp monitoring
+- [ ] **Binary Sensor**: `instagram_monitored` - Instagram monitoring
+- [ ] **Binary Sensor**: `snapchat_monitored` - Snapchat monitoring
+- [ ] **Binary Sensor**: `tiktok_monitored` - TikTok monitoring
+- [ ] **Binary Sensor**: `twitterx_monitored` - Twitter/X monitoring
+- [ ] **Binary Sensor**: `facebook_connected` - Facebook account linked
+
+### Alerts & Notifications Sensors (from /rules endpoint)
+
+#### High Priority
+- [ ] **Binary Sensor**: `alert_questionable_content` - Alert on questionable events
+
+#### Medium Priority
+- [ ] **Binary Sensor**: `alert_new_apps` - Alert when new apps installed
+- [ ] **Binary Sensor**: `alert_new_contacts` - Alert when new contacts added
+- [ ] **Binary Sensor**: `alert_app_usage_increased` - Alert on increased app usage
+- [ ] **Binary Sensor**: `monitor_words_enabled` - Keyword monitoring active
+- [ ] **Binary Sensor**: `monitor_people_enabled` - People monitoring active
+
+### Communication Monitoring Sensors (from /rules endpoint)
+
+#### Low Priority (Advanced Users Only)
+- [ ] **Binary Sensor**: `call_monitoring_enabled` - Call monitoring active
+- [ ] **Binary Sensor**: `sms_monitoring_enabled` - SMS monitoring active
+- [ ] **Binary Sensor**: `sms_content_monitored` - SMS content read
+- [ ] **Binary Sensor**: `incoming_calls_blocked` - Incoming calls blocked
+- [ ] **Binary Sensor**: `outgoing_calls_blocked` - Outgoing calls blocked
+- [ ] **Binary Sensor**: `chat_alerts_enabled` - Chat alerts enabled
+- [ ] **Sensor**: `blocked_contacts_count` - Number of blocked contacts
+
+### Advanced Features Sensors (from /rules endpoint)
+
+#### Low Priority
+- [ ] **Binary Sensor**: `request_extra_time_enabled` - Child can request more time
+- [ ] **Binary Sensor**: `unsupported_browsers_blocked` - Block unsupported browsers
+- [ ] **Binary Sensor**: `social_inspection_enabled` - Deep social media inspection
+- [ ] **Sensor**: `rules_last_updated` - When rules were last modified
+
+### Hourly Screen Time Sensors (from /hourly endpoint)
+
+#### High Priority
+- [ ] **Sensor**: `screen_time_last_hour` - Screen time in the last hour (minutes)
+- [ ] **Sensor**: `screen_time_peak_hour` - Hour with most usage today
+- [ ] **Sensor**: `screen_time_peak_minutes` - Minutes during peak hour
+
+#### Medium Priority
+- [ ] **Sensor**: `active_hours_today` - Number of hours with usage > 0
+- [ ] **Binary Sensor**: `screen_time_usage_detected` - Usage in last hour
+- [ ] **Attribute**: `hourly_breakdown` - Full 24-hour breakdown array
+- [ ] **Attribute**: `routine_screen_time` - Screen time from routines (if used)
+
+### Device-Level Sensors (from /devices endpoint)
+
+#### Low Priority (Requires device splitting architecture - see `docs/device_splitting_analysis.md`)
+
+**Note**: These sensors would require implementing per-device entities, which has architectural implications.
+
+- [ ] **Binary Sensor**: `device_vpn_enabled` - Whether VPN is active
+- [ ] **Binary Sensor**: `device_browser_locked` - Browser lock status
+- [ ] **Binary Sensor**: `device_panic_button` - Panic button status
+- [ ] **Binary Sensor**: `device_protection_disabled` - Whether protection is temporarily disabled
+- [ ] **Binary Sensor**: `device_safe_network` - Whether device is on a safe network
+- [ ] **Sensor**: `device_version` - App version installed on device
+- [ ] **Diagnostic Sensor**: `device_location_accuracy` - GPS accuracy
+- [ ] **Diagnostic Sensor**: `device_mdm_type` - MDM configuration type
+- [ ] **Attribute**: `device_type` - MOBILE, DESKTOP, etc.
+- [ ] **Attribute**: `device_platform` - Platform code (4 = iOS)
+
+### Token Refresh Enhancement
+- [x] **Implement Refresh Token Flow** ✅ **(2025-11-26)** - OAuth 2.0 refresh tokens automatically used to reduce password authentication (see item #9 above for details)
+
+### Diagnostics Enhancements
+Based on diagnostics feature analysis (see `docs/diagnostics_readme.md`):
+
+- [ ] **Performance Metrics** - Add API response time tracking to diagnostics
+- [ ] **Network Connectivity Tests** - Include connectivity diagnostics
+- [ ] **Quota/Rate Limit Tracking** - Monitor API usage and limits
+- [ ] **Multiple Export Formats** - Export diagnostics in JSON, CSV formats
+- [ ] **Diagnostic Entity** - Add binary sensor or sensor showing last error status
+- [ ] **Integration Statistics** - Include call counts, success rates in diagnostics
+
+### Device-Level Entity Enhancements
+Based on updated device splitting analysis (see `docs/device_splitting_analysis.md`):
+
+**✅ FEASIBLE**: Device-level entities for device-specific data (location, status, version)
+**❌ NOT FEASIBLE**: Per-device screen time (API limitation - profile-centric data model)
+
+**Recommended Approach**: Profile + Device Hybrid (Option 1 from analysis)
+
+#### Phase 1: Core Device Entities (HIGH PRIORITY)
+- [ ] **Per-Device Trackers** - `device_tracker.{profile}_{device}` with device's own GPS coordinates
+- [ ] **Tamper Detection per Device** - `binary_sensor.{profile}_{device}_tampered`
+- [ ] **Online Status per Device** - `binary_sensor.{profile}_{device}_online`
+- [ ] **Protection Disabled per Device** - `binary_sensor.{profile}_{device}_protection_disabled`
+- [ ] **Device Version Sensor** - `sensor.{profile}_{device}_version`
+- [ ] **Device Last Seen Sensor** - `sensor.{profile}_{device}_last_seen`
+
+#### Phase 2: Advanced Device Entities (MEDIUM PRIORITY)
+- [ ] **VPN Status per Device** - `binary_sensor.{profile}_{device}_vpn_enabled`
+- [ ] **Browser Lock per Device** - `binary_sensor.{profile}_{device}_browser_locked`
+- [ ] **Panic Button per Device** - `binary_sensor.{profile}_{device}_panic_button_active`
+- [ ] **Safe Network per Device** - `binary_sensor.{profile}_{device}_on_safe_network`
+- [ ] **Location Accuracy Sensor** - `sensor.{profile}_{device}_location_accuracy`
+- [ ] **MDM Type Sensor** - `sensor.{profile}_{device}_mdm_type` (iOS devices)
+
+#### Phase 3: Profile Enhancements (LOW PRIORITY)
+- [ ] **Device List Attributes** - Add device list with status to profile sensors
+- [ ] **Enhanced Profile Tracker** - Add current device details to profile-level device tracker
+- [ ] **Config Option** - Add "Enable per-device entities" option (default: false, opt-in)
 
 ---
 
 ## Success Metrics
 
 - **Test Coverage**: >95% (Target) - **✅ 96.22% ACHIEVED - TARGET EXCEEDED** ✅
-  - 186 tests passing (45 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 13 init, 43 binary sensor)
+  - 200 tests passing (51 API, 19 config flow, 8 coordinator, 24 sensor, 22 device tracker, 13 init, 43 binary sensor, 8 diagnostics, 12 options flow)
   - 100% coverage: const.py, exceptions.py, sensor.py, entity.py, **init**.py, binary_sensor.py
+  - 97% coverage: diagnostics.py (native HA diagnostics + API logging)
   - 96% coverage: config_flow.py (includes reauthentication + options flow), device_tracker.py
   - 91% coverage: qustodioapi.py (includes retry/session management)
   - **Phase 2 COMPLETE**: All quality gates passed **(2025-11-25)**
 - **CI/CD**: Automated testing on all PRs - ✅ DONE (2025-11-23)
-- **Documentation**: Complete README + technical specs - ✅ README complete, technical docs pending (CLAUDE.md, qustodio-api-docs.md)
+- **Documentation**: Complete README + technical specs - ✅ DONE **(2025-11-26)** (README, API docs, diagnostics docs, device splitting analysis, contribution guidelines)
 - **Code Quality**: All linters passing with zero warnings - ✅ ACHIEVED (Pylint 10.00/10, perfect score)
 - **Error Handling**: Specific exceptions for all error cases - ✅ DONE
 - **Retry Logic**: Exponential backoff with jitter - ✅ DONE (2025-11-23)
