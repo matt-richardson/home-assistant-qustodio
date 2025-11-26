@@ -403,7 +403,7 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Current usage and future enhancements documented ✅
 7. [x] Remove "Qustodio" prefix from all sensors ✅
 8. [x] Device splitting analysis ✅ **(2025-11-26)** - **FEASIBLE** for device-level entities (location, status, version) but NOT for per-device screen time (see `docs/device_splitting_analysis.md`)
-   - [ ] **Implementation**: Phase 1 - Per-device trackers and status sensors (opt-in via config option)
+   - [ ] **Implementation**: Phase 1 - Per-device trackers and status sensors
 9. [x] Implement Refresh Token Flow ✅ **(2025-11-26)** - OAuth 2.0 refresh tokens now used to reduce password authentication
    - [x] Store refresh tokens from login responses ✅
    - [x] Implement `_do_refresh_request()` method ✅
@@ -562,7 +562,7 @@ Based on diagnostics feature analysis (see `docs/diagnostics_readme.md`):
 - [ ] **Performance Metrics** - Add API response time tracking to diagnostics
 - [ ] **Network Connectivity Tests** - Include connectivity diagnostics
 - [ ] **Quota/Rate Limit Tracking** - Monitor API usage and limits
-- [ ] **Multiple Export Formats** - Export diagnostics in JSON, CSV formats
+- [ ] **Multiple Export Formats** - ~Export diagnostics in JSON, CSV formats~
 - [ ] **Diagnostic Entity** - Add binary sensor or sensor showing last error status
 - [ ] **Integration Statistics** - Include call counts, success rates in diagnostics
 
@@ -593,7 +593,6 @@ Based on updated device splitting analysis (see `docs/device_splitting_analysis.
 #### Phase 3: Profile Enhancements (LOW PRIORITY)
 - [ ] **Device List Attributes** - Add device list with status to profile sensors
 - [ ] **Enhanced Profile Tracker** - Add current device details to profile-level device tracker
-- [ ] **Config Option** - Add "Enable per-device entities" option (default: false, opt-in)
 
 ---
 
