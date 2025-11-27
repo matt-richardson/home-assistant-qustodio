@@ -20,6 +20,7 @@ from .const import (
     DOMAIN,
 )
 from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from .models import CoordinatorData
 from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,13 +48,27 @@ async def validate_input(_hass: HomeAssistant, data: dict[str, Any]) -> dict[str
     try:
         await api.login()
 
-        profiles = await api.get_data()
-        if not profiles:
+        coordinator_data = await api.get_data()
+        if not coordinator_data:
+            _LOGGER.warning("No data returned from API")
+
+        # Extract profiles dict from CoordinatorData
+        # Convert ProfileData dataclasses to dicts for storage
+        profiles_dict = {}
+        if isinstance(coordinator_data, CoordinatorData):
+            for profile_id, profile_data in coordinator_data.profiles.items():
+                # Store raw_data which contains all the fields we need
+                profiles_dict[profile_id] = profile_data.raw_data
+        else:
+            # Fallback for backward compatibility
+            profiles_dict = coordinator_data or {}
+
+        if not profiles_dict:
             _LOGGER.warning("No profiles found for account")
 
         return {
             "title": f"Qustodio ({data[CONF_USERNAME]})",
-            "profiles": profiles,
+            "profiles": profiles_dict,
         }
 
     except QustodioAuthenticationError as err:

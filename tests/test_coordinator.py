@@ -130,8 +130,9 @@ class TestQustodioDataUpdateCoordinator:
         mock_config_entry: Any,
     ) -> None:
         """Test coordinator triggers reauth flow on authentication failure."""
-        from custom_components.qustodio.const import DOMAIN
         from unittest.mock import Mock
+
+        from custom_components.qustodio.const import DOMAIN
 
         mock_qustodio_api.get_data.side_effect = QustodioAuthenticationError("Token expired")
 

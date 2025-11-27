@@ -156,6 +156,18 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "python": "${workspaceFolder}/venv/bin/python"
+        },
+        {
+            "name": "🧹 Cleanup Integration",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cleanup_integration.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
         }
     ],
     "compounds": [

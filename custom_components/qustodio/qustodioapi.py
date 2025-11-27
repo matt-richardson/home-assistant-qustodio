@@ -19,6 +19,7 @@ from .exceptions import (
     QustodioDataError,
     QustodioRateLimitError,
 )
+from .models import CoordinatorData, DeviceData, ProfileData
 
 
 @dataclass
@@ -564,6 +565,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             "is_online": ctx.profile.get("status", {}).get("is_online", False),
             "unauthorized_remove": False,
             "device_tampered": None,
+            "device_count": ctx.profile.get("device_count", 0),
+            "device_ids": ctx.profile.get("device_ids", []),
         }
 
         self._check_device_tampering(profile_data, ctx.profile, ctx.devices)
@@ -574,7 +577,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
 
         return profile_data
 
-    async def get_data(self) -> dict[str, Any]:
+    async def get_data(self) -> CoordinatorData:
         """Get data from Qustodio API with retry logic.
 
         Raises:
@@ -601,7 +604,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             await self._fetch_account_info(session, headers)
 
             # Get devices
-            devices = await self._fetch_devices(session, headers)
+            devices_raw = await self._fetch_devices(session, headers)
 
             # Get profiles
             profiles_data = await self._fetch_profiles(session, headers)
@@ -609,20 +612,26 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             # Process each profile
             days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
             dow = days[datetime.today().weekday()]
-            data = {}
+            profiles_dict: dict[str, ProfileData] = {}
 
             for profile in profiles_data:
                 if "id" not in profile or "name" not in profile:
                     _LOGGER.warning("Profile missing required fields, skipping")
                     continue
 
-                ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices, dow=dow)
+                ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices_raw, dow=dow)
 
                 profile_data = await self._process_profile(ctx)
 
-                data[profile_data["id"]] = profile_data
+                # Convert to ProfileData dataclass
+                profiles_dict[str(profile_data["id"])] = ProfileData.from_api_response(profile_data)
 
-            return data
+            # Convert devices to DeviceData dataclasses
+            devices_dict: dict[str, DeviceData] = {}
+            for device_id, device_data in devices_raw.items():
+                devices_dict[str(device_id)] = DeviceData.from_api_response(device_data)
+
+            return CoordinatorData(profiles=profiles_dict, devices=devices_dict)
 
         except (
             QustodioAuthenticationError,

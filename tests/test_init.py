@@ -208,6 +208,7 @@ class TestAsyncUpdateOptions:
     ) -> None:
         """Test updating the interval when it changes."""
         from datetime import timedelta
+
         from custom_components.qustodio import async_update_options
         from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
 
@@ -236,6 +237,7 @@ class TestAsyncUpdateOptions:
     ) -> None:
         """Test that refresh is not triggered when interval doesn't change."""
         from datetime import timedelta
+
         from custom_components.qustodio import async_update_options
         from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
 

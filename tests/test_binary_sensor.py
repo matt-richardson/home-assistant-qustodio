@@ -44,8 +44,9 @@ class TestQustodioBinarySensorSetup:
 
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-        # Should create 12 binary sensors per profile (2 profiles = 24 total)
-        assert len(entities_added) == 24
+        # Should create 12 profile binary sensors (12 × 2 profiles = 24)
+        # + 6 device binary sensors (6 × 2 devices = 12) = 36 total
+        assert len(entities_added) == 36
         assert all(hasattr(entity, "is_on") for entity in entities_added)
 
 
@@ -110,7 +111,7 @@ class TestQustodioBinarySensorHasQuotaRemaining:
         sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data)
 
         # Mock data where time exceeds quota
-        mock_coordinator.data["profile_1"]["time"] = 350
+        mock_coordinator.data.profiles["profile_1"].raw_data["time"] = 350
         assert sensor.is_on is False
 
     def test_is_on_none_when_no_quota(self, mock_coordinator: Mock) -> None:
@@ -119,7 +120,7 @@ class TestQustodioBinarySensorHasQuotaRemaining:
         sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data)
 
         # Mock data with no quota
-        mock_coordinator.data["profile_1"]["quota"] = None
+        mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = None
         assert sensor.is_on is None
 
     def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:

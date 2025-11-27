@@ -22,6 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     """Set up Qustodio sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = setup_profile_entities(coordinator, entry, QustodioSensor)
+    _LOGGER.debug("Setting up %d profile screen time sensors", len(entities))
     async_add_entities(entities)
 
 
@@ -41,8 +42,7 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         """Return the name of the sensor."""
         data = self._get_profile_data()
         if data:
-            profile_name = data.get("name", "Unknown")
-            return profile_name
+            return data.name
         return self._profile_id
 
     @property
@@ -54,15 +54,18 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
         data = self._get_profile_data()
-        return data.get("time") if data else None
+        if data:
+            return data.raw_data.get("time")
+        return None
 
     @property
     def icon(self) -> str:
         """Return the icon of the sensor."""
         data = self._get_profile_data()
         if data:
-            time_used = data.get("time", 0)
-            quota = data.get("quota", 0)
+            raw = data.raw_data
+            time_used = raw.get("time", 0)
+            quota = raw.get("quota", 0)
 
             if time_used < quota:
                 return ICON_IN_TIME
@@ -75,8 +78,9 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         if not data:
             return None
 
-        time_used = data.get("time", 0)
-        quota = data.get("quota", 0)
+        raw = data.raw_data
+        time_used = raw.get("time", 0)
+        quota = raw.get("quota", 0)
 
         # Calculate derived metrics
         quota_remaining = max(0, quota - time_used) if quota and time_used is not None else None

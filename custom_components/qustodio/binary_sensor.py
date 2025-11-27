@@ -10,9 +10,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import setup_profile_entities
+from . import setup_device_entities, setup_profile_entities
 from .const import ATTRIBUTION, DOMAIN
-from .entity import QustodioBaseEntity
+from .entity import QustodioBaseEntity, QustodioDeviceEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,17 @@ async def async_setup_entry(
     ]:
         entities.extend(setup_profile_entities(coordinator, entry, sensor_class))
 
+    # Create device-level binary sensors
+    for device_sensor_class in [
+        QustodioDeviceBinarySensorOnline,
+        QustodioDeviceBinarySensorTampered,
+        QustodioDeviceBinarySensorProtectionDisabled,
+        QustodioDeviceBinarySensorVpnEnabled,
+        QustodioDeviceBinarySensorBrowserLocked,
+        QustodioDeviceBinarySensorPanicButton,
+    ]:
+        entities.extend(setup_device_entities(coordinator, entry, device_sensor_class))
+
     async_add_entities(entities)
 
 
@@ -71,8 +82,10 @@ class QustodioBinarySensorIsOnline(QustodioBinarySensor):
         """Return true if the profile is online."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("is_online", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("is_online", False)
+        return None
 
 
 class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
@@ -90,10 +103,13 @@ class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
         """Return true if quota remains."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        quota = profile.get("quota", 0)
-        time_used = profile.get("time", 0)
-        return time_used < quota if quota and time_used is not None else None
+        profile = self._get_profile_data()
+        if profile:
+            raw = profile.raw_data
+            quota = raw.get("quota", 0)
+            time_used = raw.get("time", 0)
+            return time_used < quota if quota and time_used is not None else None
+        return None
 
 
 class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
@@ -111,9 +127,11 @@ class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
         """Return true if internet is paused."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        pause_ends_at = profile.get("pause_internet_ends_at")
-        return pause_ends_at is not None
+        profile = self._get_profile_data()
+        if profile:
+            pause_ends_at = profile.raw_data.get("pause_internet_ends_at")
+            return pause_ends_at is not None
+        return None
 
 
 class QustodioBinarySensorProtectionDisabled(QustodioBinarySensor):
@@ -132,8 +150,10 @@ class QustodioBinarySensorProtectionDisabled(QustodioBinarySensor):
         """Return true if protection is disabled."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("protection_disabled", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("protection_disabled", False)
+        return None
 
 
 # Phase 2: Safety & Monitoring Sensors
@@ -155,8 +175,10 @@ class QustodioBinarySensorPanicButtonActive(QustodioBinarySensor):
         """Return true if panic button is active."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("panic_button_active", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("panic_button_active", False)
+        return None
 
 
 class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
@@ -175,8 +197,10 @@ class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
         """Return true if navigation is locked."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("navigation_locked", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("navigation_locked", False)
+        return None
 
 
 class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
@@ -195,8 +219,10 @@ class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
         """Return true if tampering is detected."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("unauthorized_remove", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("unauthorized_remove", False)
+        return None
 
 
 class QustodioBinarySensorHasQuestionableEvents(QustodioBinarySensor):
@@ -215,9 +241,11 @@ class QustodioBinarySensorHasQuestionableEvents(QustodioBinarySensor):
         """Return true if there are questionable events."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        event_count = profile.get("questionable_events_count", 0)
-        return event_count > 0
+        profile = self._get_profile_data()
+        if profile:
+            event_count = profile.raw_data.get("questionable_events_count", 0)
+            return event_count > 0
+        return None
 
 
 # Phase 3: Advanced Sensors
@@ -238,8 +266,10 @@ class QustodioBinarySensorLocationTrackingEnabled(QustodioBinarySensor):
         """Return true if location tracking is enabled."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("location_tracking_enabled", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("location_tracking_enabled", False)
+        return None
 
 
 class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
@@ -258,8 +288,10 @@ class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
         """Return true if browser is locked."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("browser_locked", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("browser_locked", False)
+        return None
 
 
 class QustodioBinarySensorVpnDisabled(QustodioBinarySensor):
@@ -278,8 +310,10 @@ class QustodioBinarySensorVpnDisabled(QustodioBinarySensor):
         """Return true if VPN is disabled."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("vpn_disabled", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("vpn_disabled", False)
+        return None
 
 
 class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
@@ -298,5 +332,155 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
         """Return true if computer is locked."""
         if not self.available:
             return None
-        profile = self.coordinator.data.get(self._profile_id, {})
-        return profile.get("computer_locked", False)
+        profile = self._get_profile_data()
+        if profile:
+            return profile.raw_data.get("computer_locked", False)
+        return None
+
+
+# Device-Level Binary Sensors
+
+
+class QustodioDeviceBinarySensor(QustodioDeviceEntity, BinarySensorEntity):
+    """Base class for Qustodio device binary sensors."""
+
+    _attr_attribution = ATTRIBUTION
+
+
+class QustodioDeviceBinarySensorOnline(QustodioDeviceBinarySensor):
+    """Binary sensor for device online status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} Online"
+        self._attr_unique_id = f"{DOMAIN}_device_online_{self._profile_id}_{self._device_id}"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+        self._attr_icon = "mdi:wifi"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the device is online."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        if user_status:
+            return user_status.is_online
+        return None
+
+
+class QustodioDeviceBinarySensorTampered(QustodioDeviceBinarySensor):
+    """Binary sensor for device tamper detection."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} Tampered"
+        self._attr_unique_id = f"{DOMAIN}_device_tampered_{self._profile_id}_{self._device_id}"
+        self._attr_device_class = BinarySensorDeviceClass.PROBLEM
+        self._attr_icon = "mdi:shield-alert"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if tampering is detected."""
+        if not self.available:
+            return None
+        device = self._get_device_data()
+        if device:
+            # Check both MDM and alerts for unauthorized removal
+            mdm_tampered = device.mdm.get("unauthorized_remove", False)
+            alert_tampered = device.alerts.get("unauthorized_remove", False)
+            return mdm_tampered or alert_tampered
+        return None
+
+
+class QustodioDeviceBinarySensorProtectionDisabled(QustodioDeviceBinarySensor):
+    """Binary sensor for device protection disabled status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} Protection Disabled"
+        self._attr_unique_id = f"{DOMAIN}_device_protection_disabled_{self._profile_id}_{self._device_id}"
+        self._attr_device_class = BinarySensorDeviceClass.PROBLEM
+        self._attr_icon = "mdi:shield-off"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if protection is disabled."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        if user_status:
+            disable_protection = user_status.status.get("disable_protection", {})
+            return disable_protection.get("status", False)
+        return None
+
+
+class QustodioDeviceBinarySensorVpnEnabled(QustodioDeviceBinarySensor):
+    """Binary sensor for device VPN status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} VPN Enabled"
+        self._attr_unique_id = f"{DOMAIN}_device_vpn_enabled_{self._profile_id}_{self._device_id}"
+        self._attr_icon = "mdi:vpn"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if VPN is enabled."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        if user_status:
+            vpn_disable = user_status.status.get("vpn_disable", {})
+            # Note: API returns vpn_disable, so we invert it
+            return not vpn_disable.get("status", False)
+        return None
+
+
+class QustodioDeviceBinarySensorBrowserLocked(QustodioDeviceBinarySensor):
+    """Binary sensor for device browser locked status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} Browser Locked"
+        self._attr_unique_id = f"{DOMAIN}_device_browser_locked_{self._profile_id}_{self._device_id}"
+        self._attr_device_class = BinarySensorDeviceClass.LOCK
+        self._attr_icon = "mdi:web-box"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if browser is locked."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        if user_status:
+            browser_lock = user_status.status.get("browser_lock", {})
+            return browser_lock.get("status", False)
+        return None
+
+
+class QustodioDeviceBinarySensorPanicButton(QustodioDeviceBinarySensor):
+    """Binary sensor for device panic button status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} Panic Button"
+        self._attr_unique_id = f"{DOMAIN}_device_panic_button_{self._profile_id}_{self._device_id}"
+        self._attr_device_class = BinarySensorDeviceClass.SAFETY
+        self._attr_icon = "mdi:alert-circle"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if panic button is active."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        if user_status:
+            panic_button = user_status.status.get("panic_button", {})
+            return panic_button.get("status", False)
+        return None

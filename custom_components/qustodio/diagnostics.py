@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
+from .models import CoordinatorData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,30 +70,45 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
 
     # Add profile data if available (redacted)
     if coordinator.last_update_success and coordinator.data:
-        # Create a summary of profiles
-        profiles_summary = []
-        for _, profile_data in coordinator.data.items():
-            profile_summary = {
-                "profile_id": "**REDACTED**",  # Always redact IDs
-                "name": profile_data.get("name", "Unknown"),
-                "is_online": profile_data.get("is_online", False),
-                "has_location": bool(profile_data.get("latitude")),
-                "has_quota": bool(profile_data.get("quota")),
-                "time_used_minutes": profile_data.get("time", 0),
-                "quota_minutes": profile_data.get("quota", 0),
-                "current_device": profile_data.get("current_device"),
-                "unauthorized_remove": profile_data.get("unauthorized_remove", False),
+        if isinstance(coordinator.data, CoordinatorData):
+            # Create a summary of profiles
+            profiles_summary = []
+            for _, profile_data in coordinator.data.profiles.items():
+                raw = profile_data.raw_data
+                profile_summary = {
+                    "profile_id": "**REDACTED**",  # Always redact IDs
+                    "name": profile_data.name,
+                    "is_online": raw.get("is_online", False),
+                    "has_location": bool(raw.get("latitude")),
+                    "has_quota": bool(raw.get("quota")),
+                    "time_used_minutes": raw.get("time", 0),
+                    "quota_minutes": raw.get("quota", 0),
+                    "current_device": raw.get("current_device"),
+                    "unauthorized_remove": raw.get("unauthorized_remove", False),
+                }
+                profiles_summary.append(profile_summary)
+
+            diagnostics["profiles"] = profiles_summary
+            diagnostics["profile_count"] = len(coordinator.data.profiles)
+            diagnostics["device_count"] = len(coordinator.data.devices)
+
+            # Convert dataclasses to flat dict for backward compatibility with tests
+            # Flatten profile data at top level (not nested under "profiles")
+            coordinator_data_dict = {
+                profile_id: profile.raw_data for profile_id, profile in coordinator.data.profiles.items()
             }
-            profiles_summary.append(profile_summary)
-
-        diagnostics["profiles"] = profiles_summary
-        diagnostics["profile_count"] = len(coordinator.data)
-
-        # Include full redacted data for debugging
-        diagnostics["profile_data_full"] = async_redact_data(coordinator.data, TO_REDACT)
+            # Include full redacted data for debugging
+            diagnostics["profile_data_full"] = async_redact_data(coordinator_data_dict, TO_REDACT)
+        else:
+            # Fallback for old dict-based data structure
+            diagnostics["profiles"] = []
+            diagnostics["profile_count"] = 0
+            diagnostics["device_count"] = 0
+            diagnostics["profile_data_full"] = None
     else:
         diagnostics["profiles"] = []
         diagnostics["profile_count"] = 0
+        diagnostics["device_count"] = 0
         diagnostics["profile_data_full"] = None
 
     # Include last error if update failed

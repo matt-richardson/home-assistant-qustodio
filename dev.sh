@@ -79,6 +79,10 @@ case "$1" in
         rm -rf homeassistant_test/.storage 2>/dev/null || true
         rm -f homeassistant_test/home-assistant.log* 2>/dev/null || true
         ;;
+    "cleanup-integration")
+        echo "🧹 Cleaning up Qustodio integration from Home Assistant..."
+        python3 cleanup_integration.py
+        ;;
     "install")
         echo "📦 Installing integration for testing..."
         mkdir -p homeassistant_test/custom_components
@@ -91,17 +95,18 @@ case "$1" in
         echo "Usage: ./dev.sh <command>"
         echo ""
         echo "Commands:"
-        echo "  test         - Run all tests"
-        echo "  test-cov     - Run tests with coverage report (Silver tier: 95%+)"
-        echo "  test-single  - Run a single test function"
-        echo "  lint         - Run all linting tools"
-        echo "  format       - Format code with black and isort"
-        echo "  ha-test      - Start Home Assistant test instance"
-        echo "  ha-check     - Check Home Assistant configuration"
-        echo "  validate     - Run full validation suite (format + lint + test + config)"
-        echo "  clean        - Clean up temporary files and logs"
-        echo "  install      - Install integration symlink for testing"
-        echo "  help         - Show this help message"
+        echo "  test                - Run all tests"
+        echo "  test-cov            - Run tests with coverage report (Silver tier: 95%+)"
+        echo "  test-single         - Run a single test function"
+        echo "  lint                - Run all linting tools"
+        echo "  format              - Format code with black and isort"
+        echo "  ha-test             - Start Home Assistant test instance"
+        echo "  ha-check            - Check Home Assistant configuration"
+        echo "  validate            - Run full validation suite (format + lint + test + config)"
+        echo "  clean               - Clean up temporary files and logs"
+        echo "  cleanup-integration - Remove Qustodio integration from Home Assistant (requires restart)"
+        echo "  install             - Install integration symlink for testing"
+        echo "  help                - Show this help message"
         echo ""
         echo "🎯 Silver Tier Quality:"
         echo "  • Must achieve >95% test coverage"

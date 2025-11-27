@@ -495,3 +495,144 @@ class TestQustodioOptionsFlow:
             CONF_UPDATE_INTERVAL: 15,
             CONF_ENABLE_GPS_TRACKING: False,
         }
+
+
+class TestValidateInputCoordinatorDataExtraction:
+    """Tests for validate_input CoordinatorData extraction - covers lines 57-63 in config_flow.py."""
+
+    async def test_validate_input_extracts_profiles_from_coordinator_data(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test validate_input properly extracts profiles dict from CoordinatorData."""
+        from custom_components.qustodio.config_flow import validate_input
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        # Create CoordinatorData structure with proper dataclasses
+        profile1_raw = {
+            "id": 11282538,
+            "uid": "uid_1",
+            "name": "Test Child",
+            "is_online": True,
+            "device_count": 2,
+            "device_ids": [111, 222],
+            "latitude": 37.7749,
+            "longitude": -122.4194,
+            "accuracy": 10.0,
+            "quota": 120,
+            "time": 45.5,
+        }
+
+        coordinator_data = CoordinatorData(
+            profiles={
+                "11282538": ProfileData.from_api_response(profile1_raw),
+            },
+            devices={},
+        )
+
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = coordinator_data
+
+            result = await validate_input(
+                hass,
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                },
+            )
+
+            # Should extract profiles dict, not the entire CoordinatorData
+            assert result["title"] == "Qustodio (test@example.com)"
+            assert "profiles" in result
+            assert isinstance(result["profiles"], dict)
+            assert "11282538" in result["profiles"]
+            # Should have the raw_data dict, not ProfileData object
+            assert isinstance(result["profiles"]["11282538"], dict)
+            assert result["profiles"]["11282538"]["id"] == 11282538
+            assert result["profiles"]["11282538"]["name"] == "Test Child"
+            assert result["profiles"]["11282538"]["device_count"] == 2
+
+    async def test_validate_input_handles_legacy_dict_format(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test validate_input handles legacy dict format for backward compatibility."""
+        from custom_components.qustodio.config_flow import validate_input
+
+        # Return old-style dict directly (not CoordinatorData)
+        legacy_data = {
+            "profile_1": {
+                "id": "profile_1",
+                "name": "Legacy Child",
+            }
+        }
+
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = legacy_data
+
+            result = await validate_input(
+                hass,
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                },
+            )
+
+            # Should handle legacy format via fallback - line 63
+            assert result["title"] == "Qustodio (test@example.com)"
+            assert result["profiles"] == legacy_data
+
+    async def test_validate_input_empty_profiles(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test validate_input with CoordinatorData but empty profiles."""
+        from custom_components.qustodio.config_flow import validate_input
+        from custom_components.qustodio.models import CoordinatorData
+
+        # Empty CoordinatorData
+        coordinator_data = CoordinatorData(
+            profiles={},
+            devices={},
+        )
+
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = coordinator_data
+
+            result = await validate_input(
+                hass,
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                },
+            )
+
+            # Should return empty profiles dict
+            assert result["title"] == "Qustodio (test@example.com)"
+            assert result["profiles"] == {}
+
+    async def test_validate_input_none_data(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+    ) -> None:
+        """Test validate_input when get_data returns None."""
+        from custom_components.qustodio.config_flow import validate_input
+
+        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
+            mock_qustodio_api.get_data.return_value = None
+
+            result = await validate_input(
+                hass,
+                {
+                    CONF_USERNAME: "test@example.com",
+                    CONF_PASSWORD: "password",
+                },
+            )
+
+            # Should handle None gracefully via fallback - line 63
+            assert result["title"] == "Qustodio (test@example.com)"
+            assert result["profiles"] == {}

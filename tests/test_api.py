@@ -445,11 +445,17 @@ class TestQustodioApiGetData:
             api = QustodioApi("test@example.com", "password")
             data = await api.get_data()
 
-            assert len(data) == 2
-            assert "profile_1" in data
-            assert "profile_2" in data
-            assert data["profile_1"]["name"] == "Child One"
-            assert data["profile_2"]["name"] == "Child Two"
+            # Check it's CoordinatorData
+            assert hasattr(data, "profiles")
+            assert hasattr(data, "devices")
+            # Check profile data
+            assert len(data.profiles) == 2
+            assert "profile_1" in data.profiles
+            assert "profile_2" in data.profiles
+            assert data.profiles["profile_1"].name == "Child One"
+            assert data.profiles["profile_2"].name == "Child Two"
+            # Check device data
+            assert len(data.devices) == 2
 
     async def test_get_data_authentication_error(
         self,

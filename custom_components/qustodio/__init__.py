@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException
+from .models import CoordinatorData
 from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -144,6 +145,56 @@ def setup_profile_entities(
     return [entity_class(coordinator, profile_data) for profile_data in profiles.values()]
 
 
+def setup_device_entities(
+    coordinator: QustodioDataUpdateCoordinator,
+    entry: ConfigEntry,
+    entity_class: type,
+) -> list:
+    """Create device entities for each device-profile combination.
+
+    Args:
+        coordinator: The data update coordinator
+        entry: The config entry
+        entity_class: The entity class to instantiate
+
+    Returns:
+        List of entity instances
+    """
+    entities: list = []
+    profiles = entry.data.get("profiles", {})
+
+    # Get coordinator data to access devices
+    if not isinstance(coordinator.data, CoordinatorData):
+        _LOGGER.warning("Coordinator data not available for device entity setup")
+        return entities
+
+    _LOGGER.debug("Setting up device entities for %d profiles", len(profiles))
+
+    for profile_data in profiles.values():
+        profile_id = str(profile_data["id"])
+        # Get devices for this profile
+        devices = coordinator.data.get_profile_devices(profile_id)
+
+        _LOGGER.debug("Profile %s (%s) has %d devices", profile_id, profile_data.get("name"), len(devices))
+
+        for device in devices:
+            # Create device dict for entity initialization
+            device_dict = {
+                "id": device.id,
+                "name": device.name,
+            }
+            _LOGGER.debug(
+                "Creating device entity for device %s (%s) under profile %s",
+                device.id,
+                device.name,
+                profile_id,
+            )
+            entities.append(entity_class(coordinator, profile_data, device_dict))
+
+    _LOGGER.debug("Created %d device entities", len(entities))
+    return entities
+
+
 def is_profile_available(coordinator: DataUpdateCoordinator, profile_id: str) -> bool:
     """Check if a profile is available in coordinator data.
 
@@ -154,4 +205,9 @@ def is_profile_available(coordinator: DataUpdateCoordinator, profile_id: str) ->
     Returns:
         True if profile data is available
     """
-    return coordinator.last_update_success and coordinator.data is not None and profile_id in coordinator.data
+    if not coordinator.last_update_success or coordinator.data is None:
+        return False
+    if isinstance(coordinator.data, CoordinatorData):
+        return profile_id in coordinator.data.profiles
+    # Fallback for old dict-based data structure during migration
+    return profile_id in coordinator.data

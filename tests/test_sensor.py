@@ -167,8 +167,8 @@ class TestQustodioSensor:
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
         # Modify data to have time equal to quota
-        mock_coordinator.data["profile_1"]["time"] = 120
-        mock_coordinator.data["profile_1"]["quota"] = 120
+        mock_coordinator.data.profiles["profile_1"].raw_data["time"] = 120
+        mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = 120
 
         # At boundary, should not be "in time" (uses < not <=)
         assert sensor.icon == ICON_NO_TIME
@@ -250,9 +250,12 @@ class TestQustodioSensor:
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
         # Remove optional fields from coordinator data
-        mock_coordinator.data["profile_1"] = {
+        mock_coordinator.data.profiles["profile_1"].raw_data = {
             "id": "profile_1",
+            "uid": "uid_1",
             "name": "Child One",
+            "device_count": 1,
+            "device_ids": ["device_1"],
         }
 
         # Should handle missing fields gracefully
