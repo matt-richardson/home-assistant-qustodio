@@ -13,6 +13,7 @@ from custom_components.qustodio import (
     async_setup_entry,
     async_unload_entry,
     is_profile_available,
+    setup_device_entities,
     setup_profile_entities,
 )
 from custom_components.qustodio.const import DOMAIN
@@ -161,6 +162,24 @@ class TestSetupProfileEntities:
 
         entities = setup_profile_entities(mock_coordinator, entry, mock_entity_class)
 
+        assert len(entities) == 0
+        mock_entity_class.assert_not_called()
+
+
+class TestSetupDeviceEntities:
+    """Tests for setup_device_entities helper function."""
+
+    def test_setup_device_entities_no_coordinator_data(self, mock_config_entry: Mock) -> None:
+        """Test device entity setup when coordinator has no data."""
+        # Create coordinator with no data
+        mock_coordinator = Mock()
+        mock_coordinator.data = None
+
+        mock_entity_class = Mock()
+
+        entities = setup_device_entities(mock_coordinator, mock_config_entry, mock_entity_class)
+
+        # Should return empty list when no coordinator data
         assert len(entities) == 0
         mock_entity_class.assert_not_called()
 

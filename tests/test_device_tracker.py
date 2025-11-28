@@ -34,6 +34,28 @@ class TestQustodioDeviceTrackerSetup:
         assert len(entities_added) == 2
         assert all(isinstance(entity, QustodioDeviceTracker) for entity in entities_added)
 
+    async def test_async_setup_entry_gps_disabled(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Mock,
+        mock_coordinator: Mock,
+    ) -> None:
+        """Test device tracker setup with GPS tracking disabled."""
+        # Configure entry with GPS disabled
+        mock_config_entry.options = {"enable_gps_tracking": False}
+        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+
+        entities_added = []
+
+        def mock_add_entities(entities):
+            entities_added.extend(entities)
+
+        result = await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+
+        # Should not create any entities and return None
+        assert result is None
+        assert len(entities_added) == 0
+
 
 class TestQustodioDeviceTracker:
     """Tests for QustodioDeviceTracker class."""

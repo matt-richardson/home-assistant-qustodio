@@ -83,9 +83,9 @@ class QustodioBinarySensorIsOnline(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("is_online", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("is_online", False)
 
 
 class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
@@ -104,12 +104,12 @@ class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            raw = profile.raw_data
-            quota = raw.get("quota", 0)
-            time_used = raw.get("time", 0)
-            return time_used < quota if quota and time_used is not None else None
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        raw = profile.raw_data
+        quota = raw.get("quota", 0)
+        time_used = raw.get("time", 0)
+        return time_used < quota if quota and time_used is not None else None
 
 
 class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
@@ -128,10 +128,10 @@ class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            pause_ends_at = profile.raw_data.get("pause_internet_ends_at")
-            return pause_ends_at is not None
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        pause_ends_at = profile.raw_data.get("pause_internet_ends_at")
+        return pause_ends_at is not None
 
 
 class QustodioBinarySensorProtectionDisabled(QustodioBinarySensor):
@@ -151,9 +151,9 @@ class QustodioBinarySensorProtectionDisabled(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("protection_disabled", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("protection_disabled", False)
 
 
 # Phase 2: Safety & Monitoring Sensors
@@ -176,9 +176,9 @@ class QustodioBinarySensorPanicButtonActive(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("panic_button_active", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("panic_button_active", False)
 
 
 class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
@@ -198,9 +198,9 @@ class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("navigation_locked", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("navigation_locked", False)
 
 
 class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
@@ -220,9 +220,9 @@ class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("unauthorized_remove", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("unauthorized_remove", False)
 
 
 class QustodioBinarySensorHasQuestionableEvents(QustodioBinarySensor):
@@ -242,10 +242,10 @@ class QustodioBinarySensorHasQuestionableEvents(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            event_count = profile.raw_data.get("questionable_events_count", 0)
-            return event_count > 0
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        event_count = profile.raw_data.get("questionable_events_count", 0)
+        return event_count > 0
 
 
 # Phase 3: Advanced Sensors
@@ -267,9 +267,9 @@ class QustodioBinarySensorLocationTrackingEnabled(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("location_tracking_enabled", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("location_tracking_enabled", False)
 
 
 class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
@@ -289,9 +289,9 @@ class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("browser_locked", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("browser_locked", False)
 
 
 class QustodioBinarySensorVpnDisabled(QustodioBinarySensor):
@@ -311,9 +311,9 @@ class QustodioBinarySensorVpnDisabled(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("vpn_disabled", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("vpn_disabled", False)
 
 
 class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
@@ -333,9 +333,9 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
         if not self.available:
             return None
         profile = self._get_profile_data()
-        if profile:
-            return profile.raw_data.get("computer_locked", False)
-        return None
+        # available=True guarantees profile exists
+        assert profile is not None
+        return profile.raw_data.get("computer_locked", False)
 
 
 # Device-Level Binary Sensors
@@ -364,9 +364,9 @@ class QustodioDeviceBinarySensorOnline(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         user_status = self._get_user_status()
-        if user_status:
-            return user_status.is_online
-        return None
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        return user_status.is_online
 
 
 class QustodioDeviceBinarySensorTampered(QustodioDeviceBinarySensor):
@@ -386,12 +386,12 @@ class QustodioDeviceBinarySensorTampered(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         device = self._get_device_data()
-        if device:
-            # Check both MDM and alerts for unauthorized removal
-            mdm_tampered = device.mdm.get("unauthorized_remove", False)
-            alert_tampered = device.alerts.get("unauthorized_remove", False)
-            return mdm_tampered or alert_tampered
-        return None
+        # available=True guarantees device exists
+        assert device is not None
+        # Check both MDM and alerts for unauthorized removal
+        mdm_tampered = device.mdm.get("unauthorized_remove", False)
+        alert_tampered = device.alerts.get("unauthorized_remove", False)
+        return mdm_tampered or alert_tampered
 
 
 class QustodioDeviceBinarySensorProtectionDisabled(QustodioDeviceBinarySensor):
@@ -411,10 +411,10 @@ class QustodioDeviceBinarySensorProtectionDisabled(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         user_status = self._get_user_status()
-        if user_status:
-            disable_protection = user_status.status.get("disable_protection", {})
-            return disable_protection.get("status", False)
-        return None
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        disable_protection = user_status.status.get("disable_protection", {})
+        return disable_protection.get("status", False)
 
 
 class QustodioDeviceBinarySensorVpnEnabled(QustodioDeviceBinarySensor):
@@ -433,11 +433,11 @@ class QustodioDeviceBinarySensorVpnEnabled(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         user_status = self._get_user_status()
-        if user_status:
-            vpn_disable = user_status.status.get("vpn_disable", {})
-            # Note: API returns vpn_disable, so we invert it
-            return not vpn_disable.get("status", False)
-        return None
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        vpn_disable = user_status.status.get("vpn_disable", {})
+        # Note: API returns vpn_disable, so we invert it
+        return not vpn_disable.get("status", False)
 
 
 class QustodioDeviceBinarySensorBrowserLocked(QustodioDeviceBinarySensor):
@@ -457,10 +457,10 @@ class QustodioDeviceBinarySensorBrowserLocked(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         user_status = self._get_user_status()
-        if user_status:
-            browser_lock = user_status.status.get("browser_lock", {})
-            return browser_lock.get("status", False)
-        return None
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        browser_lock = user_status.status.get("browser_lock", {})
+        return browser_lock.get("status", False)
 
 
 class QustodioDeviceBinarySensorPanicButton(QustodioDeviceBinarySensor):
@@ -480,7 +480,7 @@ class QustodioDeviceBinarySensorPanicButton(QustodioDeviceBinarySensor):
         if not self.available:
             return None
         user_status = self._get_user_status()
-        if user_status:
-            panic_button = user_status.status.get("panic_button", {})
-            return panic_button.get("status", False)
-        return None
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        panic_button = user_status.status.get("panic_button", {})
+        return panic_button.get("status", False)

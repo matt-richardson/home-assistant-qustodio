@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -605,3 +605,17 @@ class TestValidateInputCoordinatorDataExtraction:
             # Should handle None gracefully via fallback - line 63
             assert result["title"] == "Qustodio (test@example.com)"
             assert result["profiles"] == {}
+
+
+class TestConfigFlowAsyncGetOptionsFlow:
+    """Tests for ConfigFlow.async_get_options_flow."""
+
+    def test_async_get_options_flow(self, mock_config_entry: Mock) -> None:
+        """Test async_get_options_flow returns OptionsFlowHandler."""
+        from custom_components.qustodio.config_flow import ConfigFlow, OptionsFlowHandler
+
+        result = ConfigFlow.async_get_options_flow(mock_config_entry)
+
+        # Should return OptionsFlowHandler instance
+        assert isinstance(result, OptionsFlowHandler)
+        assert result._config_entry == mock_config_entry

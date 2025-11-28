@@ -516,6 +516,64 @@ class TestQustodioBinarySensorAttribution:
             assert sensor.attribution == ATTRIBUTION
 
 
+class TestQustodioBinarySensorNoneReturns:
+    """Test that all binary sensors return None when profile data unavailable."""
+
+    def test_all_sensors_return_none_when_profile_not_found(self, mock_coordinator: Mock) -> None:
+        """Test all sensors return None when profile doesn't exist in coordinator."""
+        # Use a profile ID that doesn't exist in the coordinator
+        profile_data = {"id": "profile_999", "name": "Unknown Profile"}
+
+        sensors = [
+            QustodioBinarySensorIsOnline(mock_coordinator, profile_data),
+            QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data),
+            QustodioBinarySensorInternetPaused(mock_coordinator, profile_data),
+            QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data),
+            QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data),
+            QustodioBinarySensorNavigationLocked(mock_coordinator, profile_data),
+            QustodioBinarySensorUnauthorizedRemove(mock_coordinator, profile_data),
+            QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data),
+            QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data),
+            QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data),
+            QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data),
+            QustodioBinarySensorComputerLocked(mock_coordinator, profile_data),
+        ]
+
+        # All sensors should return None when profile data is unavailable
+        for sensor in sensors:
+            assert sensor.is_on is None
+
+    def test_device_sensors_return_none_when_not_available(self, mock_coordinator: Mock) -> None:
+        """Test device-level sensors return None when not available."""
+        from custom_components.qustodio.binary_sensor import (
+            QustodioDeviceBinarySensorBrowserLocked,
+            QustodioDeviceBinarySensorOnline,
+            QustodioDeviceBinarySensorPanicButton,
+            QustodioDeviceBinarySensorProtectionDisabled,
+            QustodioDeviceBinarySensorTampered,
+            QustodioDeviceBinarySensorVpnEnabled,
+        )
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone 12"}
+
+        sensors = [
+            QustodioDeviceBinarySensorOnline(mock_coordinator, profile_data, device_data),
+            QustodioDeviceBinarySensorTampered(mock_coordinator, profile_data, device_data),
+            QustodioDeviceBinarySensorProtectionDisabled(mock_coordinator, profile_data, device_data),
+            QustodioDeviceBinarySensorVpnEnabled(mock_coordinator, profile_data, device_data),
+            QustodioDeviceBinarySensorBrowserLocked(mock_coordinator, profile_data, device_data),
+            QustodioDeviceBinarySensorPanicButton(mock_coordinator, profile_data, device_data),
+        ]
+
+        # Set coordinator as unavailable
+        mock_coordinator.last_update_success = False
+
+        # All device sensors should return None when not available
+        for sensor in sensors:
+            assert sensor.is_on is None
+
+
 class TestQustodioBinarySensorDeviceInfo:
     """Tests for binary sensor device info."""
 
