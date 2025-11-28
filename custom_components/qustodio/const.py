@@ -2,7 +2,7 @@
 
 # Base component constants
 DOMAIN = "qustodio"
-MANUFACTURER = "Qustodio"
+MANUFACTURER = "qustodio"
 
 # Attribution
 ATTRIBUTION = "Data provided by Qustodio"
