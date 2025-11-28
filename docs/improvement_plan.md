@@ -571,7 +571,7 @@ Based on diagnostics feature analysis (see `docs/diagnostics_readme.md`):
 - [ ] **Quota/Rate Limit Tracking** - Monitor API usage and limits
 - [ ] **Multiple Export Formats** - ~Export diagnostics in JSON, CSV formats~
 - [ ] **Diagnostic Entity** - Add binary sensor or sensor showing last error status
-- [ ] **Integration Statistics** - Include call counts, success rates in diagnostics
+- [x] **Integration Statistics** - Include call counts, success rates in diagnostics ✅ **(2025-11-28)**
 
 ### Device-Level Entity Enhancements
 Based on updated device splitting analysis (see `docs/device_splitting_analysis.md`):

@@ -110,7 +110,7 @@ class TestDiagnostics:
 
         # Assert coordinator
         assert diagnostics["coordinator"]["last_update_success"] is True
-        assert diagnostics["coordinator"]["last_update_time"] == "2025-11-25T10:30:00"
+        assert diagnostics["coordinator"]["last_update_time"] == "2025-11-28T12:00:00+00:00"
         assert "update_interval_seconds" in diagnostics["coordinator"]
         assert diagnostics["coordinator"]["name"] is not None
 

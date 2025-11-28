@@ -61,7 +61,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
         },
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
-            "last_update_time": (coordinator.last_update_time.isoformat() if coordinator.last_update_time else None),
+            "last_update_time": coordinator.statistics["last_update_time"],
             "update_interval_seconds": coordinator.update_interval.total_seconds(),
             "name": coordinator.name,
         },
@@ -160,8 +160,8 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
         diagnostics["api_config"] = {
             "retry_config": (
                 {
-                    "max_retries": api._retry_config.max_retries,  # pylint: disable=protected-access
-                    "initial_delay": api._retry_config.initial_delay,  # pylint: disable=protected-access
+                    "max_attempts": api._retry_config.max_attempts,  # pylint: disable=protected-access
+                    "base_delay": api._retry_config.base_delay,  # pylint: disable=protected-access
                     "max_delay": api._retry_config.max_delay,  # pylint: disable=protected-access
                     "exponential_base": api._retry_config.exponential_base,  # pylint: disable=protected-access
                     "timeout": api._retry_config.timeout,  # pylint: disable=protected-access

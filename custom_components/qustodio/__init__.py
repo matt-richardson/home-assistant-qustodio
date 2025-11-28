@@ -86,6 +86,7 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             "total_updates": 0,
             "successful_updates": 0,
             "failed_updates": 0,
+            "last_update_time": None,
             "last_success_time": None,
             "last_failure_time": None,
             "consecutive_failures": 0,
@@ -105,14 +106,16 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update data via library."""
+        update_time = datetime.now(timezone.utc).isoformat()
         self.statistics["total_updates"] += 1
+        self.statistics["last_update_time"] = update_time
 
         try:
             data = await self.api.get_data()
 
             # Update success statistics
             self.statistics["successful_updates"] += 1
-            self.statistics["last_success_time"] = datetime.now(timezone.utc).isoformat()
+            self.statistics["last_success_time"] = update_time
             self.statistics["consecutive_failures"] = 0
 
             return data

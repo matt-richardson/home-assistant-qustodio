@@ -355,6 +355,7 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
         "total_updates": 10,
         "successful_updates": 9,
         "failed_updates": 1,
+        "last_update_time": "2025-11-28T12:00:00+00:00",
         "last_success_time": "2025-11-28T12:00:00+00:00",
         "last_failure_time": "2025-11-28T11:00:00+00:00",
         "consecutive_failures": 0,
