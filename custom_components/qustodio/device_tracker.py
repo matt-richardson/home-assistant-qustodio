@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import setup_device_entities
-from .const import CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING, DOMAIN
+from .const import CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING, DOMAIN, get_platform_name
 from .entity import QustodioDeviceEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class QustodioDeviceTracker(QustodioDeviceEntity, TrackerEntity):
             "device_id": self._device_id,
             "device_name": device.name,
             "device_type": device.type,
-            "platform": self._get_platform_name(device.platform),
+            "platform": get_platform_name(device.platform),
             "version": device.version,
             "enabled": device.enabled == 1,
             "last_seen": device.lastseen,
@@ -99,14 +99,3 @@ class QustodioDeviceTracker(QustodioDeviceEntity, TrackerEntity):
             )
 
         return attributes
-
-    def _get_platform_name(self, platform: int) -> str:
-        """Convert platform code to name."""
-        platform_map = {
-            0: "Windows",
-            1: "macOS",
-            3: "Android",
-            4: "iOS",
-            5: "Kindle",
-        }
-        return platform_map.get(platform, f"Unknown ({platform})")

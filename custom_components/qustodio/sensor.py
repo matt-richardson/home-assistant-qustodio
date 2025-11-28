@@ -12,8 +12,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import setup_device_entities, setup_profile_entities
-from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME
+from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, get_platform_name
 from .entity import QustodioBaseEntity, QustodioDeviceEntity
+from .models import CoordinatorData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +107,45 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
                 "percentage_used": percentage_used,
             }
         )
+
+        # Add device list with status
+        if not isinstance(self.coordinator.data, CoordinatorData):
+            return attributes
+
+        devices = self.coordinator.data.get_profile_devices(self._profile_id)
+        device_list = []
+        current_device_name = raw.get("current_device")
+
+        # Find current device by name (API returns device name, not ID)
+        current_device_obj = None
+        if current_device_name:
+            for device in devices:
+                if device.name == current_device_name:
+                    current_device_obj = device
+                    break
+
+        for device in devices:
+            user_status = device.get_user_status(self._profile_id)
+            device_info = {
+                "name": device.name,
+                "id": device.id,
+                "type": device.type,
+                "platform": get_platform_name(device.platform),
+                "online": user_status.is_online if user_status else None,
+                "last_seen": device.lastseen,
+                "is_current": device == current_device_obj if current_device_obj else False,
+            }
+            device_list.append(device_info)
+
+        attributes["devices"] = device_list
+        attributes["device_count"] = len(device_list)
+
+        # Add current device details if available
+        if current_device_obj:
+            attributes["current_device_name"] = current_device_obj.name
+            attributes["current_device_id"] = current_device_obj.id
+            attributes["current_device_type"] = current_device_obj.type
+            attributes["current_device_platform"] = get_platform_name(current_device_obj.platform)
 
         return attributes
 

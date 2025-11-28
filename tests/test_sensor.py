@@ -292,3 +292,110 @@ class TestQustodioSensor:
         assert attributes["current_device"] is None
         assert attributes["unauthorized_remove"] is False
         assert attributes["device_tampered"] is None
+
+    def test_device_list_attributes(self, mock_coordinator: Mock) -> None:
+        """Test device list is correctly populated in attributes."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # Check device list exists and has correct structure
+        assert "devices" in attributes
+        device_list = attributes["devices"]
+        assert isinstance(device_list, list)
+        assert len(device_list) == 1
+
+        # Verify device information structure
+        device = device_list[0]
+        assert "name" in device
+        assert "id" in device
+        assert "type" in device
+        assert "platform" in device
+        assert "online" in device
+        assert "last_seen" in device
+        assert "is_current" in device
+
+        # Verify specific device values
+        assert device["name"] == "iPhone 12"
+        assert device["id"] == "device_1"
+        assert device["type"] == "MOBILE"
+        assert device["platform"] == "iOS"
+        assert device["online"] is True
+
+    def test_current_device_attributes(self, mock_coordinator: Mock) -> None:
+        """Test current device information when current_device is set."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # Verify current device attributes
+        assert "current_device_name" in attributes
+        assert "current_device_id" in attributes
+        assert "current_device_type" in attributes
+        assert "current_device_platform" in attributes
+
+        assert attributes["current_device_name"] == "iPhone 12"
+        assert attributes["current_device_id"] == "device_1"
+        assert attributes["current_device_type"] == "MOBILE"
+        assert attributes["current_device_platform"] == "iOS"
+
+    def test_device_list_without_current_device(self, mock_coordinator: Mock) -> None:
+        """Test device list when profile has no current device."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        # Remove current_device from profile data
+        mock_coordinator.data.profiles["profile_1"].raw_data.pop("current_device")
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # Device list should still exist
+        assert "devices" in attributes
+        device_list = attributes["devices"]
+        assert len(device_list) == 1
+
+        # is_current should be False for all devices
+        assert device_list[0]["is_current"] is False
+
+        # Current device attributes should not exist
+        assert "current_device_name" not in attributes
+        assert "current_device_id" not in attributes
+        assert "current_device_type" not in attributes
+        assert "current_device_platform" not in attributes
+
+    def test_device_count_attribute(self, mock_coordinator: Mock) -> None:
+        """Test device_count matches actual device list length."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # Verify device_count exists and matches device list
+        assert "device_count" in attributes
+        assert "devices" in attributes
+        assert attributes["device_count"] == len(attributes["devices"])
+        assert attributes["device_count"] == 1
+
+    def test_is_current_flag(self, mock_coordinator: Mock) -> None:
+        """Test is_current flag correctly identifies active device."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        device_list = attributes["devices"]
+        assert len(device_list) == 1
+
+        # The device should be marked as current
+        assert device_list[0]["is_current"] is True
+        assert device_list[0]["id"] == "device_1"
+
+        # Verify this matches the current_device_id
+        assert attributes["current_device_id"] == "device_1"

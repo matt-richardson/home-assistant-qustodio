@@ -597,9 +597,13 @@ Based on updated device splitting analysis (see `docs/device_splitting_analysis.
 - [x] **Safe Network per Device** - `binary_sensor.{profile}_{device}_on_safe_network` ✅ **(2025-11-28)**
 - [x] **MDM Type Sensor** - `sensor.{profile}_{device}_mdm_type` ✅ **(2025-11-28)**
 
-#### Phase 3: Profile Enhancements (LOW PRIORITY)
-- [ ] **Device List Attributes** - Add device list with status to profile sensors
-- [ ] **Enhanced Profile Tracker** - Add current device details to profile-level device tracker
+#### Phase 3: Profile Enhancements (LOW PRIORITY) - **COMPLETE ✅**
+- [x] **Device List Attributes** - Add device list with status to profile sensors ✅ **(2025-11-28)**
+  - Each device includes: name, id, type, platform, online status, last_seen, is_current flag
+  - Added device_count attribute
+- [x] **Current Device Information** - Add current device details to profile sensors ✅ **(2025-11-28)**
+  - Added current_device_name, current_device_id, current_device_type, current_device_platform
+  - Note: Profile-level device trackers were replaced with per-device trackers in device splitting architecture
 
 ---
 
