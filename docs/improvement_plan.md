@@ -127,17 +127,17 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ---
 
-## 4. Configuration & Setup
+## 4. Configuration & Setup - **COMPLETE ✅**
 
-### Current Gaps
+### Current Gaps - **ALL RESOLVED ✅**
 
-- Basic username/password config flow
+- ~~Basic username/password config flow~~ ✅ **Enhanced with comprehensive validation**
 - ~~No reauthentication flow~~ ✅ **Reauthentication flow implemented**
-- Limited validation
+- ~~Limited validation~~ ✅ **Comprehensive validation with 9 error messages**
 - ~~Profiles snapshot at setup (no refresh)~~ ✅ **Profiles refresh on reauth**
 - ~~No options flow for runtime configuration~~ ✅ **Options flow implemented**
 
-### Improvements Needed
+### Improvements Completed ✅
 
 - [x] Reauthentication flow when tokens expire ✅ (2025-11-23)
   - [x] `async_step_reauth()` and `async_step_reauth_confirm()` methods ✅
@@ -190,41 +190,45 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 ---
 
-## 6. Entity Enhancements
+## 6. Entity Enhancements - **85% COMPLETE**
 
-### Current Gaps
+### Current Gaps - **MOSTLY RESOLVED ✅**
 
-- Limited entity attributes
+- ~~Limited entity attributes~~ ✅ **Comprehensive attributes added**
 - ~~No base entity class (code duplication)~~ ✅ **Base entity class implemented**
-- Icons are basic
+- Icons are basic (low priority - using default mdi icons)
 - ~~No entity availability tracking refinement~~ ✅ **Availability tracking centralized**
 - ~~Missing device info structure~~ ✅ **Device info standardized**
 
-### Improvements Needed
+### Improvements Completed ✅
 
 - [x] Create `QustodioBaseEntity` class to reduce duplication ✅ (2025-11-23)
   - [x] Centralized device info generation ✅
   - [x] Common availability tracking ✅
   - [x] Shared profile data accessor ✅
   - [x] Profile name fallback handling ✅
-- [x] Enhance device info with manufacturer "Qustodio" ✅ (Already done)
-- [ ] Enhance device info with:
-  - Model: Child's name (currently used as device name)
-  - Serial number: Profile UID
-- [x] Add more state attributes to sensors: ✅ **(2025-11-25)**
+- [x] Enhance device info with manufacturer "Qustodio" ✅
+- [x] Add comprehensive state attributes to sensors ✅ **(2025-11-25)**
   - [x] Profile metadata (profile_id, profile_uid) ✅
   - [x] Calculated metrics (quota_remaining_minutes, percentage_used) ✅
   - [x] Improved attribute naming with units (time_used_minutes, quota_minutes) ✅
   - [x] Device monitoring attributes (unauthorized_remove, device_tampered) ✅
   - [x] Location accuracy for device trackers ✅
-- [ ] Improve icon selection logic
-- [ ] Consider additional entity types:
-  - [x] Binary sensors implemented (12 sensors: online, calls_allowed, messages_allowed, social_allowed, games_allowed, browsing_allowed, protection_enabled, tamper_detected, time_limits_enabled, web_filter_enabled, app_limits_enabled, location_tracking_enabled) ✅
+- [x] Additional entity types implemented ✅
+  - [x] Binary sensors (13 profile-level + 7 device-level) ✅ **(2025-11-23)**
   - [x] Binary sensor tests (43 tests) ✅ **100% coverage** **(2025-11-25)**
-  - [x] Diagnostics support (native HA diagnostics + API response logging) ✅ **(2025-11-26)**
+  - [x] Diagnostics support (native HA diagnostics + statistics tracking) ✅ **(2025-11-26, 2025-11-28)**
   - [x] Diagnostics tests (8 tests) ✅ **97% coverage** **(2025-11-26)**
-  - [ ] Switches (pause protection, enable alerts)
-  - [ ] Diagnostic sensors (API response time, update success rate)
+
+### Optional Enhancements (Low Priority)
+
+- [ ] Enhance device info with model/serial number fields
+  - Model: Could use child's name
+  - Serial number: Could use Profile UID
+- [ ] Improve icon selection logic (dynamic icons based on state)
+- [ ] Switch entities for interactive control:
+  - Pause protection switch
+  - Enable alerts switch
 
 ---
 
