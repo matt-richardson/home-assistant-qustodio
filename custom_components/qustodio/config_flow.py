@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -25,6 +26,28 @@ from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
 
+# Email validation pattern (RFC 5322 simplified)
+EMAIL_PATTERN = re.compile(
+    r"^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
+    r"(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
+    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+)
+
+
+def validate_email(email: str) -> bool:
+    """Validate email format.
+
+    Args:
+        email: Email address to validate
+
+    Returns:
+        True if email is valid, False otherwise
+    """
+    if not email or not isinstance(email, str):
+        return False
+    return EMAIL_PATTERN.match(email.strip()) is not None
+
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
@@ -39,11 +62,30 @@ async def validate_input(_hass: HomeAssistant, data: dict[str, Any]) -> dict[str
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
 
     Raises:
+        InvalidEmail: Email format is invalid
+        EmptyUsername: Username is empty
+        EmptyPassword: Password is empty
         InvalidAuth: Invalid credentials
         CannotConnect: Connection or API errors
+        NoProfiles: Account has no profiles
     """
     # Note: hass parameter reserved for future reauthentication flows
-    api = QustodioApi(data[CONF_USERNAME], data[CONF_PASSWORD])
+    username = data.get(CONF_USERNAME, "").strip()
+    password = data.get(CONF_PASSWORD, "")
+
+    # Validate username is not empty
+    if not username:
+        raise EmptyUsername
+
+    # Validate password is not empty
+    if not password:
+        raise EmptyPassword
+
+    # Validate email format
+    if not validate_email(username):
+        raise InvalidEmail
+
+    api = QustodioApi(username, password)
 
     try:
         await api.login()
@@ -64,11 +106,13 @@ async def validate_input(_hass: HomeAssistant, data: dict[str, Any]) -> dict[str
             _LOGGER.warning("No data returned from API")
 
         if not profiles_dict:
-            _LOGGER.warning("No profiles found for account")
+            _LOGGER.warning("No profiles found for account %s", username)
+            raise NoProfiles
 
         return {
-            "title": f"Qustodio ({data[CONF_USERNAME]})",
+            "title": f"Qustodio ({username})",
             "profiles": profiles_dict,
+            "username": username,  # Return sanitized username
         }
 
     except QustodioAuthenticationError as err:
@@ -111,6 +155,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         if user_input is not None:
             try:
                 info = await validate_input(self.hass, user_input)
+            except EmptyUsername:
+                errors["base"] = "empty_username"
+            except EmptyPassword:
+                errors["base"] = "empty_password"
+            except InvalidEmail:
+                errors["base"] = "invalid_email"
+            except NoProfiles:
+                errors["base"] = "no_profiles"
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -119,7 +171,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
+                # Use sanitized username for unique ID
+                username = info["username"]
+                await self.async_set_unique_id(username.lower())
+                self._abort_if_unique_id_configured()
+
                 # Store the profiles data in the config entry
+                user_input[CONF_USERNAME] = username  # Use sanitized username
                 user_input["profiles"] = info["profiles"]
                 return self.async_create_entry(title=info["title"], data=user_input)  # type: ignore[return-value]
 
@@ -154,6 +212,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
 
             try:
                 info = await validate_input(self.hass, data)
+            except EmptyPassword:
+                errors["base"] = "empty_password"
+            except NoProfiles:
+                errors["base"] = "no_profiles"
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -163,6 +225,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                 errors["base"] = "unknown"
             else:
                 # Update the config entry with new credentials and refreshed profiles
+                data[CONF_USERNAME] = info["username"]  # Use sanitized username
                 data["profiles"] = info["profiles"]
                 return self.async_update_reload_and_abort(  # type: ignore[return-value]
                     self._reauth_entry,
@@ -238,3 +301,19 @@ class CannotConnect(HomeAssistantError):
 
 class InvalidAuth(HomeAssistantError):
     """Error to indicate there is invalid auth."""
+
+
+class InvalidEmail(HomeAssistantError):
+    """Error to indicate email format is invalid."""
+
+
+class EmptyUsername(HomeAssistantError):
+    """Error to indicate username is empty."""
+
+
+class EmptyPassword(HomeAssistantError):
+    """Error to indicate password is empty."""
+
+
+class NoProfiles(HomeAssistantError):
+    """Error to indicate account has no profiles."""

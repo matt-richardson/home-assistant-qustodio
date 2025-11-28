@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Qustodio",
+        "description": "Enter your Qustodio account credentials to connect your profiles and devices.",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "Your Qustodio account email address",
+          "password": "Your Qustodio account password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Qustodio",
+        "description": "The credentials for {username} are no longer valid. Please enter your password to reconnect.",
+        "data": {
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Qustodio servers. Please check your internet connection and try again.",
+      "invalid_auth": "Invalid username or password. Please check your credentials and try again.",
+      "invalid_email": "Please enter a valid email address.",
+      "empty_username": "Username is required.",
+      "empty_password": "Password is required.",
+      "already_configured": "This Qustodio account is already configured.",
+      "no_profiles": "No profiles found for this account. Please ensure you have at least one child profile set up in Qustodio.",
+      "rate_limit": "Too many login attempts. Please wait a few minutes and try again.",
+      "service_unavailable": "Qustodio service is temporarily unavailable. Please try again later.",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    },
+    "abort": {
+      "already_configured": "This Qustodio account is already configured.",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Qustodio Options",
+        "description": "Configure update interval and tracking settings.",
+        "data": {
+          "update_interval": "Update interval (minutes)",
+          "enable_gps_tracking": "Enable GPS location tracking"
+        },
+        "data_description": {
+          "update_interval": "How often to check for updates (1-60 minutes)",
+          "enable_gps_tracking": "Track device locations using GPS coordinates"
+        }
+      }
+    }
+  }
+}

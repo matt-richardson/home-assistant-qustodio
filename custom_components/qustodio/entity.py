@@ -42,6 +42,7 @@ class QustodioBaseEntity(CoordinatorEntity):
             identifiers={(DOMAIN, self._profile_id)},
             name=profile_name,
             manufacturer=MANUFACTURER,
+            model="Qustodio Profile",
         )
 
     @property
@@ -125,6 +126,7 @@ class QustodioDeviceEntity(CoordinatorEntity):
             identifiers={(DOMAIN, f"{self._profile_id}_{self._device_id}")},
             name=f"{self._profile_name} {device_name}",
             manufacturer=MANUFACTURER,
+            model="Monitored Device",
             via_device=(DOMAIN, self._profile_id),
         )
 
