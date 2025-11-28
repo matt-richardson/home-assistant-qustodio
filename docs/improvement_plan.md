@@ -158,9 +158,8 @@ This document outlines planned improvements to bring the Qustodio integration up
   - [x] Input sanitization (username trimming) ✅
   - [x] 9 specific error messages ✅
   - [x] Comprehensive validation tests ✅
-- [ ] Enable/disable specific profiles in options
-- [ ] Implement proper unique ID generation
-- [ ] Add duplicate entry prevention
+- [x] Implement proper unique ID generation ✅ (2025-11-28)
+- [x] Add duplicate entry prevention ✅ (2025-11-28)
 
 ---
 
