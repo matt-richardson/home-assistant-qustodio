@@ -349,6 +349,18 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
 
     coordinator.last_update_success = True
     coordinator.async_request_refresh = AsyncMock()
+
+    # Add statistics tracking
+    coordinator.statistics = {
+        "total_updates": 10,
+        "successful_updates": 9,
+        "failed_updates": 1,
+        "last_success_time": "2025-11-28T12:00:00+00:00",
+        "last_failure_time": "2025-11-28T11:00:00+00:00",
+        "consecutive_failures": 0,
+        "error_counts": {"QustodioConnectionError": 1},
+    }
+
     return coordinator
 
 

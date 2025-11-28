@@ -182,7 +182,11 @@ This document outlines planned improvements to bring the Qustodio integration up
 - [ ] Provide user-friendly error notifications
 - [x] Add connection retry with exponential backoff ✅ (2025-11-23)
 - [x] Improve logging with structured context ✅ (2025-11-23)
-- [ ] Add statistics logging on successful updates
+- [x] Add statistics tracking and diagnostics ✅ (2025-11-28)
+  - [x] Track total updates, successes, failures ✅
+  - [x] Track error counts by type ✅
+  - [x] Track consecutive failures and success rate ✅
+  - [x] Expose statistics via diagnostics platform ✅
 
 ---
 

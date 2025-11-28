@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -80,6 +81,17 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = api
         self.entry = entry
 
+        # Initialize statistics tracking
+        self.statistics: dict[str, Any] = {
+            "total_updates": 0,
+            "successful_updates": 0,
+            "failed_updates": 0,
+            "last_success_time": None,
+            "last_failure_time": None,
+            "consecutive_failures": 0,
+            "error_counts": {},  # Track errors by type
+        }
+
         # Get update interval from options or use default
         update_interval_minutes = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         update_interval = timedelta(minutes=update_interval_minutes)
@@ -93,9 +105,21 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update data via library."""
+        self.statistics["total_updates"] += 1
+
         try:
-            return await self.api.get_data()
+            data = await self.api.get_data()
+
+            # Update success statistics
+            self.statistics["successful_updates"] += 1
+            self.statistics["last_success_time"] = datetime.now(timezone.utc).isoformat()
+            self.statistics["consecutive_failures"] = 0
+
+            return data
         except QustodioAuthenticationError as err:
+            # Track failure statistics
+            self._track_failure("QustodioAuthenticationError")
+
             # Authentication errors should trigger a reauth flow
             _LOGGER.error("Authentication failed: %s", err)
             # Get the config entry from hass data
@@ -113,17 +137,41 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
             raise UpdateFailed(f"Authentication failed: {err}") from err
         except QustodioConnectionError as err:
+            # Track failure statistics
+            self._track_failure("QustodioConnectionError")
+
             # Connection errors are usually temporary
             _LOGGER.warning("Connection error: %s", err)
             raise UpdateFailed(f"Connection error: {err}") from err
         except QustodioException as err:
+            # Track failure statistics
+            self._track_failure("QustodioException")
+
             # Other Qustodio-specific errors
             _LOGGER.error("Qustodio API error: %s", err)
             raise UpdateFailed(f"API error: {err}") from err
         except Exception as err:
+            # Track failure statistics
+            self._track_failure("UnexpectedError")
+
             # Unexpected errors
             _LOGGER.exception("Unexpected error updating Qustodio data")
             raise UpdateFailed(f"Unexpected error: {err}") from err
+
+    def _track_failure(self, error_type: str) -> None:
+        """Track update failure statistics.
+
+        Args:
+            error_type: The type of error that occurred
+        """
+        self.statistics["failed_updates"] += 1
+        self.statistics["consecutive_failures"] += 1
+        self.statistics["last_failure_time"] = datetime.now(timezone.utc).isoformat()
+
+        # Track error counts by type
+        if error_type not in self.statistics["error_counts"]:
+            self.statistics["error_counts"][error_type] = 0
+        self.statistics["error_counts"][error_type] += 1
 
 
 def setup_profile_entities(

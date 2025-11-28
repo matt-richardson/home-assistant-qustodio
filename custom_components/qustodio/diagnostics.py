@@ -65,6 +65,23 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             "update_interval_seconds": coordinator.update_interval.total_seconds(),
             "name": coordinator.name,
         },
+        "update_statistics": {
+            "total_updates": coordinator.statistics["total_updates"],
+            "successful_updates": coordinator.statistics["successful_updates"],
+            "failed_updates": coordinator.statistics["failed_updates"],
+            "success_rate": (
+                round(
+                    coordinator.statistics["successful_updates"] / coordinator.statistics["total_updates"] * 100,
+                    2,
+                )
+                if coordinator.statistics["total_updates"] > 0
+                else 0
+            ),
+            "consecutive_failures": coordinator.statistics["consecutive_failures"],
+            "last_success_time": coordinator.statistics["last_success_time"],
+            "last_failure_time": coordinator.statistics["last_failure_time"],
+            "error_counts": coordinator.statistics["error_counts"],
+        },
         "entities": entities_data,
     }
 
@@ -89,8 +106,30 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
                 profiles_summary.append(profile_summary)
 
             diagnostics["profiles"] = profiles_summary
+            total_devices = len(coordinator.data.devices)
             diagnostics["profile_count"] = len(coordinator.data.profiles)
-            diagnostics["device_count"] = len(coordinator.data.devices)
+            diagnostics["device_count"] = total_devices
+
+            # Add device statistics
+            diagnostics["device_statistics"] = {
+                "total": total_devices,
+                "online": sum(
+                    1
+                    for device in coordinator.data.devices.values()
+                    if any(user.is_online for user in device.users if user.is_online is not None)
+                ),
+                "with_location": sum(
+                    1
+                    for device in coordinator.data.devices.values()
+                    if device.location_latitude is not None and device.location_longitude is not None
+                ),
+                "offline": total_devices
+                - sum(
+                    1
+                    for device in coordinator.data.devices.values()
+                    if any(user.is_online for user in device.users if user.is_online is not None)
+                ),
+            }
 
             # Convert dataclasses to flat dict for backward compatibility with tests
             # Flatten profile data at top level (not nested under "profiles")
