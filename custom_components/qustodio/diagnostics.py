@@ -99,12 +99,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             }
             # Include full redacted data for debugging
             diagnostics["profile_data_full"] = async_redact_data(coordinator_data_dict, TO_REDACT)
-        else:
-            # Fallback for old dict-based data structure
-            diagnostics["profiles"] = []
-            diagnostics["profile_count"] = 0
-            diagnostics["device_count"] = 0
-            diagnostics["profile_data_full"] = None
     else:
         diagnostics["profiles"] = []
         diagnostics["profile_count"] = 0

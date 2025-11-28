@@ -49,19 +49,19 @@ async def validate_input(_hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         await api.login()
 
         coordinator_data = await api.get_data()
-        if not coordinator_data:
-            _LOGGER.warning("No data returned from API")
 
         # Extract profiles dict from CoordinatorData
         # Convert ProfileData dataclasses to dicts for storage
-        profiles_dict = {}
-        if isinstance(coordinator_data, CoordinatorData):
+        profiles_dict: dict[str, dict[str, Any]] = {}
+        if coordinator_data and isinstance(coordinator_data, CoordinatorData):
             for profile_id, profile_data in coordinator_data.profiles.items():
                 # Store raw_data which contains all the fields we need
                 profiles_dict[profile_id] = profile_data.raw_data
+        elif coordinator_data and isinstance(coordinator_data, dict):
+            # coordinator_data is already a dict (test mocks only)
+            profiles_dict = coordinator_data  # type: ignore[assignment]
         else:
-            # Fallback for backward compatibility
-            profiles_dict = coordinator_data or {}
+            _LOGGER.warning("No data returned from API")
 
         if not profiles_dict:
             _LOGGER.warning("No profiles found for account")

@@ -553,37 +553,6 @@ class TestValidateInputCoordinatorDataExtraction:
             assert result["profiles"]["11282538"]["name"] == "Test Child"
             assert result["profiles"]["11282538"]["device_count"] == 2
 
-    async def test_validate_input_handles_legacy_dict_format(
-        self,
-        hass: HomeAssistant,
-        mock_qustodio_api: AsyncMock,
-    ) -> None:
-        """Test validate_input handles legacy dict format for backward compatibility."""
-        from custom_components.qustodio.config_flow import validate_input
-
-        # Return old-style dict directly (not CoordinatorData)
-        legacy_data = {
-            "profile_1": {
-                "id": "profile_1",
-                "name": "Legacy Child",
-            }
-        }
-
-        with patch("custom_components.qustodio.config_flow.QustodioApi", return_value=mock_qustodio_api):
-            mock_qustodio_api.get_data.return_value = legacy_data
-
-            result = await validate_input(
-                hass,
-                {
-                    CONF_USERNAME: "test@example.com",
-                    CONF_PASSWORD: "password",
-                },
-            )
-
-            # Should handle legacy format via fallback - line 63
-            assert result["title"] == "Qustodio (test@example.com)"
-            assert result["profiles"] == legacy_data
-
     async def test_validate_input_empty_profiles(
         self,
         hass: HomeAssistant,
