@@ -8,7 +8,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import is_profile_available
-from .const import ATTRIBUTION, DOMAIN, MANUFACTURER
+from .const import ATTRIBUTION, DOMAIN, MANUFACTURER, get_platform_name
 from .models import CoordinatorData, DeviceData, ProfileData, UserStatus
 
 
@@ -42,7 +42,8 @@ class QustodioBaseEntity(CoordinatorEntity):
             identifiers={(DOMAIN, self._profile_id)},
             name=profile_name,
             manufacturer=MANUFACTURER,
-            model="Qustodio Profile",
+            model="Profile",
+            model_id="profile",
         )
 
     @property
@@ -116,17 +117,31 @@ class QustodioDeviceEntity(CoordinatorEntity):
 
         Device entities are linked to both the profile and the specific device.
         """
-        # Try to get current device name from coordinator data
+        # Try to get current device name and platform from coordinator data
         device_name = self._device_name
         device_data = self._get_device_data()
+        platform_name = "Unknown"
+        model_id = "device"
+
         if device_data:
             device_name = device_data.name
+            platform_name = get_platform_name(device_data.platform)
+            # Map platform to model_id for better icon support
+            platform_map = {
+                0: "computer",  # Windows
+                1: "computer",  # macOS
+                3: "phone",  # Android
+                4: "phone",  # iOS
+                5: "tablet",  # Kindle
+            }
+            model_id = platform_map.get(device_data.platform, "device")
 
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._profile_id}_{self._device_id}")},
             name=f"{self._profile_name} {device_name}",
             manufacturer=MANUFACTURER,
-            model="Monitored Device",
+            model=f"{platform_name} Device",
+            model_id=model_id,
             via_device=(DOMAIN, self._profile_id),
         )
 
