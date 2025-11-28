@@ -2,6 +2,5 @@
   "name": "Qustodio",
   "content_in_root": false,
   "homeassistant": "2023.1.0",
-  "render_readme": true,
-  "domains": ["sensor", "device_tracker", "binary_sensor"]
+  "render_readme": true
 }
