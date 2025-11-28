@@ -53,5 +53,35 @@
         }
       }
     }
+  },
+  "issues": {
+    "authentication_error": {
+      "title": "Authentication Failed",
+      "description": "Your Qustodio credentials are no longer valid. Please reauthenticate to continue receiving updates from your Qustodio account."
+    },
+    "connection_error": {
+      "title": "Connection Issues",
+      "description": "Unable to connect to Qustodio servers. There have been {consecutive_failures} consecutive connection failures. Please check your internet connection. If the problem persists, the Qustodio service may be temporarily unavailable."
+    },
+    "rate_limit_error": {
+      "title": "Rate Limit Exceeded",
+      "description": "Too many requests to Qustodio API. Your current update interval is {update_interval} minutes. Consider increasing the update interval in the integration options to avoid rate limiting."
+    },
+    "api_error": {
+      "title": "API Error",
+      "description": "Qustodio API returned an error: {error_message} (Status: {status_code}). This may be a temporary issue. If it persists, please check the Qustodio service status or contact support."
+    },
+    "data_error": {
+      "title": "Data Processing Error",
+      "description": "Unable to process data from Qustodio API: {error_message}. This may indicate a temporary issue with the Qustodio service or an unexpected API response format."
+    },
+    "generic_error": {
+      "title": "Qustodio Error",
+      "description": "An error occurred while communicating with Qustodio: {error_message}. Please check your configuration and try again."
+    },
+    "unexpected_error": {
+      "title": "Unexpected Error",
+      "description": "An unexpected error occurred: {error_message}. Please check the Home Assistant logs for more details and consider reporting this issue if it persists."
+    }
   }
 }
