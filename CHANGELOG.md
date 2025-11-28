@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.0.0...v1.1.0) (2025-11-27)
+
+
+### Features
+
+* Add complete local development environment ([7b42542](https://github.com/matt-richardson/home-assistant-qustodio/commit/7b42542ad56cf67482dd9b226921f77c882830f0))
+* add diagnostics support with API response logging ([567c93c](https://github.com/matt-richardson/home-assistant-qustodio/commit/567c93c73d6dc700e0119a22d03ce00a74eac0a5))
+* implement device-splitting architecture and profile ID type handling ([aa19fb9](https://github.com/matt-richardson/home-assistant-qustodio/commit/aa19fb98989d8b6f7a741c300fedfb135ebc9e31))
+* implement OAuth 2.0 refresh token flow ([ad70838](https://github.com/matt-richardson/home-assistant-qustodio/commit/ad708383d47ac109c78dafa8620cafaab02c5774))
+* Implement reauthentication flow for expired credentials ([4129bd7](https://github.com/matt-richardson/home-assistant-qustodio/commit/4129bd7196bcbb48574d47c31adcc03c3dafc1f5))
+* Replace broad exception handling with specific exception types ([afc7bd7](https://github.com/matt-richardson/home-assistant-qustodio/commit/afc7bd743ecd4638652f973c31e3d7198c47b048))
+
 ## [Unreleased]
 
 A comprehensive Home Assistant integration for monitoring Qustodio parental control data. This integration provides real-time visibility into your children's device usage, location, and protection status directly within Home Assistant.
