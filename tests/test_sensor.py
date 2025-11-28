@@ -31,9 +31,10 @@ class TestQustodioSensorSetup:
 
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-        # Should create one sensor per profile
-        assert len(entities_added) == 2
-        assert all(isinstance(entity, QustodioSensor) for entity in entities_added)
+        # Should create one screen time sensor per profile (2) + one MDM type sensor per device (2) = 4
+        assert len(entities_added) == 4
+        # First 2 should be profile sensors, next 2 should be device sensors
+        assert sum(1 for entity in entities_added if isinstance(entity, QustodioSensor)) == 2
 
 
 class TestQustodioSensor:

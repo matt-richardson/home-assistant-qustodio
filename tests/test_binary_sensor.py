@@ -45,8 +45,8 @@ class TestQustodioBinarySensorSetup:
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
         # Should create 12 profile binary sensors (12 × 2 profiles = 24)
-        # + 6 device binary sensors (6 × 2 devices = 12) = 36 total
-        assert len(entities_added) == 36
+        # + 7 device binary sensors (7 × 2 devices = 14) = 38 total
+        assert len(entities_added) == 38
         assert all(hasattr(entity, "is_on") for entity in entities_added)
 
 

@@ -51,6 +51,7 @@ async def async_setup_entry(
         QustodioDeviceBinarySensorVpnEnabled,
         QustodioDeviceBinarySensorBrowserLocked,
         QustodioDeviceBinarySensorPanicButton,
+        QustodioDeviceBinarySensorSafeNetwork,
     ]:
         entities.extend(setup_device_entities(coordinator, entry, device_sensor_class))
 
@@ -484,3 +485,25 @@ class QustodioDeviceBinarySensorPanicButton(QustodioDeviceBinarySensor):
         assert user_status is not None
         panic_button = user_status.status.get("panic_button", {})
         return panic_button.get("status", False)
+
+
+class QustodioDeviceBinarySensorSafeNetwork(QustodioDeviceBinarySensor):
+    """Binary sensor for device safe network status."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} On Safe Network"
+        self._attr_unique_id = f"{DOMAIN}_device_safe_network_{self._profile_id}_{self._device_id}"
+        self._attr_icon = "mdi:wifi-check"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if device is on a safe network."""
+        if not self.available:
+            return None
+        user_status = self._get_user_status()
+        # available=True guarantees device exists and user_status is not None
+        assert user_status is not None
+        safe_network = user_status.status.get("safe_network", {})
+        return safe_network.get("status") is not None

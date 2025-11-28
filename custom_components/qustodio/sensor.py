@@ -11,9 +11,9 @@ from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import setup_profile_entities
+from . import setup_device_entities, setup_profile_entities
 from .const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME
-from .entity import QustodioBaseEntity
+from .entity import QustodioBaseEntity, QustodioDeviceEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,8 +21,16 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up Qustodio sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Profile-level sensors
     entities = setup_profile_entities(coordinator, entry, QustodioSensor)
     _LOGGER.debug("Setting up %d profile screen time sensors", len(entities))
+
+    # Device-level sensors
+    device_entities = setup_device_entities(coordinator, entry, QustodioDeviceMdmTypeSensor)
+    _LOGGER.debug("Setting up %d device MDM type sensors", len(device_entities))
+    entities.extend(device_entities)
+
     async_add_entities(entities)
 
 
@@ -100,3 +108,33 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         )
 
         return attributes
+
+
+class QustodioDeviceMdmTypeSensor(QustodioDeviceEntity, SensorEntity):
+    """Sensor for device MDM type."""
+
+    _attr_attribution = ATTRIBUTION
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, profile_data, device_data)
+        self._attr_name = f"{self._profile_name} {self._device_name} MDM Type"
+        self._attr_unique_id = f"{DOMAIN}_device_mdm_type_{self._profile_id}_{self._device_id}"
+        self._attr_icon = "mdi:shield-account"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the MDM type."""
+        device = self._get_device_data()
+        if device and device.mdm:
+            mdm_type = device.mdm.get("type")
+            if mdm_type is not None:
+                # Map MDM type codes to human-readable names
+                mdm_type_map = {
+                    0: "None",
+                    1: "DEP",  # Device Enrollment Program
+                    2: "MDM",  # Mobile Device Management
+                    3: "Supervised",
+                }
+                return mdm_type_map.get(mdm_type, f"Unknown ({mdm_type})")
+        return None

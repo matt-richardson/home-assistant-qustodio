@@ -581,21 +581,21 @@ Based on updated device splitting analysis (see `docs/device_splitting_analysis.
 
 **Recommended Approach**: Profile + Device Hybrid (Option 1 from analysis)
 
-#### Phase 1: Core Device Entities (HIGH PRIORITY)
-- [ ] **Per-Device Trackers** - `device_tracker.{profile}_{device}` with device's own GPS coordinates
-- [ ] **Tamper Detection per Device** - `binary_sensor.{profile}_{device}_tampered`
-- [ ] **Online Status per Device** - `binary_sensor.{profile}_{device}_online`
-- [ ] **Protection Disabled per Device** - `binary_sensor.{profile}_{device}_protection_disabled`
-- [ ] **Device Version Sensor** - `sensor.{profile}_{device}_version`
-- [ ] **Device Last Seen Sensor** - `sensor.{profile}_{device}_last_seen`
+#### Phase 1: Core Device Entities (HIGH PRIORITY) - **COMPLETE ✅**
+- [x] **Per-Device Trackers** - `device_tracker.{profile}_{device}` with device's own GPS coordinates ✅
+- [x] **Tamper Detection per Device** - `binary_sensor.{profile}_{device}_tampered` ✅
+- [x] **Online Status per Device** - `binary_sensor.{profile}_{device}_online` ✅
+- [x] **Protection Disabled per Device** - `binary_sensor.{profile}_{device}_protection_disabled` ✅
+- [x] **Device Version** - Available as device_tracker attribute ✅
+- [x] **Device Last Seen** - Available as device_tracker attribute ✅
 
-#### Phase 2: Advanced Device Entities (MEDIUM PRIORITY)
-- [ ] **VPN Status per Device** - `binary_sensor.{profile}_{device}_vpn_enabled`
-- [ ] **Browser Lock per Device** - `binary_sensor.{profile}_{device}_browser_locked`
-- [ ] **Panic Button per Device** - `binary_sensor.{profile}_{device}_panic_button_active`
-- [ ] **Safe Network per Device** - `binary_sensor.{profile}_{device}_on_safe_network`
-- [ ] **Location Accuracy Sensor** - `sensor.{profile}_{device}_location_accuracy`
-- [ ] **MDM Type Sensor** - `sensor.{profile}_{device}_mdm_type` (iOS devices)
+#### Phase 2: Advanced Device Entities (MEDIUM PRIORITY) - **COMPLETE ✅**
+- [x] **VPN Status per Device** - `binary_sensor.{profile}_{device}_vpn_enabled` ✅
+- [x] **Browser Lock per Device** - `binary_sensor.{profile}_{device}_browser_locked` ✅
+- [x] **Panic Button per Device** - `binary_sensor.{profile}_{device}_panic_button_active` ✅
+- [x] **Location Accuracy** - Available as device_tracker attribute ✅
+- [x] **Safe Network per Device** - `binary_sensor.{profile}_{device}_on_safe_network` ✅ **(2025-11-28)**
+- [x] **MDM Type Sensor** - `sensor.{profile}_{device}_mdm_type` ✅ **(2025-11-28)**
 
 #### Phase 3: Profile Enhancements (LOW PRIORITY)
 - [ ] **Device List Attributes** - Add device list with status to profile sensors
