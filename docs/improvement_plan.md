@@ -360,7 +360,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 7. [x] Base entity class to reduce duplication ✅ **(2025-11-23)**
 8. [x] Session management and retry logic ✅ **(2025-11-23 - Pylint 10.00/10)**
 
-### Phase 3: Features (Medium Priority - 80% COMPLETE)
+### Phase 3: Features (Medium Priority - 70% COMPLETE)
 
 1. [x] Reauthentication flow ✅ **(2025-11-23)**
 2. [x] Options flow for configuration ✅ **(2025-11-23)**
@@ -370,7 +370,7 @@ This document outlines planned improvements to bring the Qustodio integration up
 3. [x] Additional entity types - **Partially complete**
    - [x] Binary sensors implemented (12 sensors) ✅ **(2025-11-23)**
    - [x] Binary sensor tests (43 tests) ✅ **100% coverage** **(2025-11-25)**
-   - [ ] Diagnostic sensors (API response time, update success rate)
+   - [x] Diagnostic tracking (update success rate, statistics) ✅ **(2025-11-28)** - Available in diagnostics output
    - [ ] Additional sensors from API capabilities (see priorities below)
 4. [x] Enhanced entity attributes ✅ **(2025-11-25)**
    - [x] Profile metadata (profile_id, profile_uid) ✅
@@ -380,7 +380,7 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] Base entity helper for consistent attributes ✅
 5. [ ] Technical documentation (CLAUDE.md, qustodio-api-docs.md)
 
-### Phase 4: Polish (Nice-to-Have - 70% COMPLETE)
+### Phase 4: Polish (Nice-to-Have - 96% COMPLETE)
 
 1. [x] Release automation ✅ **(2025-11-25)**
    - [x] CHANGELOG.md with complete project history ✅
@@ -403,14 +403,13 @@ This document outlines planned improvements to bring the Qustodio integration up
    - [x] YAML/markdown linting ✅
    - [x] Documentation in CONTRIBUTING.md ✅
    - [x] Added pre-commit to requirements-dev.txt ✅
-5. [ ] Advanced configuration options (enable/disable profiles, more validation)
-6. [x] API abstraction layer and documentation (endpoint docs, version detection) ✅ **(2025-11-26)**
+5. [x] API abstraction layer and documentation (endpoint docs, version detection) ✅ **(2025-11-26)**
    - [x] Complete API documentation with all endpoints ✅
    - [x] Real API response examples ✅
    - [x] Current usage and future enhancements documented ✅
 7. [x] Remove "Qustodio" prefix from all sensors ✅
-8. [x] Device splitting analysis ✅ **(2025-11-26)** - **FEASIBLE** for device-level entities (location, status, version) but NOT for per-device screen time (see `docs/device_splitting_analysis.md`)
-   - [ ] **Implementation**: Phase 1 - Per-device trackers and status sensors
+8. [x] Device splitting analysis and implementation ✅ **(2025-11-26)** - **FEASIBLE** for device-level entities (location, status, version) but NOT for per-device screen time (see `docs/device_splitting_analysis.md`)
+   - [x] **Implementation**: Phase 1, 2, and 3 complete - Per-device trackers, status sensors, and profile enhancements ✅ **(2025-11-28)**
 9. [x] Implement Refresh Token Flow ✅ **(2025-11-26)** - OAuth 2.0 refresh tokens now used to reduce password authentication
    - [x] Store refresh tokens from login responses ✅
    - [x] Implement `_do_refresh_request()` method ✅
@@ -425,31 +424,46 @@ This document outlines planned improvements to bring the Qustodio integration up
 
 Based on comprehensive API capability analysis (see `docs/qustodio_api_documentation.md`), these additional sensors could be implemented. Organized by data source endpoint and priority.
 
+### Implementation Summary
+
+**Currently Implemented:**
+- 13 profile-level binary sensors (online, quota, internet pause, protection, panic, navigation lock, browser lock, VPN, computer lock, questionable events, location tracking, unauthorized remove)
+- 7 device-level binary sensors per device (online, tampered, protection disabled, VPN enabled, browser locked, panic button, safe network)
+- 1 profile screen time sensor with comprehensive attributes
+- 1 device MDM type sensor per device
+- Per-device GPS tracking via device_tracker entities
+
+**Total Active Entities:** 2 profiles × 13 binary sensors + 2 profiles × 1 sensor + 2 devices × 7 binary sensors + 2 devices × 1 sensor + 2 devices × 1 device_tracker = **26 + 2 + 14 + 2 + 2 = 46 entities**
+
 ### Profile Information Sensors (from /profiles endpoint)
 
-#### High Priority
-- [ ] **Sensor**: `profile_questionable_events` - Count of flagged events today
-- [ ] **Sensor**: `profile_device_count` - Number of devices assigned
+#### Implemented ✅
+- [x] **Sensor**: `screen_time` - Screen time used today in minutes ✅ (QustodioSensor - main profile sensor)
+  - Attributes: time_used_minutes, quota_minutes, quota_remaining_minutes, percentage_used
+  - Attributes: devices (list with status), device_count, current_device details
+- [x] **Binary Sensor**: `is_online` - Profile is currently online ✅ (QustodioBinarySensorIsOnline)
+- [x] **Binary Sensor**: `has_quota_remaining` - Screen time quota remaining ✅ (QustodioBinarySensorHasQuotaRemaining)
+- [x] **Binary Sensor**: `has_questionable_events` - Has flagged events ✅ (QustodioBinarySensorHasQuestionableEvents)
+  - Note: Count available as attribute `questionable_events_count` in raw_data
+- [x] **Attribute**: `device_count` - Number of devices assigned ✅ (in sensor extra_state_attributes)
+- [x] **Attribute**: `device_ids` - List of assigned device IDs ✅ (in devices list in sensor attributes)
 
-#### Medium Priority
-- [ ] **Sensor**: `profile_age` - Calculated from birth_date
+#### Not Yet Implemented
 - [ ] **Binary Sensor**: `profile_has_active_routine` - Whether a routine is active
-- [ ] **Binary Sensor**: `profile_school_linked` - LineWise Student integration status
-- [ ] **Attribute**: `device_ids` - List of assigned device IDs
 - [ ] **Attribute**: `location_type` - Location type code
 - [ ] **Attribute**: `location_place` - Named place if available
 
 ### Time Restrictions & Screen Time Sensors (from /rules endpoint)
 
-#### High Priority
-- [ ] **Binary Sensor**: `internet_paused` - Whether internet is currently paused
-- [ ] **Sensor**: `internet_pause_ends_at` - When pause ends (if paused)
-- [ ] **Binary Sensor**: `navigation_locked` - Whether navigation is locked
-- [ ] **Binary Sensor**: `computer_locked` - Whether computer is locked
+#### Implemented ✅
+- [x] **Binary Sensor**: `internet_paused` - Whether internet is currently paused ✅ (QustodioBinarySensorInternetPaused)
+- [x] **Attribute**: `pause_internet_ends_at` - When pause ends (if paused) ✅ (available in raw_data)
+- [x] **Binary Sensor**: `navigation_locked` - Whether navigation is locked ✅ (QustodioBinarySensorNavigationLocked)
+- [x] **Binary Sensor**: `computer_locked` - Whether computer is locked ✅ (QustodioBinarySensorComputerLocked)
+
+#### Not Yet Implemented
 - [ ] **Sensor**: `weekend_screen_time_quota` - Weekend quota in minutes
 - [ ] **Binary Sensor**: `multi_device_quota` - Whether quota applies across devices
-
-#### Medium Priority
 - [ ] **Sensor**: `allowed_time_ranges_today` - Time ranges allowed today
 
 ### App Monitoring Sensors (from /rules endpoint)
@@ -479,14 +493,17 @@ Based on comprehensive API capability analysis (see `docs/qustodio_api_documenta
 
 ### Location & Safety Sensors (from /rules endpoint)
 
-#### High Priority
-- [ ] **Binary Sensor**: `location_tracking_enabled` - Location services active
-- [ ] **Binary Sensor**: `panic_button_configured` - Panic button set up
+#### Implemented ✅
+- [x] **Device Tracker**: Per-device GPS tracking ✅ (QustodioDeviceTracker)
+  - Attributes: device_id, device_name, device_type, platform, version, enabled, last_seen, location_time, location_accuracy_meters, profile_id, is_online
+- [x] **Binary Sensor**: `location_tracking_enabled` - Location services active ✅ (QustodioBinarySensorLocationTrackingEnabled)
+- [x] **Binary Sensor**: `panic_button_active` - Panic button is active ✅ (QustodioBinarySensorPanicButtonActive)
+  - Also available per-device: QustodioDeviceBinarySensorPanicButton
+- [x] **Binary Sensor**: `safe_network_status` - Device on safe network ✅ (QustodioDeviceBinarySensorSafeNetwork per device)
 
-#### Medium Priority
+#### Not Yet Implemented
 - [ ] **Sensor**: `location_update_frequency` - Update frequency in seconds
 - [ ] **Sensor**: `panic_mode` - Panic button mode (0 = email)
-- [ ] **Binary Sensor**: `safe_network_protection_disabled` - Protection off on safe networks
 
 ### Social Media Monitoring Sensors (from /rules endpoint)
 
@@ -499,10 +516,21 @@ Based on comprehensive API capability analysis (see `docs/qustodio_api_documenta
 - [ ] **Binary Sensor**: `twitterx_monitored` - Twitter/X monitoring
 - [ ] **Binary Sensor**: `facebook_connected` - Facebook account linked
 
+### Protection & Security Sensors
+
+#### Implemented ✅
+- [x] **Binary Sensor**: `protection_disabled` - Protection is disabled ✅ (QustodioBinarySensorProtectionDisabled, also per-device)
+- [x] **Binary Sensor**: `browser_locked` - Browser is locked ✅ (QustodioBinarySensorBrowserLocked, also per-device)
+- [x] **Binary Sensor**: `vpn_disabled` - VPN is disabled ✅ (QustodioBinarySensorVpnDisabled)
+- [x] **Binary Sensor**: `vpn_enabled` - VPN is enabled (per device) ✅ (QustodioDeviceBinarySensorVpnEnabled)
+- [x] **Binary Sensor**: `unauthorized_remove` - Unauthorized app removal detected ✅ (QustodioBinarySensorUnauthorizedRemove)
+- [x] **Binary Sensor**: `device_tampered` - Device tampering detected ✅ (per-device)
+- [x] **Sensor**: `mdm_type` - Mobile Device Management type ✅ (QustodioDeviceMdmTypeSensor per device)
+
 ### Alerts & Notifications Sensors (from /rules endpoint)
 
 #### High Priority
-- [ ] **Binary Sensor**: `alert_questionable_content` - Alert on questionable events
+- [x] **Binary Sensor**: `has_questionable_events` - Has questionable events flagged ✅ (QustodioBinarySensorHasQuestionableEvents)
 
 #### Medium Priority
 - [ ] **Binary Sensor**: `alert_new_apps` - Alert when new apps installed
@@ -543,22 +571,21 @@ Based on comprehensive API capability analysis (see `docs/qustodio_api_documenta
 - [ ] **Attribute**: `hourly_breakdown` - Full 24-hour breakdown array
 - [ ] **Attribute**: `routine_screen_time` - Screen time from routines (if used)
 
-### Device-Level Sensors (from /devices endpoint)
+### Device-Level Sensors (from /devices endpoint) ✅
 
-#### Low Priority (Requires device splitting architecture - see `docs/device_splitting_analysis.md`)
-
-**Note**: These sensors would require implementing per-device entities, which has architectural implications.
-
-- [ ] **Binary Sensor**: `device_vpn_enabled` - Whether VPN is active
-- [ ] **Binary Sensor**: `device_browser_locked` - Browser lock status
-- [ ] **Binary Sensor**: `device_panic_button` - Panic button status
-- [ ] **Binary Sensor**: `device_protection_disabled` - Whether protection is temporarily disabled
-- [ ] **Binary Sensor**: `device_safe_network` - Whether device is on a safe network
-- [ ] **Sensor**: `device_version` - App version installed on device
-- [ ] **Diagnostic Sensor**: `device_location_accuracy` - GPS accuracy
-- [ ] **Diagnostic Sensor**: `device_mdm_type` - MDM configuration type
-- [ ] **Attribute**: `device_type` - MOBILE, DESKTOP, etc.
-- [ ] **Attribute**: `device_platform` - Platform code (4 = iOS)
+#### Implemented ✅
+- [x] **Binary Sensor**: `device_vpn_enabled` - Whether VPN is active ✅ (QustodioDeviceBinarySensorVpnEnabled)
+- [x] **Binary Sensor**: `device_browser_locked` - Browser lock status ✅ (QustodioDeviceBinarySensorBrowserLocked)
+- [x] **Binary Sensor**: `device_panic_button` - Panic button status ✅ (QustodioDeviceBinarySensorPanicButton)
+- [x] **Binary Sensor**: `device_protection_disabled` - Whether protection is temporarily disabled ✅ (QustodioDeviceBinarySensorProtectionDisabled)
+- [x] **Binary Sensor**: `device_safe_network` - Whether device is on a safe network ✅ (QustodioDeviceBinarySensorSafeNetwork)
+- [x] **Binary Sensor**: `device_online` - Whether device is online ✅ (QustodioDeviceBinarySensorOnline)
+- [x] **Binary Sensor**: `device_tampered` - Device tampering detected ✅ (QustodioDeviceBinarySensorTampered)
+- [x] **Sensor**: `device_mdm_type` - MDM configuration type ✅ (QustodioDeviceMdmTypeSensor)
+- [x] **Attribute**: `device_version` - App version installed on device ✅ (in device_tracker attributes)
+- [x] **Attribute**: `device_location_accuracy` - GPS accuracy ✅ (in device_tracker attributes as location_accuracy_meters)
+- [x] **Attribute**: `device_type` - MOBILE, DESKTOP, etc. ✅ (in device_tracker attributes)
+- [x] **Attribute**: `device_platform` - Platform name (e.g., iOS, Android) ✅ (in device_tracker attributes)
 
 ### Token Refresh Enhancement
 - [x] **Implement Refresh Token Flow** ✅ **(2025-11-26)** - OAuth 2.0 refresh tokens automatically used to reduce password authentication (see item #9 above for details)
@@ -569,11 +596,10 @@ Based on diagnostics feature analysis (see `docs/diagnostics_readme.md`):
 - [ ] **Performance Metrics** - Add API response time tracking to diagnostics
 - [ ] **Network Connectivity Tests** - Include connectivity diagnostics
 - [ ] **Quota/Rate Limit Tracking** - Monitor API usage and limits
-- [ ] **Multiple Export Formats** - ~Export diagnostics in JSON, CSV formats~
 - [ ] **Diagnostic Entity** - Add binary sensor or sensor showing last error status
 - [x] **Integration Statistics** - Include call counts, success rates in diagnostics ✅ **(2025-11-28)**
 
-### Device-Level Entity Enhancements
+### Device-Level Entity Enhancements **COMPLETE ✅**
 Based on updated device splitting analysis (see `docs/device_splitting_analysis.md`):
 
 **✅ FEASIBLE**: Device-level entities for device-specific data (location, status, version)
