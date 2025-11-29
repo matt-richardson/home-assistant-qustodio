@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.1.0...v1.2.0) (2025-11-28)
+
+
+### Features
+
+* add device list and current device attributes to profile sensors ([1e5c23e](https://github.com/matt-richardson/home-assistant-qustodio/commit/1e5c23e0d1cece4556310cf956ad9e2bd3ec644b))
+* add platform-based device model names and model_id ([06eee29](https://github.com/matt-richardson/home-assistant-qustodio/commit/06eee29a2ecaa0e889e69eea4945142ed2b35958))
+* add safe network binary sensor and MDM type sensor ([47e3546](https://github.com/matt-richardson/home-assistant-qustodio/commit/47e35463e7aa92a7800b8b3f2801b9d8b57bb4d0))
+* add update statistics tracking ([ca8c312](https://github.com/matt-richardson/home-assistant-qustodio/commit/ca8c31204cd85a9cbfdcb382ec07ad535944156f))
+* add update statistics tracking ([e371d64](https://github.com/matt-richardson/home-assistant-qustodio/commit/e371d64991bc258731e8c3a5cd87ae3eb330dd5a))
+* implement error notifications via issue registry ([7b33209](https://github.com/matt-richardson/home-assistant-qustodio/commit/7b33209f1e1c9ba3a0a19014b89745eab1716658))
+
+
+### Bug Fixes
+
+* change MANUFACTURER to lowercase for brand icon support ([96826e2](https://github.com/matt-richardson/home-assistant-qustodio/commit/96826e22c5c884a06751cccaceb263f9aa2384bf))
+* remove invalid domains key from hacs.json ([d8b701e](https://github.com/matt-richardson/home-assistant-qustodio/commit/d8b701e75221e6e11c3052dd38276f99890474a6))
+
 ## [1.1.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.0.0...v1.1.0) (2025-11-27)
 
 
