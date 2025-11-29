@@ -6,15 +6,19 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 
 ## Features
 
-- **Screen Time Tracking**: Monitor daily screen time usage per profile
-- **GPS Device Tracking**: Track device locations in real-time
-- **Profile Monitoring**: Support for multiple child profiles
-- **Tamper Detection**: Alerts when protection is disabled
-- **Diagnostics Support**: Built-in diagnostics with automatic data redaction for troubleshooting
+- **Screen Time Tracking**: Monitor daily screen time usage per profile with comprehensive attributes
+- **GPS Device Tracking**: Track device locations in real-time (per-device trackers)
+- **Profile & Device Monitoring**: 13 profile-level + 7 device-level binary sensors
+- **Tamper Detection**: Alerts when protection is disabled or device is tampered
+- **Smart Error Handling**: User-friendly notifications via Home Assistant issue registry
+- **Diagnostics Support**: Built-in diagnostics with automatic data redaction and statistics tracking
+- **95% Test Coverage**: Production-ready with comprehensive testing and 10.00/10 Pylint score
 
 ## Installation
 
 ### HACS (Recommended)
+
+Before https://github.com/hacs/default/pull/4765 is merged:
 
 1. Open HACS in Home Assistant
 2. Go to "Integrations"
@@ -23,6 +27,13 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 5. Click "Install"
 6. Restart Home Assistant
 
+After https://github.com/hacs/default/pull/4765 is merged:
+
+1. Ensure [HACS](https://hacs.xyz/) is installed
+2. Search for "Qustodio" in the HACS Integrations store
+3. Click "Download"
+4. Restart Home Assistant
+
 ### Manual Installation
 
 1. Copy the `qustodio` folder to `custom_components/`
@@ -30,11 +41,19 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 
 ## Configuration
 
-1. Settings > Devices & Services
+1. Go to Settings > Devices & Services
 2. Click "+ Add Integration"
 3. Search for "Qustodio"
 4. Enter your Qustodio email and password
-5. Integration will auto-discover all profiles
+5. Integration will auto-discover all profiles and devices
+
+### Options
+
+After setup, you can configure:
+- **Update Interval**: How often to poll Qustodio API (1-60 minutes, default: 5)
+- **GPS Tracking**: Enable/disable device location tracking
+
+Access via: Devices & Services > Qustodio > Configure
 
 ---
 
@@ -77,20 +96,25 @@ Press `F5` to debug with breakpoints:
 
 ```
 home-assistant-qustodio/
-├── qustodio/                    # Integration source
+├── custom_components/qustodio/  # Integration source
 │   ├── __init__.py              # Setup & coordinator
 │   ├── config_flow.py           # UI configuration
-│   ├── qustodioapi.py           # API client
+│   ├── qustodioapi.py           # API client with retry logic
 │   ├── sensor.py                # Screen time sensors
-│   └── device_tracker.py        # GPS tracking
-├── tests/                       # Test suite (in progress)
+│   ├── binary_sensor.py         # Status sensors
+│   ├── device_tracker.py        # GPS tracking (per device)
+│   ├── entity.py                # Base entity classes
+│   ├── models.py                # Data models
+│   ├── const.py                 # Constants
+│   ├── exceptions.py            # Custom exceptions
+│   └── diagnostics.py           # Diagnostics platform
+├── tests/                       # Comprehensive test suite (95%+ coverage)
 ├── homeassistant_test/          # Local HA instance
-│   ├── configuration.yaml       # Debug config
-│   └── custom_components/       # Symlinked integration
+├── .github/workflows/           # CI/CD (tests, linting, HACS validation)
+├── docs/                        # Documentation
 ├── .vscode/                     # VSCode debug configs
-├── .devcontainer/               # Dev container setup
 ├── dev.sh                       # Development helper
-└── setup-venv.sh               # Environment setup
+└── setup-venv.sh                # Environment setup
 ```
 
 ### Environment Setup
@@ -143,45 +167,29 @@ ls -la homeassistant_test/custom_components/  # Check symlink
 
 ---
 
-## Roadmap
+## Production Status
 
-See [docs/improvement_plan.md](docs/improvement_plan.md) for the full roadmap to production quality:
+This integration is **production-ready** with:
 
-### Phase 1: Foundation (In Progress)
+- ✅ **95%+ Test Coverage**: Comprehensive test suite across all modules
+- ✅ **Pylint 10.00/10**: Perfect code quality score
+- ✅ **Smart Error Handling**: User-friendly notifications with automatic issue dismissal
+- ✅ **Separate Profile & Device Entities**: Profile + device hybrid approach
+- ✅ **Refresh Token Flow**: Automatic reauthentication
+- ✅ **CI/CD Pipeline**: GitHub Actions with tests, linting, and HACS validation
+- ✅ **Diagnostics Platform**: Statistics tracking and automatic data redaction
 
-- Custom exception hierarchy
-- Basic test suite (>50% coverage)
-- Improved error handling and logging
-- Session management and retry logic
-
-### Phase 2: Quality
-
-- Comprehensive tests (>95% coverage)
-- CI/CD pipeline with GitHub Actions
-- Code quality tools (black, flake8, mypy, pylint)
-- Developer tooling improvements
-
-### Phase 3: Features
-
-- Reauthentication flow
-- Options flow for configuration
-- Additional entity types
-- Enhanced entity attributes
-
-### Phase 4: Polish
-
-- Release automation
-- HACS integration
-- Contribution guidelines
-- API abstraction layer
-
-**Target:** Silver-tier Home Assistant integration with >95% test coverage
+See [docs/improvement_plan.md](docs/improvement_plan.md) for development roadmap and feature tracking.
 
 ---
 
 ## Support
 
-For issues and feature requests, use the [GitHub issue tracker](../../issues).
+For issues and feature requests, use the [GitHub issue tracker](https://github.com/matt-richardson/home-assistant-qustodio/issues).
+
+## Contributing
+
+Contributions are welcome! See [docs/contributing.md](docs/contributing.md) for guidelines.
 
 ## License
 
