@@ -9,7 +9,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from custom_components.qustodio import QustodioDataUpdateCoordinator
+from custom_components.qustodio.coordinator import QustodioDataUpdateCoordinator
 from custom_components.qustodio.exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -35,7 +35,7 @@ class TestQustodioDataUpdateCoordinator:
         assert coordinator.entry == mock_config_entry
         assert coordinator.name == "qustodio"
 
-    @patch("custom_components.qustodio.ir.async_delete_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
     async def test_coordinator_update_success(
         self,
         mock_delete_issue: Mock,
@@ -57,7 +57,7 @@ class TestQustodioDataUpdateCoordinator:
         # Verify issues were dismissed on success
         assert mock_delete_issue.call_count == 6
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_authentication_error(
         self,
         mock_create_issue: Mock,
@@ -90,7 +90,7 @@ class TestQustodioDataUpdateCoordinator:
         with pytest.raises(UpdateFailed, match="Connection error"):
             await coordinator._async_update_data()
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_api_error(
         self,
         mock_create_issue: Mock,
@@ -109,7 +109,7 @@ class TestQustodioDataUpdateCoordinator:
         # Verify issue was created
         mock_create_issue.assert_called_once()
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_generic_exception(
         self,
         mock_create_issue: Mock,
@@ -142,7 +142,7 @@ class TestQustodioDataUpdateCoordinator:
         with pytest.raises(UpdateFailed, match="Unexpected error"):
             await coordinator._async_update_data()
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_triggers_reauth_on_auth_failure(
         self,
         mock_create_issue: Mock,
@@ -173,7 +173,7 @@ class TestQustodioDataUpdateCoordinator:
         # Verify issue was created
         mock_create_issue.assert_called_once()
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_rate_limit_error_creates_issue(
         self,
         mock_create_issue: Mock,
@@ -199,7 +199,7 @@ class TestQustodioDataUpdateCoordinator:
         # Check keyword arguments
         assert call_args[1]["translation_key"] == "rate_limit_error"
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_connection_error_threshold(
         self,
         mock_create_issue: Mock,
@@ -226,7 +226,7 @@ class TestQustodioDataUpdateCoordinator:
         mock_create_issue.assert_called_once()
         assert coordinator.statistics["consecutive_failures"] == 3
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_data_error_threshold(
         self,
         mock_create_issue: Mock,
@@ -254,7 +254,7 @@ class TestQustodioDataUpdateCoordinator:
         mock_create_issue.assert_called_once()
         assert coordinator.statistics["consecutive_failures"] == 2
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_unexpected_error_threshold(
         self,
         mock_create_issue: Mock,
@@ -280,8 +280,8 @@ class TestQustodioDataUpdateCoordinator:
         mock_create_issue.assert_called_once()
         assert coordinator.statistics["consecutive_failures"] == 2
 
-    @patch("custom_components.qustodio.ir.async_delete_issue")
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_dismisses_issues_on_success(
         self,
         mock_create_issue: Mock,
@@ -317,7 +317,7 @@ class TestQustodioDataUpdateCoordinator:
         assert "data_error" in dismissed_issues
         assert "unexpected_error" in dismissed_issues
 
-    @patch("custom_components.qustodio.ir.async_create_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
     async def test_coordinator_tracks_error_statistics(
         self,
         mock_create_issue: Mock,
