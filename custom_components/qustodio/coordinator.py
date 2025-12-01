@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -22,6 +22,9 @@ from .exceptions import (
 )
 from .qustodioapi import QustodioApi
 
+if TYPE_CHECKING:
+    from .models import CoordinatorData
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -34,20 +37,10 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         self.entry = entry
 
         # Initialize statistics tracking
-        self.statistics: dict[str, Any] = {
-            "total_updates": 0,
-            "successful_updates": 0,
-            "failed_updates": 0,
-            "last_update_time": None,
-            "last_success_time": None,
-            "last_failure_time": None,
-            "consecutive_failures": 0,
-            "error_counts": {},  # Track errors by type
-        }
+        self.statistics = self._initialize_statistics()
 
         # Get update interval from options or use default
-        update_interval_minutes = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-        update_interval = timedelta(minutes=update_interval_minutes)
+        update_interval = self._get_update_interval(entry)
 
         super().__init__(
             hass,
@@ -58,13 +51,12 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update data via library."""
-        update_time = datetime.now(timezone.utc).isoformat()
-        self.statistics["total_updates"] += 1
-        self.statistics["last_update_time"] = update_time
+        update_time = self._get_current_time()
+        self._record_update_start(update_time)
 
         try:
             data = await self.api.get_data()
-            self._handle_update_success(update_time)
+            self._handle_update_success(update_time, data)
             return data
         except QustodioAuthenticationError as err:
             self._handle_authentication_error(err)
@@ -82,27 +74,16 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             # Catch all unexpected errors to provide user-friendly notifications
             self._handle_unexpected_error(err)
 
-    def _handle_update_success(self, update_time: str) -> None:
+    def _handle_update_success(self, update_time: str, data: Any) -> None:
         """Handle successful data update.
 
         Args:
             update_time: ISO timestamp of the update
+            data: The fetched coordinator data
         """
-        self.statistics["successful_updates"] += 1
-        self.statistics["last_success_time"] = update_time
-        self.statistics["consecutive_failures"] = 0
-
-        # Dismiss any existing error issues on success
-        issue_ids = [
-            "authentication_error",
-            "connection_error",
-            "rate_limit_error",
-            "api_error",
-            "data_error",
-            "unexpected_error",
-        ]
-        for issue_id in issue_ids:
-            self._dismiss_issue(issue_id)
+        self._record_update_success(update_time)
+        self._dismiss_all_issues()
+        self._log_update_statistics(data)
 
     def _handle_authentication_error(self, err: QustodioAuthenticationError) -> None:
         """Handle authentication errors and trigger reauth.
@@ -236,6 +217,97 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_placeholders={"error_message": str(err)},
             )
         raise UpdateFailed(f"Unexpected error: {err}") from err
+
+    def _initialize_statistics(self) -> dict[str, Any]:
+        """Initialize statistics tracking dictionary.
+
+        Returns:
+            Dictionary with initial statistics values
+        """
+        return {
+            "total_updates": 0,
+            "successful_updates": 0,
+            "failed_updates": 0,
+            "last_update_time": None,
+            "last_success_time": None,
+            "last_failure_time": None,
+            "consecutive_failures": 0,
+            "error_counts": {},
+        }
+
+    def _get_update_interval(self, entry: ConfigEntry) -> timedelta:
+        """Get update interval from config entry options.
+
+        Args:
+            entry: The config entry
+
+        Returns:
+            Timedelta representing the update interval
+        """
+        update_interval_minutes = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        return timedelta(minutes=update_interval_minutes)
+
+    def _get_current_time(self) -> str:
+        """Get current time as ISO format string.
+
+        Returns:
+            ISO formatted timestamp string
+        """
+        return datetime.now(timezone.utc).isoformat()
+
+    def _record_update_start(self, update_time: str) -> None:
+        """Record the start of an update attempt.
+
+        Args:
+            update_time: ISO timestamp of the update
+        """
+        self.statistics["total_updates"] += 1
+        self.statistics["last_update_time"] = update_time
+
+    def _record_update_success(self, update_time: str) -> None:
+        """Record successful update statistics.
+
+        Args:
+            update_time: ISO timestamp of the update
+        """
+        self.statistics["successful_updates"] += 1
+        self.statistics["last_success_time"] = update_time
+        self.statistics["consecutive_failures"] = 0
+
+    def _dismiss_all_issues(self) -> None:
+        """Dismiss all known error issues."""
+        issue_ids = [
+            "authentication_error",
+            "connection_error",
+            "rate_limit_error",
+            "api_error",
+            "data_error",
+            "unexpected_error",
+        ]
+        for issue_id in issue_ids:
+            self._dismiss_issue(issue_id)
+
+    def _log_update_statistics(self, data: CoordinatorData | Any) -> None:
+        """Log statistics about the successful update.
+
+        Args:
+            data: The coordinator data
+        """
+        try:
+            if hasattr(data, "profiles") and hasattr(data, "devices"):
+                profile_count = len(data.profiles)
+                device_count = len(data.devices)
+
+                _LOGGER.debug(
+                    "Successfully updated Qustodio data: %d profiles, %d devices",
+                    profile_count,
+                    device_count,
+                )
+            else:
+                _LOGGER.debug("Successfully updated Qustodio data")
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            # Don't fail the update if logging fails
+            _LOGGER.debug("Could not log update statistics: %s", err)
 
     def _get_entry_id(self) -> str | None:
         """Get the config entry ID for this coordinator.
