@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
@@ -14,9 +15,49 @@ from custom_components.qustodio.const import DOMAIN
 from custom_components.qustodio.models import CoordinatorData, DeviceData, ProfileData, UserStatus
 
 
+def create_config_entry_with_version_compat(**kwargs):
+    """Create a ConfigEntry with version-compatible parameters.
+
+    Home Assistant versions have different required/optional parameters:
+    - 2025.x: requires 'subentries_data', has 'discovery_keys'
+    - Older: doesn't have 'subentries_data' or 'discovery_keys'
+
+    This helper detects which parameters are supported and adjusts accordingly.
+
+    Args:
+        **kwargs: Parameters to pass to ConfigEntry constructor
+
+    Returns:
+        ConfigEntry instance with version-compatible parameters
+    """
+    # Check if ConfigEntry.__init__ accepts parameters
+    sig = inspect.signature(ConfigEntry.__init__)
+    params = sig.parameters
+
+    # Handle subentries_data (required in 2025.x, doesn't exist in older)
+    if "subentries_data" in params:
+        # HA 2025.x and newer - subentries_data is required
+        if "subentries_data" not in kwargs:
+            kwargs["subentries_data"] = {}
+    else:
+        # Older HA versions - subentries_data doesn't exist
+        kwargs.pop("subentries_data", None)
+
+    # Handle discovery_keys (exists in newer versions, not in older)
+    if "discovery_keys" not in params:
+        # Older HA versions don't have discovery_keys parameter
+        kwargs.pop("discovery_keys", None)
+
+    return ConfigEntry(**kwargs)
+
+
 @pytest.fixture
 def mock_config_entry() -> Mock:
-    """Create a mock config entry."""
+    """Create a mock config entry.
+
+    Note: This returns a Mock for backward compatibility with existing tests.
+    For new tests that need a real ConfigEntry, use create_config_entry_with_version_compat().
+    """
     entry = Mock(spec=ConfigEntry)
     entry.version = 1
     entry.minor_version = 1
