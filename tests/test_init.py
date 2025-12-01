@@ -9,7 +9,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from custom_components.qustodio import (
-    QustodioDataUpdateCoordinator,
     async_setup_entry,
     async_unload_entry,
     is_profile_available,
@@ -17,6 +16,7 @@ from custom_components.qustodio import (
     setup_profile_entities,
 )
 from custom_components.qustodio.const import DOMAIN
+from custom_components.qustodio.coordinator import QustodioDataUpdateCoordinator
 
 
 class TestAsyncSetupEntry:
