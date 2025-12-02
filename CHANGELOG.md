@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.2.0...v1.3.0) (2025-12-02)
+
+
+### Features
+
+* add per-app usage tracking with hourly caching ([#7](https://github.com/matt-richardson/home-assistant-qustodio/issues/7)) ([0f3660b](https://github.com/matt-richardson/home-assistant-qustodio/commit/0f3660bbcdc4f20fafd8cfbce2165c9f12949feb))
+
+
+### Bug Fixes
+
+* update documentation URL in manifest to correct repository ([7ee0b0d](https://github.com/matt-richardson/home-assistant-qustodio/commit/7ee0b0d0ea0230fb957350e72d2af93c55a5d288))
+
 ## [1.2.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.1.0...v1.2.0) (2025-11-28)
 
 
