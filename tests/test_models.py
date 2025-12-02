@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from custom_components.qustodio.models import DeviceData, ProfileData, UserStatus
+from custom_components.qustodio.models import AppUsage, CoordinatorData, DeviceData, ProfileData, UserStatus
 
 
 class TestDeviceDataGetUserStatus:
@@ -266,3 +266,167 @@ class TestProfileDataFromApiResponse:
         assert profile.device_count == 0  # Default
         assert profile.device_ids == []  # Default
         assert profile.raw_data == api_data
+
+
+class TestAppUsage:
+    """Tests for AppUsage model."""
+
+    def test_from_api_response_with_all_fields(self) -> None:
+        """Test AppUsage.from_api_response with all fields present."""
+        api_data = {
+            "app_name": "Clash Royale",
+            "exe": "com.supercell.scroll",
+            "minutes": 11.5,
+            "platform": 4,
+            "thumbnail": "https://static.qustodio.com/app/icon.jpg",
+            "questionable": False,
+        }
+
+        app = AppUsage.from_api_response(api_data)
+
+        assert app.name == "Clash Royale"
+        assert app.package == "com.supercell.scroll"
+        assert app.minutes == 11.5
+        assert app.platform == 4
+        assert app.thumbnail == "https://static.qustodio.com/app/icon.jpg"
+        assert app.questionable is False
+
+    def test_from_api_response_with_missing_optional_fields(self) -> None:
+        """Test AppUsage.from_api_response with missing optional fields."""
+        api_data = {
+            "app_name": "Unknown App",
+            "exe": "com.example.app",
+            "minutes": 5.0,
+            "platform": 1,
+        }
+
+        app = AppUsage.from_api_response(api_data)
+
+        assert app.name == "Unknown App"
+        assert app.package == "com.example.app"
+        assert app.minutes == 5.0
+        assert app.platform == 1
+        assert app.thumbnail is None  # Default
+        assert app.questionable is False  # Default
+
+    def test_from_api_response_with_defaults(self) -> None:
+        """Test AppUsage.from_api_response uses defaults for missing required fields."""
+        api_data = {}
+
+        app = AppUsage.from_api_response(api_data)
+
+        assert app.name == "Unknown"  # Default
+        assert app.package == ""  # Default
+        assert app.minutes == 0.0  # Default
+        assert app.platform == 0  # Default
+        assert app.thumbnail is None
+        assert app.questionable is False
+
+    def test_from_api_response_with_questionable_app(self) -> None:
+        """Test AppUsage.from_api_response with questionable flag."""
+        api_data = {
+            "app_name": "Questionable App",
+            "exe": "com.questionable.app",
+            "minutes": 30.0,
+            "platform": 1,
+            "questionable": True,
+        }
+
+        app = AppUsage.from_api_response(api_data)
+
+        assert app.questionable is True
+
+
+class TestCoordinatorDataGetAppUsage:
+    """Tests for CoordinatorData.get_app_usage() method."""
+
+    def test_get_app_usage_with_data(self) -> None:
+        """Test get_app_usage returns app list when data exists."""
+        profile_data = ProfileData(
+            id="123",
+            uid="uid_123",
+            name="Test Profile",
+            device_count=0,
+            device_ids=[],
+            raw_data={},
+        )
+
+        app1 = AppUsage(name="App1", package="com.app1", minutes=10.0, platform=1)
+        app2 = AppUsage(name="App2", package="com.app2", minutes=5.0, platform=4)
+
+        data = CoordinatorData(
+            profiles={"123": profile_data},
+            devices={},
+            app_usage={"123": [app1, app2]},
+        )
+
+        apps = data.get_app_usage("123")
+
+        assert len(apps) == 2
+        assert apps[0] == app1
+        assert apps[1] == app2
+
+    def test_get_app_usage_with_no_app_usage_data(self) -> None:
+        """Test get_app_usage returns empty list when app_usage is None."""
+        profile_data = ProfileData(
+            id="123",
+            uid="uid_123",
+            name="Test Profile",
+            device_count=0,
+            device_ids=[],
+            raw_data={},
+        )
+
+        data = CoordinatorData(
+            profiles={"123": profile_data},
+            devices={},
+            app_usage=None,
+        )
+
+        apps = data.get_app_usage("123")
+
+        assert apps == []
+
+    def test_get_app_usage_with_nonexistent_profile(self) -> None:
+        """Test get_app_usage returns empty list for non-existent profile."""
+        profile_data = ProfileData(
+            id="123",
+            uid="uid_123",
+            name="Test Profile",
+            device_count=0,
+            device_ids=[],
+            raw_data={},
+        )
+
+        app1 = AppUsage(name="App1", package="com.app1", minutes=10.0, platform=1)
+
+        data = CoordinatorData(
+            profiles={"123": profile_data},
+            devices={},
+            app_usage={"123": [app1]},
+        )
+
+        apps = data.get_app_usage("999")  # Non-existent profile
+
+        assert apps == []
+
+    def test_get_app_usage_with_empty_app_list(self) -> None:
+        """Test get_app_usage returns empty list when profile has no apps."""
+        profile_data = ProfileData(
+            id="123",
+            uid="uid_123",
+            name="Test Profile",
+            device_count=0,
+            device_ids=[],
+            raw_data={},
+        )
+
+        data = CoordinatorData(
+            profiles={"123": profile_data},
+            devices={},
+            app_usage={"123": []},  # Empty list
+        )
+
+        apps = data.get_app_usage("123")
+
+        assert apps == []

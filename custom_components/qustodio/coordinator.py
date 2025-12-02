@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -20,10 +20,8 @@ from .exceptions import (
     QustodioException,
     QustodioRateLimitError,
 )
+from .models import AppUsage, CoordinatorData
 from .qustodioapi import QustodioApi
-
-if TYPE_CHECKING:
-    from .models import CoordinatorData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +36,10 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Initialize statistics tracking
         self.statistics = self._initialize_statistics()
+
+        # App usage caching (fetch once per hour to reduce API calls)
+        self._last_app_fetch_date: datetime | None = None
+        self._cached_app_usage: dict[str, list] | None = None
 
         # Get update interval from options or use default
         update_interval = self._get_update_interval(entry)
@@ -55,7 +57,12 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         self._record_update_start(update_time)
 
         try:
+            # Fetch main data (profiles, devices)
             data = await self.api.get_data()
+
+            # Fetch app usage once per hour (cached)
+            await self._fetch_app_usage(data)
+
             self._handle_update_success(update_time, data)
             return data
         except QustodioAuthenticationError as err:
@@ -367,3 +374,82 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             issue_id: Unique identifier for the issue to dismiss
         """
         ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    async def _fetch_app_usage(self, data: CoordinatorData) -> None:
+        """Fetch app usage data for all profiles (cached hourly).
+
+        Args:
+            data: Coordinator data to update with app usage
+        """
+        # Skip if data is not CoordinatorData (backward compatibility)
+        if not isinstance(data, CoordinatorData):
+            _LOGGER.debug("Skipping app usage fetch - data is not CoordinatorData instance")
+            return
+
+        now = datetime.now(timezone.utc)
+
+        # Check if we need to fetch (once per hour)
+        if self._last_app_fetch_date is not None:
+            time_since_last_fetch = now - self._last_app_fetch_date
+            if time_since_last_fetch.total_seconds() < 3600:  # 1 hour in seconds
+                # Use cached data
+                data.app_usage = self._cached_app_usage
+                _LOGGER.debug("Using cached app usage data from %s", self._last_app_fetch_date)
+                return
+
+        _LOGGER.debug("Fetching app usage data for all profiles")
+
+        try:
+            app_usage_by_profile: dict[str, list[AppUsage]] = {}
+            today = now.date()
+
+            # Fetch app usage for each profile
+            for profile_id, profile in data.profiles.items():
+                try:
+                    # Get usage for today only
+                    usage_response = await self.api.get_app_usage(
+                        profile_uid=profile.uid,
+                        min_date=today,
+                        max_date=today,
+                    )
+
+                    # Convert API response to AppUsage objects
+                    apps = [AppUsage.from_api_response(item) for item in usage_response.get("items", [])]
+
+                    # Sort by minutes descending (most used first)
+                    apps.sort(key=lambda x: x.minutes, reverse=True)
+
+                    app_usage_by_profile[profile_id] = apps
+
+                    _LOGGER.debug(
+                        "Fetched %d apps for profile %s (%s)",
+                        len(apps),
+                        profile.name,
+                        profile_id,
+                    )
+
+                except Exception as err:  # pylint: disable=broad-exception-caught
+                    # Don't fail the entire update if app usage fails for one profile
+                    _LOGGER.warning(
+                        "Failed to fetch app usage for profile %s: %s",
+                        profile_id,
+                        err,
+                    )
+                    app_usage_by_profile[profile_id] = []
+
+            # Update cache
+            self._cached_app_usage = app_usage_by_profile
+            self._last_app_fetch_date = now
+            data.app_usage = app_usage_by_profile
+
+            _LOGGER.info("Successfully fetched app usage for %d profiles", len(app_usage_by_profile))
+
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            # Don't fail the entire update if app usage fails
+            _LOGGER.warning("Failed to fetch app usage data: %s", err)
+            # Use cached data if available
+            if self._cached_app_usage is not None:
+                data.app_usage = self._cached_app_usage
+                _LOGGER.debug("Using previous cached app usage data due to fetch failure")
+            else:
+                data.app_usage = None

@@ -115,11 +115,43 @@ class ProfileData:
 
 
 @dataclass
+class AppUsage:
+    """Per-app usage data."""
+
+    name: str
+    package: str
+    minutes: float
+    platform: int  # 1=Android, 4=iOS
+    thumbnail: str | None = None
+    questionable: bool = False
+
+    @staticmethod
+    def from_api_response(data: dict[str, Any]) -> AppUsage:
+        """Create AppUsage from API response.
+
+        Args:
+            data: API response item with app usage data
+
+        Returns:
+            AppUsage instance
+        """
+        return AppUsage(
+            name=data.get("app_name", "Unknown"),
+            package=data.get("exe", ""),
+            minutes=data.get("minutes", 0.0),
+            platform=data.get("platform", 0),
+            thumbnail=data.get("thumbnail"),
+            questionable=data.get("questionable", False),
+        )
+
+
+@dataclass
 class CoordinatorData:
     """Top-level coordinator data."""
 
     profiles: dict[str, ProfileData]
     devices: dict[str, DeviceData]
+    app_usage: dict[str, list[AppUsage]] | None = None  # profile_id -> list of apps
 
     def get_profile_devices(self, profile_id: str) -> list[DeviceData]:
         """Get all devices associated with a profile."""
@@ -133,3 +165,16 @@ class CoordinatorData:
             if device:
                 result.append(device)
         return result
+
+    def get_app_usage(self, profile_id: str) -> list[AppUsage]:
+        """Get app usage for a profile.
+
+        Args:
+            profile_id: Profile ID to get app usage for
+
+        Returns:
+            List of AppUsage objects, or empty list if no data
+        """
+        if not self.app_usage:
+            return []
+        return self.app_usage.get(profile_id, [])

@@ -7,6 +7,7 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 ## Features
 
 - **Screen Time Tracking**: Monitor daily screen time usage per profile with comprehensive attributes
+- **Per-App Usage Tracking**: Track time spent in individual apps with top apps, total usage, and questionable app detection
 - **GPS Device Tracking**: Track device locations in real-time (per-device trackers)
 - **Profile & Device Monitoring**: 13 profile-level + 7 device-level binary sensors
 - **Tamper Detection**: Alerts when protection is disabled or device is tampered

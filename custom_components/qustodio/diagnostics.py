@@ -32,11 +32,51 @@ TO_REDACT = {
 }
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
-    """Return diagnostics for a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+def _build_app_usage_summary(coordinator_data: CoordinatorData) -> dict[str, Any]:
+    """Build app usage summary for diagnostics.
 
-    # Collect entity information
+    Args:
+        coordinator_data: Coordinator data with app usage
+
+    Returns:
+        Dictionary with app usage summary by profile
+    """
+    if not coordinator_data.app_usage:
+        return {}
+
+    app_usage_summary = {}
+    for profile_id, apps in coordinator_data.app_usage.items():
+        # Find profile name for this profile_id
+        profile_name = coordinator_data.profiles.get(profile_id, None)
+        profile_key = profile_name.name if profile_name else f"profile_{profile_id}"
+
+        app_usage_summary[profile_key] = {
+            "total_apps": len(apps),
+            "total_minutes": sum(app.minutes for app in apps),
+            "questionable_apps": sum(1 for app in apps if app.questionable),
+            "top_5_apps": [
+                {
+                    "name": app.name,
+                    "minutes": app.minutes,
+                    "platform": app.platform,
+                    "questionable": app.questionable,
+                }
+                for app in apps[:5]  # Top 5 apps (already sorted by minutes)
+            ],
+        }
+    return app_usage_summary
+
+
+def _collect_entity_data(hass: HomeAssistant, entry: ConfigEntry) -> list[dict[str, Any]]:
+    """Collect entity information for diagnostics.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry
+
+    Returns:
+        List of entity data dictionaries
+    """
     entity_reg = er.async_get(hass)
     entities_data = []
     for entity in er.async_entries_for_config_entry(entity_reg, entry.entry_id):
@@ -48,6 +88,15 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             "disabled_by": entity.disabled_by.value if entity.disabled_by else None,
         }
         entities_data.append(entity_data)
+    return entities_data
+
+
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
+    """Return diagnostics for a config entry."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Collect entity information
+    entities_data = _collect_entity_data(hass, entry)
 
     # Prepare diagnostics data
     diagnostics: dict[str, Any] = {
@@ -109,6 +158,15 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             total_devices = len(coordinator.data.devices)
             diagnostics["profile_count"] = len(coordinator.data.profiles)
             diagnostics["device_count"] = total_devices
+
+            # Add app usage information
+            app_usage_summary = _build_app_usage_summary(coordinator.data)
+            diagnostics["app_usage"] = app_usage_summary if app_usage_summary else None
+            diagnostics["app_usage_cache_date"] = (
+                coordinator._last_app_fetch_date.isoformat()  # pylint: disable=protected-access
+                if coordinator._last_app_fetch_date  # pylint: disable=protected-access
+                else None
+            )
 
             # Add device statistics
             diagnostics["device_statistics"] = {
