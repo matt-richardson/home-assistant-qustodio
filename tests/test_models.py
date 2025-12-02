@@ -430,3 +430,24 @@ class TestCoordinatorDataGetAppUsage:
         apps = data.get_app_usage("123")
 
         assert apps == []
+
+    def test_get_profile_devices_profile_not_found(self) -> None:
+        """Test get_profile_devices returns empty list when profile not found."""
+        profile_data = ProfileData(
+            id="123",
+            uid="uid123",
+            name="Test Profile",
+            device_count=1,
+            device_ids=[1],
+            raw_data={},
+        )
+
+        data = CoordinatorData(
+            profiles={"123": profile_data},
+            devices={},
+        )
+
+        # Request devices for non-existent profile
+        devices = data.get_profile_devices("nonexistent_profile")
+
+        assert devices == []

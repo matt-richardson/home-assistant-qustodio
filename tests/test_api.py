@@ -1173,3 +1173,383 @@ class TestQustodioApiGetAppUsage:
                 assert "Account UID not available" in str(exc_info.value)
 
         await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_auth_error(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage handles authentication error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+        mock_aiohttp_response.status = 401
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.return_value = mock_aiohttp_response
+
+                with pytest.raises(QustodioAuthenticationError, match="Authentication failed"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_rate_limit_error(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage handles rate limit error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+        mock_aiohttp_response.status = 429
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.return_value = mock_aiohttp_response
+
+                with pytest.raises(QustodioRateLimitError, match="Rate limit exceeded"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_server_error(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage handles server error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+        mock_aiohttp_response.status = 503
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.return_value = mock_aiohttp_response
+
+                with pytest.raises(QustodioAPIError, match="Server error: 503"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_unexpected_status(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage handles unexpected status code."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+        mock_aiohttp_response.status = 404
+        mock_aiohttp_response.text.return_value = "Not Found"
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.return_value = mock_aiohttp_response
+
+                with pytest.raises(QustodioAPIError, match="Unexpected status code 404"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_invalid_response_format(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage handles invalid response format."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+        mock_aiohttp_response.status = 200
+        mock_aiohttp_response.json.return_value = {"invalid": "no items key"}
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.return_value = mock_aiohttp_response
+
+                with pytest.raises(QustodioDataError, match="Invalid response format"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_timeout_error(self, mock_aiohttp_session) -> None:
+        """Test get_app_usage handles timeout error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.side_effect = asyncio.TimeoutError()
+
+                with pytest.raises(QustodioConnectionError, match="Connection timeout"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_client_error(self, mock_aiohttp_session) -> None:
+        """Test get_app_usage handles client connection error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.side_effect = aiohttp.ClientError("Connection refused")
+
+                with pytest.raises(QustodioConnectionError, match="Connection error"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_unexpected_error(self, mock_aiohttp_session) -> None:
+        """Test get_app_usage handles unexpected error."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+                mock_aiohttp_session.get.side_effect = ValueError("Unexpected error")
+
+                with pytest.raises(QustodioAPIError, match="Unexpected error while fetching app usage"):
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+        await api.close()
+
+
+class TestQustodioApiLogging:
+    """Tests for QustodioApi logging and debugging features."""
+
+    @pytest.mark.asyncio
+    async def test_log_api_response_with_debug_enabled(
+        self, mock_aiohttp_session, mock_aiohttp_response, mock_api_login_response
+    ) -> None:
+        """Test API response logging when debug is enabled."""
+        mock_aiohttp_response.json.return_value = mock_api_login_response
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_aiohttp_response)
+
+            api = QustodioApi("test@example.com", "password")
+
+            # Enable debug logging
+            with patch("custom_components.qustodio.qustodioapi._LOGGER") as mock_logger:
+                mock_logger.isEnabledFor.return_value = True
+                await api.login()
+
+                # Verify logging was called
+                mock_logger.isEnabledFor.assert_called()
+                mock_logger.debug.assert_called()
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_redact_sensitive_data_dict(self) -> None:
+        """Test redacting sensitive data from dictionary."""
+        api = QustodioApi("test@example.com", "password")
+
+        data = {
+            "access_token": "secret_token",
+            "password": "secret_password",
+            "email": "user@example.com",
+            "latitude": 37.7749,
+            "longitude": -122.4194,
+            "id": "12345",
+            "uid": "uid_12345",
+            "device_id": "device_123",
+            "lastseen": "2025-12-03",
+            "safe_field": "visible_data",
+        }
+
+        redacted = api._redact_sensitive_data(data)
+
+        assert redacted["access_token"] == "**REDACTED**"
+        assert redacted["password"] == "**REDACTED**"
+        assert redacted["email"] == "**REDACTED**"
+        assert redacted["latitude"] == "**REDACTED**"
+        assert redacted["longitude"] == "**REDACTED**"
+        assert redacted["id"] == "**REDACTED**"
+        assert redacted["uid"] == "**REDACTED**"
+        assert redacted["device_id"] == "**REDACTED**"
+        assert redacted["lastseen"] == "**REDACTED**"
+        assert redacted["safe_field"] == "visible_data"
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_redact_sensitive_data_nested_dict(self) -> None:
+        """Test redacting sensitive data from nested dictionary."""
+        api = QustodioApi("test@example.com", "password")
+
+        data = {
+            "user": {"email": "user@example.com", "name": "John Doe"},
+            "tokens": {"access_token": "secret", "refresh_token": "secret2"},
+            "safe_data": "visible",
+        }
+
+        redacted = api._redact_sensitive_data(data)
+
+        assert redacted["user"]["email"] == "**REDACTED**"
+        assert redacted["user"]["name"] == "John Doe"
+        assert redacted["tokens"]["access_token"] == "**REDACTED**"
+        assert redacted["safe_data"] == "visible"
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_redact_sensitive_data_list(self) -> None:
+        """Test redacting sensitive data from list."""
+        api = QustodioApi("test@example.com", "password")
+
+        data = [{"email": "user1@example.com"}, {"email": "user2@example.com"}, "safe_string"]
+
+        redacted = api._redact_sensitive_data(data)
+
+        assert redacted[0]["email"] == "**REDACTED**"
+        assert redacted[1]["email"] == "**REDACTED**"
+        assert redacted[2] == "safe_string"
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_redact_sensitive_data_primitives(self) -> None:
+        """Test redacting sensitive data from primitive types."""
+        api = QustodioApi("test@example.com", "password")
+
+        assert api._redact_sensitive_data("string") == "string"
+        assert api._redact_sensitive_data(123) == 123
+        assert api._redact_sensitive_data(True) is True
+        assert api._redact_sensitive_data(None) is None
+
+        await api.close()
+
+
+class TestQustodioApiRefreshTokenErrors:
+    """Tests for refresh token error handling."""
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_no_token_available(self, mock_aiohttp_session) -> None:
+        """Test refresh token when no token is available."""
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with pytest.raises(QustodioAuthenticationError, match="No refresh token available"):
+                await api._do_refresh_request(mock_aiohttp_session)
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_api_error(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test refresh token with API error."""
+        api = QustodioApi("test@example.com", "password")
+        api._refresh_token = "test_refresh_token"
+
+        mock_aiohttp_response.status = 500
+        mock_aiohttp_response.text.return_value = "Internal Server Error"
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post.return_value = mock_aiohttp_response
+
+            with pytest.raises(QustodioAPIError, match="Token refresh failed with status 500"):
+                await api._do_refresh_request(mock_aiohttp_session)
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_missing_access_token(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test refresh token response missing access token."""
+        api = QustodioApi("test@example.com", "password")
+        api._refresh_token = "test_refresh_token"
+
+        mock_aiohttp_response.status = 200
+        mock_aiohttp_response.json.return_value = {"invalid": "no access token"}
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post.return_value = mock_aiohttp_response
+
+            with pytest.raises(QustodioDataError, match="Response missing access token"):
+                await api._do_refresh_request(mock_aiohttp_session)
+
+        await api.close()
+
+
+class TestQustodioApiGetDataErrorHandling:
+    """Tests for get_data error handling."""
+
+    @pytest.mark.asyncio
+    async def test_get_data_timeout_error(self, mock_aiohttp_session: Mock) -> None:
+        """Test get_data handles timeout error."""
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_id = "123"
+                mock_aiohttp_session.get.side_effect = asyncio.TimeoutError()
+
+                with pytest.raises(QustodioConnectionError, match="Connection timeout"):
+                    await api.get_data()
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_data_client_error(self, mock_aiohttp_session: Mock) -> None:
+        """Test get_data handles client connection error."""
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_id = "123"
+                mock_aiohttp_session.get.side_effect = aiohttp.ClientError("Connection refused")
+
+                with pytest.raises(QustodioConnectionError, match="Connection error"):
+                    await api.get_data()
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_data_unexpected_error(self, mock_aiohttp_session: Mock) -> None:
+        """Test get_data handles unexpected error."""
+        api = QustodioApi("test@example.com", "password")
+
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_id = "123"
+                mock_aiohttp_session.get.side_effect = ValueError("Unexpected error")
+
+                with pytest.raises(QustodioAPIError, match="Unexpected error while fetching data"):
+                    await api.get_data()
+
+        await api.close()
+
+
+class TestQustodioApiLoginRetry:
+    """Tests for login retry logic."""
+
+    @pytest.mark.asyncio
+    async def test_login_retry_exhausted_with_exception(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test login raises last exception when retries exhausted."""
+        api = QustodioApi("test@example.com", "password")
+        api._retry_config = RetryConfig(max_attempts=2, base_delay=0.01)
+
+        mock_aiohttp_response.status = 500
+        mock_aiohttp_response.text.return_value = "Internal Server Error"
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            mock_aiohttp_session.post = Mock(return_value=mock_aiohttp_response)
+
+            with pytest.raises(QustodioAPIError, match="Login failed with status 500"):
+                await api.login()
+
+        await api.close()

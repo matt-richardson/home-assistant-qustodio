@@ -606,3 +606,84 @@ class TestQustodioDataUpdateCoordinator:
         assert result.app_usage["profile_1"] == []  # Empty due to error
         assert "profile_2" in result.app_usage
         assert len(result.app_usage["profile_2"]) == 1
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_exception_with_cache(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage uses cached data when fetching fails."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={}, app_usage=None)
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+
+        # First update - successful fetch
+        mock_qustodio_api.get_app_usage.return_value = {
+            "items": [
+                {"app_name": "YouTube", "exe": "com.youtube", "minutes": 45.0, "platform": 3, "questionable": True}
+            ]
+        }
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+        result1 = await coordinator._async_update_data()
+
+        # Verify first fetch succeeded
+        assert result1.app_usage is not None
+        assert "profile_1" in result1.app_usage
+        assert len(result1.app_usage["profile_1"]) == 1
+
+        # Second update - fetch fails, should use cache
+        mock_qustodio_api.get_app_usage.side_effect = Exception("API Error")
+        result2 = await coordinator._async_update_data()
+
+        # Should still have app usage from cache
+        assert result2.app_usage is not None
+        assert "profile_1" in result2.app_usage
+        assert len(result2.app_usage["profile_1"]) == 1
+        assert result2.app_usage["profile_1"][0].name == "YouTube"
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_exception_without_cache(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage sets empty list per profile when fetching fails without cache."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={}, app_usage=None)
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        # First fetch fails immediately
+        mock_qustodio_api.get_app_usage.side_effect = Exception("API Error")
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+        result = await coordinator._async_update_data()
+
+        # Should have empty list for profile (per-profile exception handling)
+        assert result.app_usage is not None
+        assert "profile_1" in result.app_usage
+        assert result.app_usage["profile_1"] == []
