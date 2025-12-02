@@ -399,3 +399,218 @@ class TestQustodioSensor:
 
         # Verify this matches the current_device_id
         assert attributes["current_device_id"] == "device_1"
+
+    def test_app_usage_attributes_with_data(self, mock_coordinator: Mock) -> None:
+        """Test app usage attributes are included when data is available."""
+        from custom_components.qustodio.models import AppUsage
+
+        # Add app usage data to coordinator
+        mock_coordinator.data.app_usage = {
+            "profile_1": [
+                AppUsage(
+                    name="YouTube",
+                    package="com.google.youtube",
+                    minutes=45.5,
+                    platform=3,
+                    thumbnail="https://example.com/youtube.jpg",
+                    questionable=True,
+                ),
+                AppUsage(
+                    name="Minecraft", package="com.mojang.minecraft", minutes=30.0, platform=3, questionable=False
+                ),
+                AppUsage(name="WhatsApp", package="com.whatsapp", minutes=15.2, platform=3, questionable=False),
+            ]
+        }
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # Verify apps list
+        assert "apps" in attributes
+        assert len(attributes["apps"]) == 3
+        assert attributes["apps"][0]["name"] == "YouTube"
+        assert attributes["apps"][0]["minutes"] == 45.5
+        assert attributes["apps"][0]["package"] == "com.google.youtube"
+        assert attributes["apps"][0]["platform"] == "Android"
+        assert attributes["apps"][0]["thumbnail"] == "https://example.com/youtube.jpg"
+        assert attributes["apps"][0]["questionable"] is True
+
+        # Verify aggregated stats
+        assert attributes["total_apps_used"] == 3
+        assert attributes["top_app"] == "YouTube"
+        assert attributes["top_app_minutes"] == 45.5
+        assert attributes["questionable_apps"] == 1
+
+    def test_app_usage_attributes_no_data(self, mock_coordinator: Mock) -> None:
+        """Test app usage attributes when no app usage data is available."""
+        # No app usage data
+        mock_coordinator.data.app_usage = None
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # App usage attributes should not be present
+        assert "apps" not in attributes
+        assert "total_apps_used" not in attributes
+        assert "top_app" not in attributes
+        assert "top_app_minutes" not in attributes
+        assert "questionable_apps" not in attributes
+
+    def test_app_usage_attributes_empty_list(self, mock_coordinator: Mock) -> None:
+        """Test app usage attributes when profile has empty app list."""
+        # Empty app usage for this profile
+        mock_coordinator.data.app_usage = {"profile_1": []}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        # App usage attributes should not be present for empty list
+        assert "apps" not in attributes
+        assert "total_apps_used" not in attributes
+
+    def test_app_usage_attributes_without_questionable(self, mock_coordinator: Mock) -> None:
+        """Test app usage attributes when no apps are questionable."""
+        from custom_components.qustodio.models import AppUsage
+
+        mock_coordinator.data.app_usage = {
+            "profile_1": [
+                AppUsage(name="Duolingo", package="com.duolingo", minutes=20.0, platform=4, questionable=False),
+                AppUsage(name="Khan Academy", package="org.khanacademy", minutes=15.0, platform=4, questionable=False),
+            ]
+        }
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+        assert attributes is not None
+
+        assert attributes["questionable_apps"] == 0
+        assert attributes["total_apps_used"] == 2
+
+    def test_extra_state_attributes_with_invalid_coordinator_data(self, mock_coordinator: Mock) -> None:
+        """Test extra_state_attributes when coordinator.data is not CoordinatorData."""
+        # Set coordinator.data to something that's not a CoordinatorData instance
+        mock_coordinator.data = "invalid_data"
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        # Should return None when data is invalid
+        attributes = sensor.extra_state_attributes
+        assert attributes is None
+
+
+class TestQustodioDeviceMdmTypeSensor:
+    """Test QustodioDeviceMdmTypeSensor class."""
+
+    def test_mdm_type_sensor_init(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor initialization."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+
+        assert sensor._attr_name == "Child One iPhone MDM Type"
+        assert sensor._attr_unique_id == "qustodio_device_mdm_type_profile_1_device_1"
+        assert sensor._attr_icon == "mdi:shield-account"
+
+    def test_mdm_type_none(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when type is 0 (None)."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        # Set MDM type to 0
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"type": 0}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "None"
+
+    def test_mdm_type_dep(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when type is 1 (DEP)."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"type": 1}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "DEP"
+
+    def test_mdm_type_mdm(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when type is 2 (MDM)."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"type": 2}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "MDM"
+
+    def test_mdm_type_supervised(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when type is 3 (Supervised)."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"type": 3}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "Supervised"
+
+    def test_mdm_type_unknown(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when type is unknown."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"type": 99}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "Unknown (99)"
+
+    def test_mdm_type_no_mdm_data(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when device has no MDM data."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value is None
+
+    def test_mdm_type_device_not_found(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when device is not found."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "nonexistent_device", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value is None
