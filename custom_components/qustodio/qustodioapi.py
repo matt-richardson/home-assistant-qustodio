@@ -651,3 +651,87 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         except Exception as err:
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching data: {err}") from err
+
+    async def get_app_usage(self, profile_uid: str, min_date: date, max_date: date) -> dict[str, Any]:
+        """Get per-app usage data for a profile.
+
+        Args:
+            profile_uid: Profile UUID (not the numeric ID)
+            min_date: Start date for usage data
+            max_date: End date for usage data
+
+        Returns:
+            Dict with 'items' (list of apps) and 'questionable_count'
+
+        Raises:
+            QustodioAuthenticationError: Authentication failed
+            QustodioConnectionError: Network/connection issues
+            QustodioAPIError: API returned unexpected error
+            QustodioDataError: Response missing expected data
+        """
+        _LOGGER.debug("Getting app usage for profile %s from %s to %s", profile_uid, min_date, max_date)
+
+        try:
+            # Ensure we're authenticated
+            await self.login()
+
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self._access_token}",
+                "Accept": "application/json",
+            }
+
+            # Use account_uid (not account_id) for v2 endpoints
+            if not self._account_uid:
+                raise QustodioDataError("Account UID not available")
+
+            endpoint = f"/v2/accounts/{self._account_uid}/profiles/{profile_uid}/summary/domains-and-apps"
+            params = {
+                "min_date": min_date.isoformat(),
+                "max_date": max_date.isoformat(),
+            }
+
+            async with session.get(
+                f"https://api.qustodio.com{endpoint}",
+                headers=headers,
+                params=params,
+            ) as response:
+                if response.status == 401:
+                    raise QustodioAuthenticationError("Authentication failed")
+                if response.status == 429:
+                    raise QustodioRateLimitError("Rate limit exceeded")
+                if response.status >= 500:
+                    raise QustodioAPIError(f"Server error: {response.status}", status_code=response.status)
+                if response.status != 200:
+                    text = await response.text()
+                    raise QustodioAPIError(
+                        f"Unexpected status code {response.status}: {text}",
+                        status_code=response.status,
+                    )
+
+                data = await response.json()
+
+                if not isinstance(data, dict) or "items" not in data:
+                    raise QustodioDataError(f"Invalid response format from app usage endpoint: {data}")
+
+                _LOGGER.debug("Retrieved %d apps for profile %s", len(data.get("items", [])), profile_uid)
+                return data
+
+        except (
+            QustodioAuthenticationError,
+            QustodioConnectionError,
+            QustodioRateLimitError,
+            QustodioAPIError,
+            QustodioDataError,
+        ):
+            # Re-raise our own exceptions
+            raise
+        except asyncio.TimeoutError as err:
+            _LOGGER.error("Timeout getting app usage from Qustodio API")
+            raise QustodioConnectionError("Connection timeout while fetching app usage") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Connection error getting app usage: %s", err)
+            raise QustodioConnectionError(f"Connection error while fetching app usage: {err}") from err
+        except Exception as err:
+            _LOGGER.error("Unexpected error getting app usage: %s", err)
+            raise QustodioAPIError(f"Unexpected error while fetching app usage: {err}") from err

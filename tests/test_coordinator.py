@@ -348,3 +348,261 @@ class TestQustodioDataUpdateCoordinator:
         assert coordinator.statistics["error_counts"]["QustodioAuthenticationError"] == 1
         assert coordinator.statistics["error_counts"]["QustodioConnectionError"] == 1
         assert coordinator.statistics["error_counts"]["QustodioAPIError"] == 1
+
+    async def test_get_app_usage_cache_seconds_default(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _get_app_usage_cache_seconds returns default value."""
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # Default is 60 minutes = 3600 seconds
+        assert coordinator._app_usage_cache_seconds == 3600
+
+    async def test_get_app_usage_cache_seconds_custom(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _get_app_usage_cache_seconds returns custom value from options."""
+        from custom_components.qustodio.const import CONF_APP_USAGE_CACHE_INTERVAL
+
+        # Set custom cache interval in options
+        mock_config_entry.options = {CONF_APP_USAGE_CACHE_INTERVAL: 30}  # 30 minutes
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # 30 minutes = 1800 seconds
+        assert coordinator._app_usage_cache_seconds == 1800
+
+    async def test_get_app_usage_cache_seconds_minimum(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _get_app_usage_cache_seconds with minimum value."""
+        from custom_components.qustodio.const import CONF_APP_USAGE_CACHE_INTERVAL
+
+        # Set minimum cache interval (5 minutes)
+        mock_config_entry.options = {CONF_APP_USAGE_CACHE_INTERVAL: 5}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # 5 minutes = 300 seconds
+        assert coordinator._app_usage_cache_seconds == 300
+
+    async def test_get_app_usage_cache_seconds_maximum(
+        self,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _get_app_usage_cache_seconds with maximum value."""
+        from custom_components.qustodio.const import CONF_APP_USAGE_CACHE_INTERVAL
+
+        # Set maximum cache interval (1440 minutes = 24 hours)
+        mock_config_entry.options = {CONF_APP_USAGE_CACHE_INTERVAL: 1440}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # 1440 minutes = 86400 seconds
+        assert coordinator._app_usage_cache_seconds == 86400
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_with_coordinator_data(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage is called and fetches data."""
+        from datetime import date
+        from unittest.mock import patch
+
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        # Create CoordinatorData with profiles
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={}, app_usage=None)
+
+        # Mock the API responses
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {
+            "items": [
+                {"app_name": "YouTube", "exe": "com.youtube", "minutes": 45.0, "platform": 3, "questionable": True},
+                {"app_name": "Chrome", "exe": "com.chrome", "minutes": 30.0, "platform": 3, "questionable": False},
+            ],
+            "questionable_count": 1,
+        }
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # Patch datetime to control "now"
+        with patch("custom_components.qustodio.coordinator.datetime") as mock_datetime:
+            mock_now = Mock()
+            mock_now.date.return_value = date(2025, 12, 2)
+            mock_datetime.now.return_value = mock_now
+            mock_datetime.side_effect = lambda *args, **kwargs: date(*args, **kwargs) if args else mock_now
+
+            # Execute update
+            result = await coordinator._async_update_data()
+
+        # Verify app usage was fetched
+        assert mock_qustodio_api.get_app_usage.called
+        assert result.app_usage is not None
+        assert "profile_1" in result.app_usage
+        assert len(result.app_usage["profile_1"]) == 2
+        assert result.app_usage["profile_1"][0].name == "YouTube"
+        assert result.app_usage["profile_1"][0].minutes == 45.0
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_uses_cache(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage uses cached data when within cache interval."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        # Create CoordinatorData
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={}, app_usage=None)
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": [], "questionable_count": 0}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # First update - should fetch
+        await coordinator._async_update_data()
+        first_call_count = mock_qustodio_api.get_app_usage.call_count
+
+        # Second update immediately after (within cache window) - should use cache
+        await coordinator._async_update_data()
+        second_call_count = mock_qustodio_api.get_app_usage.call_count
+
+        # Should not have called API again
+        assert second_call_count == first_call_count
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_refreshes_after_cache_expires(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage refreshes data after cache expires."""
+        from datetime import datetime, timezone
+        from unittest.mock import patch
+
+        from custom_components.qustodio.const import CONF_APP_USAGE_CACHE_INTERVAL
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        # Set short cache interval (5 minutes)
+        mock_config_entry.options = {CONF_APP_USAGE_CACHE_INTERVAL: 5}
+
+        # Create CoordinatorData
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={}, app_usage=None)
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": [], "questionable_count": 0}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # First update
+        with patch("custom_components.qustodio.coordinator.datetime") as mock_datetime:
+            mock_now = datetime(2025, 12, 2, 10, 0, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = mock_now
+            await coordinator._async_update_data()
+            first_call_count = mock_qustodio_api.get_app_usage.call_count
+
+        # Second update 6 minutes later (cache expired)
+        with patch("custom_components.qustodio.coordinator.datetime") as mock_datetime:
+            mock_now = datetime(2025, 12, 2, 10, 6, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = mock_now
+            await coordinator._async_update_data()
+            second_call_count = mock_qustodio_api.get_app_usage.call_count
+
+        # Should have called API again after cache expired
+        assert second_call_count > first_call_count
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_app_usage_handles_profile_error_gracefully(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_app_usage continues when one profile fails."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        # Create CoordinatorData with two profiles
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        profile2 = ProfileData(
+            id="profile_2",
+            uid="uid2",
+            name="Child Two",
+            device_count=1,
+            device_ids=[2],
+            raw_data={"id": 2, "uid": "uid2", "name": "Child Two"},
+        )
+        coordinator_data = CoordinatorData(
+            profiles={"profile_1": profile1, "profile_2": profile2}, devices={}, app_usage=None
+        )
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        # First profile fails, second succeeds
+        mock_qustodio_api.get_app_usage.side_effect = [
+            Exception("API Error for profile 1"),
+            {"items": [{"app_name": "App", "exe": "app", "minutes": 10.0, "platform": 3, "questionable": False}]},
+        ]
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # Execute - should not raise exception
+        result = await coordinator._async_update_data()
+
+        # Verify we got data for profile_2 despite profile_1 failing
+        assert result.app_usage is not None
+        assert "profile_1" in result.app_usage
+        assert result.app_usage["profile_1"] == []  # Empty due to error
+        assert "profile_2" in result.app_usage
+        assert len(result.app_usage["profile_2"]) == 1

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import tempfile
+from contextlib import ExitStack
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import HANDLERS, ConfigEntries, ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
@@ -408,7 +410,11 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
 
 @pytest.fixture
 def hass() -> HomeAssistant:
-    """Create a Home Assistant instance for testing."""
+    """Create a Home Assistant instance for testing.
+
+    Note: This returns a Mock for fast unit tests.
+    For integration tests that need a real HA instance, use hass_instance fixture.
+    """
     hass_instance = Mock(spec=HomeAssistant)
     hass_instance.data = {}
     hass_instance.config_entries = Mock()
@@ -417,6 +423,91 @@ def hass() -> HomeAssistant:
     hass_instance.config_entries.flow = Mock()
     hass_instance.config_entries.flow.async_init = AsyncMock()
     return hass_instance
+
+
+def _setup_ha_instance_data(ha_instance: HomeAssistant) -> None:
+    """Set up required data structures for HA instance.
+
+    Args:
+        ha_instance: The Home Assistant instance to initialize
+    """
+    ha_instance.data["components"] = set()
+    ha_instance.data["setup_started"] = set()
+    ha_instance.data["preload_platforms"] = set()
+    ha_instance.data["registries_loaded"] = set()
+    ha_instance.data["missing_platforms"] = {}
+    ha_instance.data["integrations"] = {}
+
+    # Mock network component to prevent KeyError
+    network_adapter = MagicMock()
+    network_adapter.adapters = []
+    ha_instance.data["network"] = network_adapter
+
+    # Add issue registry
+    ha_instance.data["issue_registry"] = MagicMock()
+
+
+def _create_mock_integration(temp_dir: str) -> MagicMock:
+    """Create a mock integration for testing.
+
+    Args:
+        temp_dir: Temporary directory path for the integration
+
+    Returns:
+        Mock integration object
+    """
+    mock_integration = MagicMock()
+    mock_integration.domain = DOMAIN
+    mock_integration.name = "Qustodio"
+    mock_integration.dependencies = set()
+    mock_integration.requirements = []
+    mock_integration.config_flow = True
+    mock_integration.file_path = f"{temp_dir}/custom_components/{DOMAIN}"
+    return mock_integration
+
+
+@pytest.fixture
+async def hass_instance():
+    """Return a fully initialized Home Assistant instance for integration testing.
+
+    This fixture creates a real HomeAssistant instance with proper initialization,
+    suitable for integration tests that need actual HA components and lifecycle.
+
+    Use the 'hass' fixture for unit tests (faster, mocked).
+    Use this 'hass_instance' fixture for integration tests (comprehensive, real HA).
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ha_inst = HomeAssistant(temp_dir)
+        ha_inst.config_entries = ConfigEntries(ha_inst, {})
+
+        _setup_ha_instance_data(ha_inst)
+        mock_integration = _create_mock_integration(temp_dir)
+
+        # Setup with required patches
+        import homeassistant.helpers.frame as frame_module  # pylint: disable=import-outside-toplevel
+
+        frame_patches = []
+        if hasattr(frame_module, "report_usage"):
+            frame_patches.append(patch("homeassistant.helpers.frame.report_usage"))
+
+        with patch("homeassistant.loader.async_get_integration", return_value=mock_integration):
+            with patch("homeassistant.helpers.integration_platform.async_process_integration_platforms"):
+                with ExitStack() as stack:
+                    for frame_patch in frame_patches:
+                        stack.enter_context(frame_patch)
+
+                    # Register config flow
+                    # Import here to avoid circular imports
+                    # pylint: disable=import-outside-toplevel
+                    from custom_components.qustodio.config_flow import ConfigFlow as QustodioConfigFlow
+
+                    HANDLERS[DOMAIN] = QustodioConfigFlow
+
+                    await ha_inst.async_start()
+                    try:
+                        yield ha_inst
+                    finally:
+                        await ha_inst.async_stop()
 
 
 @pytest.fixture

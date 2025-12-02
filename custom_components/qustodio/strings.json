@@ -45,11 +45,13 @@
         "description": "Configure update interval and tracking settings.",
         "data": {
           "update_interval": "Update interval (minutes)",
-          "enable_gps_tracking": "Enable GPS location tracking"
+          "enable_gps_tracking": "Enable GPS location tracking",
+          "app_usage_cache_interval": "App usage cache interval (minutes)"
         },
         "data_description": {
           "update_interval": "How often to check for updates (1-60 minutes)",
-          "enable_gps_tracking": "Track device locations using GPS coordinates"
+          "enable_gps_tracking": "Track device locations using GPS coordinates",
+          "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)"
         }
       }
     }

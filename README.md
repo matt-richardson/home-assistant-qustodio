@@ -7,6 +7,7 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 ## Features
 
 - **Screen Time Tracking**: Monitor daily screen time usage per profile with comprehensive attributes
+- **Per-App Usage Tracking**: Track time spent in individual apps with top apps, total usage, and questionable app detection
 - **GPS Device Tracking**: Track device locations in real-time (per-device trackers)
 - **Profile & Device Monitoring**: 13 profile-level + 7 device-level binary sensors
 - **Tamper Detection**: Alerts when protection is disabled or device is tampered
@@ -52,6 +53,7 @@ After https://github.com/hacs/default/pull/4765 is merged:
 After setup, you can configure:
 - **Update Interval**: How often to poll Qustodio API (1-60 minutes, default: 5)
 - **GPS Tracking**: Enable/disable device location tracking
+- **App Usage Cache Interval**: How often to refresh per-app usage data (5-1440 minutes, default: 60)
 
 Access via: Devices & Services > Qustodio > Configure
 

@@ -1094,3 +1094,82 @@ class TestQustodioApiRetryLogic:
         assert api._retry_config.max_delay == 60.0
 
         await api.close()
+
+
+class TestQustodioApiGetAppUsage:
+    """Tests for QustodioApi.get_app_usage() method."""
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_success(self, mock_aiohttp_session, mock_aiohttp_response) -> None:
+        """Test get_app_usage returns app usage data successfully."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+
+        # Mock response data
+        app_usage_data = {
+            "items": [
+                {
+                    "app_name": "Clash Royale",
+                    "exe": "com.supercell.scroll",
+                    "minutes": 11,
+                    "platform": 4,
+                    "thumbnail": "https://static.qustodio.com/app/icon.jpg",
+                    "questionable": False,
+                },
+                {
+                    "app_name": "Microsoft Teams",
+                    "exe": "com.microsoft.teams2",
+                    "minutes": 4,
+                    "platform": 1,
+                },
+            ],
+            "questionable_count": 0,
+        }
+
+        mock_aiohttp_response.status = 200
+        mock_aiohttp_response.json = AsyncMock(return_value=app_usage_data)
+        mock_aiohttp_session.get = Mock(return_value=mock_aiohttp_response)
+
+        # Patch _get_session and login to avoid real API calls
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = "account_uid_123"
+
+                result = await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+                # Verify result
+                assert result == app_usage_data
+                assert len(result["items"]) == 2
+                assert result["items"][0]["app_name"] == "Clash Royale"
+                assert result["questionable_count"] == 0
+
+                # Verify API call
+                mock_aiohttp_session.get.assert_called_once()
+                call_args = mock_aiohttp_session.get.call_args
+                assert (
+                    "/v2/accounts/account_uid_123/profiles/profile_uid_123/summary/domains-and-apps" in call_args[0][0]
+                )
+
+        await api.close()
+
+    @pytest.mark.asyncio
+    async def test_get_app_usage_missing_account_uid(self, mock_aiohttp_session) -> None:
+        """Test get_app_usage raises QustodioDataError when account_uid is missing."""
+        from datetime import date
+
+        api = QustodioApi("test@example.com", "password")
+
+        # Patch _get_session and login to avoid real API calls
+        with patch.object(api, "_get_session", return_value=mock_aiohttp_session):
+            with patch.object(api, "login", new_callable=AsyncMock):
+                api._access_token = "test_token"
+                api._account_uid = None  # Missing account_uid
+
+                with pytest.raises(QustodioDataError) as exc_info:
+                    await api.get_app_usage("profile_uid_123", date(2025, 12, 2), date(2025, 12, 2))
+
+                assert "Account UID not available" in str(exc_info.value)
+
+        await api.close()

@@ -273,3 +273,109 @@ class TestDiagnostics:
             # These should NOT be redacted
             assert isinstance(profile_data["name"], str)
             assert isinstance(profile_data["is_online"], bool)
+
+    async def test_diagnostics_app_usage_summary(
+        self,
+        hass: Any,
+        mock_config_entry: Mock,
+        mock_coordinator_with_data: Mock,
+        mock_entity_registry_patches: Any,
+    ) -> None:
+        """Test app usage summary in diagnostics."""
+        from custom_components.qustodio.models import AppUsage
+
+        # Add app usage data to coordinator
+        mock_coordinator_with_data.data.app_usage = {
+            "profile_1": [
+                AppUsage(name="YouTube", package="com.google.youtube", minutes=45.5, platform=3, questionable=True),
+                AppUsage(
+                    name="Minecraft", package="com.mojang.minecraft", minutes=30.0, platform=3, questionable=False
+                ),
+                AppUsage(name="WhatsApp", package="com.whatsapp", minutes=15.2, platform=3, questionable=False),
+            ],
+            "profile_2": [
+                AppUsage(
+                    name="TikTok", package="com.zhiliaoapp.musically", minutes=60.0, platform=4, questionable=True
+                ),
+            ],
+        }
+        mock_coordinator_with_data._last_app_fetch_date = datetime(2025, 12, 2, 10, 0, 0)
+
+        # Setup
+        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+
+        # Execute
+        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+        # Assert app usage is present
+        assert "app_usage" in diagnostics
+        assert diagnostics["app_usage"] is not None
+        assert "app_usage_cache_date" in diagnostics
+
+        # Check app usage summary for profile 1
+        assert "Child One" in diagnostics["app_usage"]
+        profile1_usage = diagnostics["app_usage"]["Child One"]
+        assert profile1_usage["total_apps"] == 3
+        assert profile1_usage["total_minutes"] == 90.7  # 45.5 + 30.0 + 15.2
+        assert profile1_usage["questionable_apps"] == 1
+        assert len(profile1_usage["top_5_apps"]) == 3
+
+        # Check top app details
+        top_app = profile1_usage["top_5_apps"][0]
+        assert top_app["name"] == "YouTube"
+        assert top_app["minutes"] == 45.5
+        assert top_app["platform"] == 3
+        assert top_app["questionable"] is True
+
+        # Check profile 2
+        assert "Child Two" in diagnostics["app_usage"]
+        profile2_usage = diagnostics["app_usage"]["Child Two"]
+        assert profile2_usage["total_apps"] == 1
+        assert profile2_usage["total_minutes"] == 60.0
+        assert profile2_usage["questionable_apps"] == 1
+
+    async def test_diagnostics_app_usage_no_data(
+        self,
+        hass: Any,
+        mock_config_entry: Mock,
+        mock_coordinator_with_data: Mock,
+        mock_entity_registry_patches: Any,
+    ) -> None:
+        """Test diagnostics when there's no app usage data."""
+        # No app usage data
+        mock_coordinator_with_data.data.app_usage = None
+        mock_coordinator_with_data._last_app_fetch_date = None
+
+        # Setup
+        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+
+        # Execute
+        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+        # Assert
+        assert "app_usage" in diagnostics
+        assert diagnostics["app_usage"] is None
+        assert diagnostics["app_usage_cache_date"] is None
+
+    async def test_diagnostics_app_usage_empty(
+        self,
+        hass: Any,
+        mock_config_entry: Mock,
+        mock_coordinator_with_data: Mock,
+        mock_entity_registry_patches: Any,
+    ) -> None:
+        """Test diagnostics when app usage is an empty dict."""
+        # Empty app usage data
+        mock_coordinator_with_data.data.app_usage = {}
+        mock_coordinator_with_data._last_app_fetch_date = datetime(2025, 12, 2, 10, 0, 0)
+
+        # Setup
+        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+
+        # Execute
+        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+        # Assert
+        assert "app_usage" in diagnostics
+        assert diagnostics["app_usage"] is None  # Empty dict becomes None
+        assert diagnostics["app_usage_cache_date"] == "2025-12-02T10:00:00"

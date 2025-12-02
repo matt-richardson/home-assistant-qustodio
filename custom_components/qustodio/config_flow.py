@@ -14,8 +14,10 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CONF_APP_USAGE_CACHE_INTERVAL,
     CONF_ENABLE_GPS_TRACKING,
     CONF_UPDATE_INTERVAL,
+    DEFAULT_APP_USAGE_CACHE_INTERVAL,
     DEFAULT_ENABLE_GPS_TRACKING,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
@@ -274,6 +276,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # Get current values from options or fall back to defaults
         current_interval = self._config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         current_gps = self._config_entry.options.get(CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING)
+        current_cache = self._config_entry.options.get(CONF_APP_USAGE_CACHE_INTERVAL, DEFAULT_APP_USAGE_CACHE_INTERVAL)
 
         options_schema = vol.Schema(
             {
@@ -286,6 +289,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_ENABLE_GPS_TRACKING,
                     default=current_gps,
                 ): bool,
+                vol.Optional(
+                    CONF_APP_USAGE_CACHE_INTERVAL,
+                    default=current_cache,
+                    description={"suggested_value": current_cache},
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
             }
         )
 

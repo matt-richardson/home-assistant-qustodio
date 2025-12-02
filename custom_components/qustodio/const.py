@@ -19,10 +19,12 @@ LOGIN_RESULT_ERROR = "ERROR"
 # Configuration options
 CONF_UPDATE_INTERVAL = "update_interval"
 CONF_ENABLE_GPS_TRACKING = "enable_gps_tracking"
+CONF_APP_USAGE_CACHE_INTERVAL = "app_usage_cache_interval"
 
 # Default values
 DEFAULT_UPDATE_INTERVAL = 5  # minutes
 DEFAULT_ENABLE_GPS_TRACKING = True
+DEFAULT_APP_USAGE_CACHE_INTERVAL = 60  # minutes (1 hour)
 
 
 def get_platform_name(platform: int) -> str:

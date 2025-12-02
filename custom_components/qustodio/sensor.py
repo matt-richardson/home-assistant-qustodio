@@ -109,14 +109,26 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         )
 
         # Add device list with status
+        if isinstance(self.coordinator.data, CoordinatorData):
+            self._add_device_attributes(attributes, data)
+            self._add_app_usage_attributes(attributes)
+
+        return attributes
+
+    def _add_device_attributes(self, attributes: dict[str, Any], data: Any) -> None:
+        """Add device list and current device attributes.
+
+        Args:
+            attributes: Attributes dict to update
+            data: Profile data
+        """
         if not isinstance(self.coordinator.data, CoordinatorData):
-            return attributes
+            return
 
         devices = self.coordinator.data.get_profile_devices(self._profile_id)
-        device_list = []
-        current_device_name = raw.get("current_device")
+        current_device_name = data.raw_data.get("current_device")
 
-        # Find current device by name (API returns device name, not ID)
+        # Find current device by name
         current_device_obj = None
         if current_device_name:
             for device in devices:
@@ -124,6 +136,8 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
                     current_device_obj = device
                     break
 
+        # Build device list
+        device_list = []
         for device in devices:
             user_status = device.get_user_status(self._profile_id)
             device_info = {
@@ -140,14 +154,50 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         attributes["devices"] = device_list
         attributes["device_count"] = len(device_list)
 
-        # Add current device details if available
+        # Add current device details
         if current_device_obj:
             attributes["current_device_name"] = current_device_obj.name
             attributes["current_device_id"] = current_device_obj.id
             attributes["current_device_type"] = current_device_obj.type
             attributes["current_device_platform"] = get_platform_name(current_device_obj.platform)
 
-        return attributes
+    def _add_app_usage_attributes(self, attributes: dict[str, Any]) -> None:
+        """Add per-app usage attributes.
+
+        Args:
+            attributes: Attributes dict to update
+        """
+        if not isinstance(self.coordinator.data, CoordinatorData):
+            return
+
+        app_usage = self.coordinator.data.get_app_usage(self._profile_id)
+        if not app_usage:
+            return
+
+        # Create list of apps with usage data
+        apps_list = [
+            {
+                "name": app.name,
+                "minutes": app.minutes,
+                "package": app.package,
+                "platform": get_platform_name(app.platform),
+                "thumbnail": app.thumbnail,
+                "questionable": app.questionable,
+            }
+            for app in app_usage
+        ]
+
+        attributes["apps"] = apps_list
+        attributes["total_apps_used"] = len(apps_list)
+
+        # Add top app stats
+        if apps_list:
+            top_app = apps_list[0]  # Already sorted by minutes descending
+            attributes["top_app"] = top_app["name"]
+            attributes["top_app_minutes"] = top_app["minutes"]
+
+        # Count questionable apps
+        attributes["questionable_apps"] = sum(1 for app in app_usage if app.questionable)
 
 
 class QustodioDeviceMdmTypeSensor(QustodioDeviceEntity, SensorEntity):
