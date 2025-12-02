@@ -11,7 +11,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import (
+    CONF_APP_USAGE_CACHE_INTERVAL,
+    CONF_UPDATE_INTERVAL,
+    DEFAULT_APP_USAGE_CACHE_INTERVAL,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+)
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -37,9 +43,10 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         # Initialize statistics tracking
         self.statistics = self._initialize_statistics()
 
-        # App usage caching (fetch once per hour to reduce API calls)
+        # App usage caching (configurable interval to reduce API calls)
         self._last_app_fetch_date: datetime | None = None
         self._cached_app_usage: dict[str, list] | None = None
+        self._app_usage_cache_seconds = self._get_app_usage_cache_seconds(entry)
 
         # Get update interval from options or use default
         update_interval = self._get_update_interval(entry)
@@ -254,6 +261,18 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         update_interval_minutes = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         return timedelta(minutes=update_interval_minutes)
 
+    def _get_app_usage_cache_seconds(self, entry: ConfigEntry) -> int:
+        """Get app usage cache interval in seconds from config entry options.
+
+        Args:
+            entry: The config entry
+
+        Returns:
+            Cache interval in seconds
+        """
+        cache_interval_minutes = entry.options.get(CONF_APP_USAGE_CACHE_INTERVAL, DEFAULT_APP_USAGE_CACHE_INTERVAL)
+        return cache_interval_minutes * 60
+
     def _get_current_time(self) -> str:
         """Get current time as ISO format string.
 
@@ -376,7 +395,7 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     async def _fetch_app_usage(self, data: CoordinatorData) -> None:
-        """Fetch app usage data for all profiles (cached hourly).
+        """Fetch app usage data for all profiles (cached based on configuration).
 
         Args:
             data: Coordinator data to update with app usage
@@ -388,10 +407,10 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
         now = datetime.now(timezone.utc)
 
-        # Check if we need to fetch (once per hour)
+        # Check if we need to fetch (based on configured cache interval)
         if self._last_app_fetch_date is not None:
             time_since_last_fetch = now - self._last_app_fetch_date
-            if time_since_last_fetch.total_seconds() < 3600:  # 1 hour in seconds
+            if time_since_last_fetch.total_seconds() < self._app_usage_cache_seconds:
                 # Use cached data
                 data.app_usage = self._cached_app_usage
                 _LOGGER.debug("Using cached app usage data from %s", self._last_app_fetch_date)

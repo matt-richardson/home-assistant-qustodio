@@ -2,11 +2,11 @@
 
 # Minimal configuration for integration testing
 http:
+  server_port: 8124
 api:
 frontend:
 config:
 websocket_api:
-
 logger:
   default: info
   logs:

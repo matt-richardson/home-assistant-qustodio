@@ -505,6 +505,66 @@ class TestQustodioOptionsFlow:
             CONF_ENABLE_GPS_TRACKING: False,
         }
 
+    async def test_options_flow_with_cache_interval(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test options flow includes cache interval configuration."""
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.const import (
+            CONF_APP_USAGE_CACHE_INTERVAL,
+            CONF_ENABLE_GPS_TRACKING,
+            CONF_UPDATE_INTERVAL,
+        )
+
+        # Set up existing options including cache interval
+        mock_config_entry.options = {
+            CONF_UPDATE_INTERVAL: 10,
+            CONF_ENABLE_GPS_TRACKING: False,
+            CONF_APP_USAGE_CACHE_INTERVAL: 30,
+        }
+
+        flow = OptionsFlowHandler(mock_config_entry)
+
+        result = await flow.async_step_init()
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "init"
+        # Check that cache interval is in the schema
+        schema = result["data_schema"].schema
+        assert CONF_APP_USAGE_CACHE_INTERVAL in schema
+
+    async def test_options_flow_save_with_cache_interval(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test saving options with cache interval."""
+        from custom_components.qustodio.config_flow import OptionsFlowHandler
+        from custom_components.qustodio.const import (
+            CONF_APP_USAGE_CACHE_INTERVAL,
+            CONF_ENABLE_GPS_TRACKING,
+            CONF_UPDATE_INTERVAL,
+        )
+
+        flow = OptionsFlowHandler(mock_config_entry)
+
+        result = await flow.async_step_init(
+            {
+                CONF_UPDATE_INTERVAL: 15,
+                CONF_ENABLE_GPS_TRACKING: False,
+                CONF_APP_USAGE_CACHE_INTERVAL: 120,
+            }
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"] == {
+            CONF_UPDATE_INTERVAL: 15,
+            CONF_ENABLE_GPS_TRACKING: False,
+            CONF_APP_USAGE_CACHE_INTERVAL: 120,
+        }
+
 
 class TestValidateInputCoordinatorDataExtraction:
     """Tests for validate_input CoordinatorData extraction - covers lines 57-63 in config_flow.py."""

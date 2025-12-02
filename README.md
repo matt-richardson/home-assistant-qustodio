@@ -53,6 +53,7 @@ After https://github.com/hacs/default/pull/4765 is merged:
 After setup, you can configure:
 - **Update Interval**: How often to poll Qustodio API (1-60 minutes, default: 5)
 - **GPS Tracking**: Enable/disable device location tracking
+- **App Usage Cache Interval**: How often to refresh per-app usage data (5-1440 minutes, default: 60)
 
 Access via: Devices & Services > Qustodio > Configure
 
