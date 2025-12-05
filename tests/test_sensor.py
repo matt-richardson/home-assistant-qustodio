@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 
@@ -54,6 +54,7 @@ class TestQustodioSensor:
         assert sensor.device_class == SensorDeviceClass.DURATION
         assert sensor.native_unit_of_measurement == UnitOfTime.MINUTES
         assert sensor.suggested_display_precision == 1
+        assert sensor.state_class == SensorStateClass.TOTAL_INCREASING
 
     def test_name_with_data(self, mock_coordinator: Mock) -> None:
         """Test sensor name when coordinator has data."""
@@ -85,6 +86,17 @@ class TestQustodioSensor:
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
         assert sensor.attribution == ATTRIBUTION
+
+    def test_state_class(self, mock_coordinator: Mock) -> None:
+        """Test sensor has TOTAL_INCREASING state class for long-term statistics."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioSensor(mock_coordinator, profile_data)
+
+        # State class should be TOTAL_INCREASING since screen time:
+        # - Is a cumulative daily total
+        # - Only increases during the day
+        # - Resets to 0 at midnight (daily cycle)
+        assert sensor.state_class == SensorStateClass.TOTAL_INCREASING
 
     def test_device_info_with_data(self, mock_coordinator: Mock) -> None:
         """Test device info when coordinator has data."""
