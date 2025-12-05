@@ -19,17 +19,6 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 
 ### HACS (Recommended)
 
-Before https://github.com/hacs/default/pull/4765 is merged:
-
-1. Open HACS in Home Assistant
-2. Go to "Integrations"
-3. Click the three dots → "Custom repositories"
-4. Add this repository URL
-5. Click "Install"
-6. Restart Home Assistant
-
-After https://github.com/hacs/default/pull/4765 is merged:
-
 1. Ensure [HACS](https://hacs.xyz/) is installed
 2. Search for "Qustodio" in the HACS Integrations store
 3. Click "Download"
