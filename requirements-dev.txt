@@ -13,6 +13,12 @@ async-timeout
 josepy<1.14.0
 acme>=1.21.0
 
+# pycares 5.x removed `ares_query_a_result`, which the aiodns 3.x version
+# pinned by Home Assistant references in its type annotations. On Python
+# <=3.13 those annotations are evaluated eagerly at import, raising
+# AttributeError. Constrain pycares to the 4.x line aiodns 3.x supports.
+pycares>=4.9.0,<5
+
 # Development tools
 black
 flake8
