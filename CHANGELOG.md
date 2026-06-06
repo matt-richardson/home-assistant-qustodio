@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.0...v1.4.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* pin pycares &lt;5 to fix aiodns import error in CI ([#13](https://github.com/matt-richardson/home-assistant-qustodio/issues/13)) ([639741c](https://github.com/matt-richardson/home-assistant-qustodio/commit/639741cf8ec86b675f8a59b822042a0780da6897))
+
 ## [1.4.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.3.0...v1.4.0) (2025-12-05)
 
 
