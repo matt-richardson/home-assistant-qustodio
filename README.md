@@ -61,8 +61,15 @@ Services target a profile using Home Assistant's device picker. Select the profi
 | `qustodio.add_extra_time` | `minutes` (1–1440) | Grant extra screen time today |
 | `qustodio.pause_internet` | `minutes` (1–1440) | Pause internet for a number of minutes |
 | `qustodio.resume_internet` | — | Cancel an active internet pause |
-| `qustodio.cancel_extra_time` | — | Cancel an active extra-time grant |
+| `qustodio.cancel_extra_time` | — | Clear all of today's extra time (sets it back to zero) |
 | `qustodio.activate_routine` | `routine` (name), `duration_minutes` (1–1440) | Activate a routine for a fixed duration via a one-off schedule override |
+
+### Behaviour notes
+
+- `add_extra_time` **stacks** — each call grants additional minutes on top of any already granted today (matching the Qustodio app's "+15 min" button).
+- `cancel_extra_time` clears **all** of today's extra time in a single call, and is safe to call even when none is active.
+- `activate_routine` first removes any routine override currently active for the profile, then applies the new one (Qustodio allows only one active override per profile).
+- `resume_internet` raises an error if there is no active internet pause to cancel.
 
 ### Example Automation
 

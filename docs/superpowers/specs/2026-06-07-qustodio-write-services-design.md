@@ -123,11 +123,13 @@ Response:
 Routine names → uids come from `GET .../routines?include_disabled=1`
 (`{"total_count": N, "items_list": [{"uid", "name", "enabled", ...}]}`).
 
-**Assumption (not yet captured):** an override is reverted with
-`DELETE .../routines/{routine_uid}/schedules/{schedule_uid}`. This is inferred
-from the calendar-restriction delete pattern. Since reverting an override is not
-a required service, this assumption does not block the in-scope work; if a
-revert service is added later it must be confirmed by capture first.
+**Update (confirmed during testing):** an override is reverted with
+`DELETE .../routines/{routine_uid}/schedules/{schedule_uid}` (the portal's "undo
+routine switch"). Qustodio allows only one active override per profile, so a
+second `POST` while one is active returns HTTP 409. `activate_routine` therefore
+clears the existing override first: read `active_routine` from the v1 profile
+endpoint, `GET .../routines/{active_routine}/schedules`, delete the schedule with
+`overrides: true`, then `POST` the new override.
 
 ## Read-only / read-write mode
 
@@ -280,10 +282,23 @@ Maintain >95% coverage; keep Pylint at 10.00/10.
 - Document the new services in the README with example automations
   (e.g. a button/automation that grants 15 minutes of extra time).
 
+## Post-implementation corrections (confirmed by live testing)
+
+1. **Routine switching clears the active override.** Confirmed `DELETE
+   .../routines/{uid}/schedules/{uid}` reverts an override, and that only one
+   override may be active per profile (a second POST returns 409). `activate_routine`
+   now clears the active override (via `active_routine` + the routine's schedules)
+   before creating the new one. New endpoints used: `GET .../routines/{uid}/schedules`,
+   `DELETE .../routines/{uid}/schedules/{schedule_uid}`, and `active_routine` on the
+   v1 profile endpoint.
+2. **`cancel_extra_time` uses PUT, not DELETE.** Extra-time grants stack, so deleting
+   one restriction only removes a single grant. The portal clears extra time with
+   `PUT .../rules/calendar_restrictions` (`restriction_type: 2`, `duration: 0`), which
+   zeroes the day's extra time in one call. `cancel_extra_time` is implemented this way
+   and is idempotent. (`resume_internet` still uses GET-active + DELETE — that path was
+   captured directly.)
+
 ## Open assumptions
 
-1. Routine override revert (`DELETE .../routines/{uid}/schedules/{uid}`) is
-   inferred, not captured. Not required for in-scope services; must be confirmed
-   before any future revert service.
-2. `usage_type: 0` is used for both restriction types in all captures; treated as
+1. `usage_type: 0` is used for both restriction types in all captures; treated as
    a constant unless a future case shows otherwise.
