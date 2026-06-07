@@ -192,17 +192,20 @@ async def test_resume_internet_no_active_raises():
 
 
 @pytest.mark.asyncio
-async def test_cancel_extra_time_deletes_active_extra_time():
-    """Test that _async_cancel_extra_time looks up and deletes an active extra-time grant."""
+async def test_cancel_extra_time_sets_duration_zero():
+    """cancel_extra_time PUTs the extra-time restriction to duration 0."""
     api = AsyncMock()
-    api.get_active_restriction.return_value = {"uid": "et-1"}
     target = _resolved(api=api)
     call = MagicMock()
     call.data = {"device_id": ["device-1"]}
     with patch("custom_components.qustodio.services._resolve_target", return_value=target):
         await services._async_cancel_extra_time(MagicMock(), call)
-    api.get_active_restriction.assert_awaited_once_with("uid-11", "extra_time")
-    api.delete_calendar_restriction.assert_awaited_once_with("uid-11", "et-1")
+    api.update_calendar_restriction.assert_awaited_once()
+    p_uid, rtype, duration, _rrule = api.update_calendar_restriction.await_args.args
+    assert p_uid == "uid-11"
+    assert rtype == 2
+    assert duration == 0
+    target.coordinator.async_request_refresh.assert_awaited_once()
 
 
 @pytest.mark.asyncio

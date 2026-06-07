@@ -298,14 +298,19 @@ async def _async_resume_internet(hass: HomeAssistant, call: ServiceCall) -> None
 
 
 async def _async_cancel_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
-    """Cancel an active extra-time grant for a profile.
+    """Cancel all of today's extra time for a profile (sets extra time to zero).
 
     Args:
         hass: Home Assistant instance.
         call: Service call with device_id field.
 
     """
-    await _async_cancel_restriction(hass, call, "extra_time", "extra-time grant")
+    rrule = build_extra_time_rrule(dt_util.now())
+    targets = _targets(hass, call)
+    _LOGGER.debug("cancel_extra_time for %d target(s)", len(targets))
+    for target in targets:
+        await target.api.update_calendar_restriction(target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, 0, rrule)
+        await target.coordinator.async_request_refresh()
 
 
 async def _clear_active_override(target: ResolvedTarget) -> None:

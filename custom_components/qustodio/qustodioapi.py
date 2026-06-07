@@ -833,24 +833,11 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             raise QustodioDataError("Account UID not available")
         return f"{API_BASE}/v2/accounts/{self._account_uid}/profiles/{profile_uid}"
 
-    async def create_calendar_restriction(
+    def _calendar_restriction_body(
         self, profile_uid: str, restriction_type: int, duration: int, rrule: str
     ) -> dict[str, Any]:
-        """Create a calendar restriction (extra time or internet pause).
-
-        Args:
-            profile_uid: Profile UUID.
-            restriction_type: 2 = extra time, 3 = pause internet.
-            duration: Seconds (extra-time amount; 0 for pause).
-            rrule: iCal rrule string defining start/window.
-
-        Returns:
-            The created restriction (includes its ``uid``).
-        """
-        await self._ensure_account_info()
-        base = self._profile_v2_base(profile_uid)
-        url = f"{base}/rules/calendar_restrictions"
-        body = {
+        """Build the shared JSON body for create/update calendar-restriction requests."""
+        return {
             "account_uid": self._account_uid,
             "profile_uid": profile_uid,
             "restriction_type": restriction_type,
@@ -858,10 +845,33 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             "duration": duration,
             "rrule": rrule,
         }
-        result = await self._authenticated_request("POST", url, json_body=body)
+
+    async def create_calendar_restriction(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> dict[str, Any]:
+        """POST a new calendar restriction (extra time or internet pause).
+
+        Returns:
+            The created restriction dict (includes its ``uid``).
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
+        result = await self._authenticated_request(
+            "POST", url, json_body=self._calendar_restriction_body(profile_uid, restriction_type, duration, rrule)
+        )
         if not isinstance(result, dict):
             raise QustodioDataError(f"Unexpected response creating restriction: {result}")
         return result
+
+    async def update_calendar_restriction(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> None:
+        """PUT a calendar restriction — zeros extra time, cancelling all stacked grants."""
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
+        await self._authenticated_request(
+            "PUT", url, json_body=self._calendar_restriction_body(profile_uid, restriction_type, duration, rrule)
+        )
 
     async def get_active_restriction(
         self, profile_uid: str, kind: Literal["extra_time", "pause_internet"]

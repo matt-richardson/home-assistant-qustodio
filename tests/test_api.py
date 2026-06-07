@@ -1722,6 +1722,26 @@ class TestCalendarRestrictionAndRoutines:
         }
 
     @pytest.mark.asyncio
+    async def test_update_calendar_restriction_puts_duration_zero(self):
+        """Test update_calendar_restriction PUTs the correct body with duration 0."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.update_calendar_restriction("puid", 2, 0, "DTSTART:..\nFREQ=DAILY;COUNT=1")
+        method, url = session.request.call_args.args
+        body = session.request.call_args.kwargs["json"]
+        assert method == "PUT"
+        assert url.endswith("/profiles/puid/rules/calendar_restrictions")
+        assert body == {
+            "account_uid": "acc_uid",
+            "profile_uid": "puid",
+            "restriction_type": 2,
+            "usage_type": 0,
+            "duration": 0,
+            "rrule": "DTSTART:..\nFREQ=DAILY;COUNT=1",
+        }
+
+    @pytest.mark.asyncio
     async def test_get_active_restriction_returns_first_item(self):
         """Test get_active_restriction returns the first item from the API."""
         api = _ready_api()
