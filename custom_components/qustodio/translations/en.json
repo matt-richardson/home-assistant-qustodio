@@ -88,5 +88,37 @@
         "name": "Computer Locked"
       }
     }
+  },
+  "services": {
+    "add_extra_time": {
+      "name": "Add extra time",
+      "description": "Grant a profile extra screen time today.",
+      "fields": {
+        "minutes": { "name": "Minutes", "description": "Minutes of extra time to grant." }
+      }
+    },
+    "pause_internet": {
+      "name": "Pause internet",
+      "description": "Pause a profile's internet for a number of minutes.",
+      "fields": {
+        "minutes": { "name": "Minutes", "description": "How long to pause internet for." }
+      }
+    },
+    "resume_internet": {
+      "name": "Resume internet",
+      "description": "Cancel an active internet pause for a profile."
+    },
+    "cancel_extra_time": {
+      "name": "Cancel extra time",
+      "description": "Cancel an active extra-time grant for a profile."
+    },
+    "activate_routine": {
+      "name": "Activate routine",
+      "description": "Activate a routine for a fixed duration (schedule override).",
+      "fields": {
+        "routine": { "name": "Routine", "description": "Exact name of the routine to activate." },
+        "duration_minutes": { "name": "Duration (minutes)", "description": "How long to keep the routine active." }
+      }
+    }
   }
 }
