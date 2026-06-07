@@ -7,11 +7,11 @@ import logging
 import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import aiohttp
 
-from .const import LOGIN_RESULT_OK
+from .const import API_BASE, LOGIN_RESULT_OK, USAGE_TYPE_DEFAULT
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -822,3 +822,103 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         except Exception as err:
             _LOGGER.error("Unexpected error getting app usage: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching app usage: {err}") from err
+
+    async def create_calendar_restriction(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> dict[str, Any]:
+        """Create a calendar restriction (extra time or internet pause).
+
+        Args:
+            profile_uid: Profile UUID.
+            restriction_type: 2 = extra time, 3 = pause internet.
+            duration: Seconds (extra-time amount; 0 for pause).
+            rrule: iCal rrule string defining start/window.
+
+        Returns:
+            The created restriction (includes its ``uid``).
+        """
+        await self._ensure_account_info()
+        if not self._account_uid:
+            raise QustodioDataError("Account UID not available")
+        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions"
+        body = {
+            "account_uid": self._account_uid,
+            "profile_uid": profile_uid,
+            "restriction_type": restriction_type,
+            "usage_type": USAGE_TYPE_DEFAULT,
+            "duration": duration,
+            "rrule": rrule,
+        }
+        result = await self._authenticated_request("POST", url, json_body=body)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response creating restriction: {result}")
+        return result
+
+    async def get_active_restriction(
+        self, profile_uid: str, kind: Literal["extra_time", "pause_internet"]
+    ) -> dict[str, Any] | None:
+        """Return the newest active restriction of the given kind, or None.
+
+        Args:
+            profile_uid: Profile UUID.
+            kind: Type of restriction to query — ``"extra_time"`` or ``"pause_internet"``.
+
+        Returns:
+            The first matching restriction dict, or ``None`` if none found.
+        """
+        await self._ensure_account_info()
+        custom_filter = {
+            "extra_time": "newest_today_extra_time",
+            "pause_internet": "newest_today_pause_internet",
+        }[kind]
+        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions"
+        result = await self._authenticated_request("GET", url, params={"custom_filter": custom_filter})
+        items = result.get("items_list", []) if isinstance(result, dict) else []
+        return items[0] if items else None
+
+    async def delete_calendar_restriction(self, profile_uid: str, uid: str) -> None:
+        """Delete (cancel) a calendar restriction by uid.
+
+        Args:
+            profile_uid: Profile UUID.
+            uid: Restriction UUID to delete.
+        """
+        await self._ensure_account_info()
+        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions/{uid}"
+        await self._authenticated_request("DELETE", url)
+
+    async def get_routines(self, profile_uid: str) -> list[dict[str, Any]]:
+        """Return the profile's routines (including disabled).
+
+        Args:
+            profile_uid: Profile UUID.
+
+        Returns:
+            List of routine dicts from the API.
+        """
+        await self._ensure_account_info()
+        url = f"{API_BASE}/v2/accounts/{self._account_uid}/profiles/{profile_uid}/routines"
+        result = await self._authenticated_request("GET", url, params={"include_disabled": 1})
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response listing routines: {result}")
+        return result.get("items_list", [])
+
+    async def create_routine_schedule(
+        self, profile_uid: str, routine_uid: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Create a routine schedule override (activate a routine now).
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID to schedule.
+            payload: Schedule payload dict (weekdays, start_time, duration_minutes, etc.).
+
+        Returns:
+            The created schedule dict (includes its ``uid``).
+        """
+        await self._ensure_account_info()
+        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/routines/{routine_uid}/schedules"
+        result = await self._authenticated_request("POST", url, json_body=payload)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response creating routine schedule: {result}")
+        return result

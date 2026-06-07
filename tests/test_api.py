@@ -1695,3 +1695,91 @@ class TestEnsureAccountInfo:
         ):
             await api._ensure_account_info()
         fetch.assert_awaited_once()
+
+
+class TestCalendarRestrictionAndRoutines:
+    """Tests for calendar restriction and routine write/query methods."""
+
+    @pytest.mark.asyncio
+    async def test_create_calendar_restriction_posts_expected_body(self):
+        """Test create_calendar_restriction POSTs the correct body."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1", "restriction_type": 2})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.create_calendar_restriction("puid", 2, 900, "DTSTART:..\nFREQ=DAILY;COUNT=1")
+        assert result["uid"] == "r1"
+        method, url = session.request.call_args.args
+        body = session.request.call_args.kwargs["json"]
+        assert method == "POST"
+        assert url.endswith("/profiles/puid/rules/calendar_restrictions")
+        assert body == {
+            "account_uid": "acc_uid",
+            "profile_uid": "puid",
+            "restriction_type": 2,
+            "usage_type": 0,
+            "duration": 900,
+            "rrule": "DTSTART:..\nFREQ=DAILY;COUNT=1",
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_returns_first_item(self):
+        """Test get_active_restriction returns the first item from the API."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 1, "items_list": [{"uid": "r9"}]})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_restriction("puid", "extra_time")
+        assert result == {"uid": "r9"}
+        assert session.request.call_args.kwargs["params"] == {"custom_filter": "newest_today_extra_time"}
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_returns_none_when_empty(self):
+        """Test get_active_restriction returns None when no items are found."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 0, "items_list": []})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_restriction("puid", "pause_internet")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_calendar_restriction_calls_delete(self):
+        """Test delete_calendar_restriction sends a DELETE request."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.delete_calendar_restriction("puid", "r1")
+        method, url = session.request.call_args.args
+        assert method == "DELETE"
+        assert url.endswith("/rules/calendar_restrictions/r1")
+
+    @pytest.mark.asyncio
+    async def test_get_routines_returns_items_list(self):
+        """Test get_routines returns the items_list from the API response."""
+        api = _ready_api()
+        session = _mock_session(
+            200, json_data={"total_count": 1, "items_list": [{"uid": "x", "name": "Games allowed"}]}
+        )
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routines("puid")
+        assert result == [{"uid": "x", "name": "Games allowed"}]
+        assert session.request.call_args.kwargs["params"] == {"include_disabled": 1}
+
+    @pytest.mark.asyncio
+    async def test_create_routine_schedule_posts_payload(self):
+        """Test create_routine_schedule POSTs the provided payload."""
+        api = _ready_api()
+        payload = {
+            "overrides": True,
+            "weekdays": ["SU"],
+            "start_time": "11:41",
+            "duration_minutes": 15,
+            "from_date": "2026-06-07",
+            "to_date": "2026-06-07",
+        }
+        session = _mock_session(200, json_data={"uid": "sched1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.create_routine_schedule("puid", "rouid", payload)
+        assert result["uid"] == "sched1"
+        method, url = session.request.call_args.args
+        assert method == "POST"
+        assert url.endswith("/routines/rouid/schedules")
+        assert session.request.call_args.kwargs["json"] == payload
