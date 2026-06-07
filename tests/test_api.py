@@ -1574,6 +1574,16 @@ def _mock_session(status, json_data=None, text_data=""):
     return session
 
 
+def _mock_session_raising(exc):
+    """Return a mock aiohttp session whose .request context manager raises on enter."""
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(side_effect=exc)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.request = MagicMock(return_value=ctx)
+    return session
+
+
 def _ready_api():
     """Return an API instance with a valid token so login() short-circuits."""
     api = QustodioApi("user@example.com", "pw")
@@ -1619,3 +1629,69 @@ class TestAuthenticatedRequest:
         with patch.object(api, "_get_session", AsyncMock(return_value=session)):
             with pytest.raises(exc):
                 await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_400_raises_api_error(self):
+        """Test that a 400 response raises QustodioAPIError."""
+        api = _ready_api()
+        session = _mock_session(400, text_data="bad request")
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioAPIError):
+                await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_malformed_json_returns_none(self):
+        """Test that a 200 response with unparseable JSON returns None."""
+        api = _ready_api()
+        session = _mock_session(200)
+        session.request.return_value.__aenter__.return_value.json = AsyncMock(side_effect=ValueError("nope"))
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("GET", "https://x")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_timeout_raises_connection_error(self):
+        """Test that a TimeoutError is converted to QustodioConnectionError."""
+        api = _ready_api()
+        session = _mock_session_raising(asyncio.TimeoutError())
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioConnectionError):
+                await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_client_error_raises_connection_error(self):
+        """Test that an aiohttp.ClientError is converted to QustodioConnectionError."""
+        api = _ready_api()
+        session = _mock_session_raising(aiohttp.ClientError())
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioConnectionError):
+                await api._authenticated_request("GET", "https://x")
+
+
+class TestEnsureAccountInfo:
+    """Tests for QustodioApi._ensure_account_info()."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_account_info_skips_when_uid_present(self):
+        """Test that _ensure_account_info skips fetching when uid is already set."""
+        api = _ready_api()  # _account_uid already set
+        with (
+            patch.object(api, "login", AsyncMock(return_value="OK")),
+            patch.object(api, "_fetch_account_info", AsyncMock()) as fetch,
+        ):
+            await api._ensure_account_info()
+        fetch.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_ensure_account_info_fetches_when_uid_missing(self):
+        """Test that _ensure_account_info fetches when uid is not set."""
+        api = _ready_api()
+        api._account_uid = None
+        session = _mock_session(200)
+        with (
+            patch.object(api, "login", AsyncMock(return_value="OK")),
+            patch.object(api, "_get_session", AsyncMock(return_value=session)),
+            patch.object(api, "_fetch_account_info", AsyncMock()) as fetch,
+        ):
+            await api._ensure_account_info()
+        fetch.assert_awaited_once()

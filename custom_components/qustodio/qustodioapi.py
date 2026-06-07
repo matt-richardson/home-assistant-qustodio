@@ -698,8 +698,9 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         headers = {
             "Authorization": f"Bearer {self._access_token}",
             "Accept": "application/json",
-            "Content-Type": "application/json",
         }
+        if json_body is not None:
+            headers["Content-Type"] = "application/json"
         try:
             async with session.request(method, url, headers=headers, params=params, json=json_body) as response:
                 if response.status == 401:
@@ -708,14 +709,14 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                     raise QustodioRateLimitError("Rate limit exceeded")
                 if response.status >= 500:
                     raise QustodioAPIError(f"Server error: {response.status}", status_code=response.status)
-                if response.status not in (200, 201, 204):
+                if response.status == 204:
+                    return None
+                if response.status not in (200, 201):
                     text = await response.text()
                     raise QustodioAPIError(
                         f"Unexpected status code {response.status}: {text}",
                         status_code=response.status,
                     )
-                if response.status == 204:
-                    return None
                 try:
                     return await response.json()
                 except (aiohttp.ContentTypeError, ValueError):
@@ -734,7 +735,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         except aiohttp.ClientError as err:
             _LOGGER.error("Connection error on %s %s: %s", method, url, err)
             raise QustodioConnectionError(f"Connection error for {method} {url}: {err}") from err
-        except Exception as err:  # pylint: disable=broad-exception-caught
+        except Exception as err:
             _LOGGER.error("Unexpected error on %s %s: %s", method, url, err)
             raise QustodioAPIError(f"Unexpected error for {method} {url}: {err}") from err
 
