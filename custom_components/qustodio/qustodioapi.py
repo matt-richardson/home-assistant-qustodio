@@ -652,6 +652,92 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching data: {err}") from err
 
+    async def _ensure_account_info(self) -> None:
+        """Ensure account_id/account_uid are populated (needed for v2 endpoints).
+
+        login() establishes tokens but does not fetch the account record, so
+        account_uid may be unset when a write method is called directly.
+        """
+        await self.login()
+        if self._account_uid:
+            return
+        session = await self._get_session()
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Accept": "application/json",
+        }
+        await self._fetch_account_info(session, headers)
+
+    async def _authenticated_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+    ) -> Any:
+        """Perform an authenticated request and map errors to exceptions.
+
+        Args:
+            method: HTTP method (GET/POST/DELETE).
+            url: Fully-qualified request URL.
+            params: Optional query parameters.
+            json_body: Optional JSON request body.
+
+        Returns:
+            Parsed JSON (dict/list), or None for empty/204 responses.
+
+        Raises:
+            QustodioAuthenticationError: 401 response.
+            QustodioRateLimitError: 429 response.
+            QustodioAPIError: 5xx or unexpected status / unexpected error.
+            QustodioConnectionError: Network/timeout failure.
+        """
+        await self.login()
+        session = await self._get_session()
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with session.request(method, url, headers=headers, params=params, json=json_body) as response:
+                if response.status == 401:
+                    raise QustodioAuthenticationError("Authentication failed")
+                if response.status == 429:
+                    raise QustodioRateLimitError("Rate limit exceeded")
+                if response.status >= 500:
+                    raise QustodioAPIError(f"Server error: {response.status}", status_code=response.status)
+                if response.status not in (200, 201, 204):
+                    text = await response.text()
+                    raise QustodioAPIError(
+                        f"Unexpected status code {response.status}: {text}",
+                        status_code=response.status,
+                    )
+                if response.status == 204:
+                    return None
+                try:
+                    return await response.json()
+                except (aiohttp.ContentTypeError, ValueError):
+                    return None
+        except (
+            QustodioAuthenticationError,
+            QustodioConnectionError,
+            QustodioRateLimitError,
+            QustodioAPIError,
+            QustodioDataError,
+        ):
+            raise
+        except asyncio.TimeoutError as err:
+            _LOGGER.error("Timeout on %s %s", method, url)
+            raise QustodioConnectionError(f"Connection timeout for {method} {url}") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Connection error on %s %s: %s", method, url, err)
+            raise QustodioConnectionError(f"Connection error for {method} {url}: {err}") from err
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            _LOGGER.error("Unexpected error on %s %s: %s", method, url, err)
+            raise QustodioAPIError(f"Unexpected error for {method} {url}: {err}") from err
+
     async def get_app_usage(self, profile_uid: str, min_date: date, max_date: date) -> dict[str, Any]:
         """Get per-app usage data for a profile.
 

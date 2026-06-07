@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
 import pytest
@@ -1553,3 +1553,69 @@ class TestQustodioApiLoginRetry:
                 await api.login()
 
         await api.close()
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers for _authenticated_request tests
+# ---------------------------------------------------------------------------
+
+
+def _mock_session(status, json_data=None, text_data=""):
+    """Return a mock aiohttp session whose .request returns an async-CM response."""
+    response = MagicMock()
+    response.status = status
+    response.json = AsyncMock(return_value=json_data)
+    response.text = AsyncMock(return_value=text_data)
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=response)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.request = MagicMock(return_value=ctx)
+    return session
+
+
+def _ready_api():
+    """Return an API instance with a valid token so login() short-circuits."""
+    api = QustodioApi("user@example.com", "pw")
+    api._access_token = "token"
+    api._expires_in = datetime.now() + timedelta(hours=1)
+    api._account_uid = "acc_uid"
+    api._account_id = "acc_id"
+    return api
+
+
+class TestAuthenticatedRequest:
+    """Tests for QustodioApi._authenticated_request()."""
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_post_returns_json(self):
+        """Test POST request returns parsed JSON."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("POST", "https://x", json_body={"a": 1})
+        assert result == {"uid": "r1"}
+        session.request.assert_called_once()
+        assert session.request.call_args.args[0] == "POST"
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_204_returns_none(self):
+        """Test DELETE request with 204 returns None."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("DELETE", "https://x")
+        assert result is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "status,exc",
+        [(401, QustodioAuthenticationError), (429, QustodioRateLimitError), (500, QustodioAPIError)],
+    )
+    async def test_authenticated_request_status_errors(self, status, exc):
+        """Test that error status codes raise the correct exceptions."""
+        api = _ready_api()
+        session = _mock_session(status, text_data="boom")
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(exc):
+                await api._authenticated_request("GET", "https://x")
