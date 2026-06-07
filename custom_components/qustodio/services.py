@@ -3,15 +3,79 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr
+
+from .const import CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 # Qustodio weekday codes indexed by datetime.weekday() (Mon=0 .. Sun=6)
 _WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+
+
+@dataclass
+class ResolvedTarget:
+    """A targeted profile resolved to its runtime context."""
+
+    coordinator: Any
+    api: Any
+    profile_id: str
+    profile_uid: str
+
+
+def _resolve_target(hass: HomeAssistant, device_id: str) -> ResolvedTarget:
+    """Resolve a targeted device to a Qustodio profile context.
+
+    Args:
+        hass: Home Assistant instance.
+        device_id: The device registry id from the service target.
+
+    Returns:
+        The resolved profile context (coordinator, api, ids).
+
+    Raises:
+        ServiceValidationError: Device is unknown, not a Qustodio profile,
+            or its config entry is in read-only mode.
+
+    """
+    registry = dr.async_get(hass)
+    device = registry.async_get(device_id)
+    if device is None:
+        raise ServiceValidationError(f"Device {device_id} not found.")
+
+    entries = hass.data.get(DOMAIN, {})
+    entry_id = next((eid for eid in device.config_entries if eid in entries), None)
+    if entry_id is None:
+        raise ServiceValidationError("Target is not a Qustodio profile.")
+
+    coordinator = entries[entry_id]
+    entry = coordinator.entry
+
+    profiles = getattr(coordinator.data, "profiles", {}) or {}
+    profile_id = next(
+        (value for (domain, value) in device.identifiers if domain == DOMAIN and value in profiles),
+        None,
+    )
+    if profile_id is None:
+        raise ServiceValidationError("Target a Qustodio profile device, not a child device.")
+
+    if not entry.options.get(CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES):
+        raise ServiceValidationError(
+            "Qustodio is in read-only mode. Enable write actions in the integration options to use this service."
+        )
+
+    return ResolvedTarget(
+        coordinator=coordinator,
+        api=coordinator.api,
+        profile_id=profile_id,
+        profile_uid=profiles[profile_id].uid,
+    )
 
 
 def _format_dt(value: datetime) -> str:

@@ -1,11 +1,13 @@
 """Tests for Qustodio services."""
 
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.qustodio import services
+from custom_components.qustodio.const import CONF_ALLOW_WRITES, DOMAIN
 
 
 def test_build_extra_time_rrule():
@@ -46,3 +48,57 @@ def test_resolve_routine_uid_unknown_raises():
     routines = [{"uid": "a", "name": "Bedtime"}]
     with pytest.raises(ServiceValidationError):
         services.resolve_routine_uid(routines, "Nope")
+
+
+def _fake_hass_with_profile(allow_writes=True, profile_id="11", profile_uid="uid-11"):
+    """Build a hass mock whose device registry resolves a profile device."""
+    coordinator = MagicMock()
+    coordinator.api = MagicMock()
+    profile = MagicMock()
+    profile.uid = profile_uid
+    coordinator.data.profiles = {profile_id: profile}
+
+    entry = MagicMock()
+    entry.entry_id = "entry1"
+    entry.options = {CONF_ALLOW_WRITES: allow_writes}
+    coordinator.entry = entry  # resolver reads coordinator.entry
+
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"entry1": coordinator}}
+
+    device = MagicMock()
+    device.identifiers = {(DOMAIN, profile_id)}
+    device.config_entries = {"entry1"}
+
+    registry = MagicMock()
+    registry.async_get.return_value = device
+    return hass, registry, coordinator, entry
+
+
+def test_resolve_target_returns_profile_context():
+    """Test that _resolve_target returns the correct profile context."""
+    hass, registry, coordinator, _ = _fake_hass_with_profile()
+    with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
+        target = services._resolve_target(hass, "device-1")
+    assert target.profile_uid == "uid-11"
+    assert target.coordinator is coordinator
+    assert target.api is coordinator.api
+
+
+def test_resolve_target_read_only_raises():
+    """Test that _resolve_target raises ServiceValidationError in read-only mode."""
+    hass, registry, _, _ = _fake_hass_with_profile(allow_writes=False)
+    with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
+        with pytest.raises(ServiceValidationError, match="read-only"):
+            services._resolve_target(hass, "device-1")
+
+
+def test_resolve_target_unknown_device_raises():
+    """Test that _resolve_target raises ServiceValidationError for an unknown device."""
+    hass = MagicMock()
+    hass.data = {DOMAIN: {}}
+    registry = MagicMock()
+    registry.async_get.return_value = None
+    with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
+        with pytest.raises(ServiceValidationError):
+            services._resolve_target(hass, "missing")
