@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.1...v1.5.0) (2026-06-07)
+
+
+### Features
+
+* Add services to grant extra time, pause internet and activate routines ([#15](https://github.com/matt-richardson/home-assistant-qustodio/issues/15)) ([906c315](https://github.com/matt-richardson/home-assistant-qustodio/commit/906c3150d1affc93fb2726c2d4c730b65cdda0e1))
+
 ## [1.4.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.0...v1.4.1) (2026-06-06)
 
 
