@@ -20,6 +20,7 @@ from custom_components.qustodio.config_flow import (
     NoProfiles,
     validate_email,
 )
+from custom_components.qustodio.const import CONF_ALLOW_WRITES
 from custom_components.qustodio.exceptions import (
     QustodioAuthenticationError,
     QustodioConnectionError,
@@ -948,3 +949,13 @@ class TestReauthValidation:
 
             assert result["type"] == FlowResultType.FORM
             assert result["errors"]["base"] == "no_profiles"
+
+
+def test_user_schema_includes_allow_writes():
+    """Setup form offers the write-mode toggle, defaulting to off."""
+    from custom_components.qustodio.config_flow import STEP_USER_DATA_SCHEMA
+
+    schema_dict = STEP_USER_DATA_SCHEMA.schema
+    keys = {str(k): k for k in schema_dict}
+    assert CONF_ALLOW_WRITES in keys
+    assert keys[CONF_ALLOW_WRITES].default() is False

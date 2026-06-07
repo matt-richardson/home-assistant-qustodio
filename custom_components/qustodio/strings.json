@@ -6,11 +6,13 @@
         "description": "Enter your Qustodio account credentials to connect your profiles and devices.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
-          "password": "[%key:common::config_flow::data::password%]"
+          "password": "[%key:common::config_flow::data::password%]",
+          "allow_writes": "Enable write actions (read-write mode)"
         },
         "data_description": {
           "username": "Your Qustodio account email address",
-          "password": "Your Qustodio account password"
+          "password": "Your Qustodio account password",
+          "allow_writes": "Allow services to change Qustodio settings (extra time, pause internet, routines). Leave off for read-only."
         }
       },
       "reauth_confirm": {
@@ -46,12 +48,14 @@
         "data": {
           "update_interval": "Update interval (minutes)",
           "enable_gps_tracking": "Enable GPS location tracking",
-          "app_usage_cache_interval": "App usage cache interval (minutes)"
+          "app_usage_cache_interval": "App usage cache interval (minutes)",
+          "allow_writes": "Enable write actions (read-write mode)"
         },
         "data_description": {
           "update_interval": "How often to check for updates (1-60 minutes)",
           "enable_gps_tracking": "Track device locations using GPS coordinates",
-          "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)"
+          "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)",
+          "allow_writes": "Allow services to change Qustodio settings. Leave off for read-only."
         }
       }
     }
@@ -84,6 +88,47 @@
     "unexpected_error": {
       "title": "Unexpected Error",
       "description": "An unexpected error occurred: {error_message}. Please check the Home Assistant logs for more details and consider reporting this issue if it persists."
+    }
+  },
+  "services": {
+    "add_extra_time": {
+      "name": "Add extra time",
+      "description": "Grant a profile extra screen time today.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to grant extra time to." },
+        "minutes": { "name": "Minutes", "description": "Minutes of extra time to grant." }
+      }
+    },
+    "pause_internet": {
+      "name": "Pause internet",
+      "description": "Pause a profile's internet for a number of minutes.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to pause internet for." },
+        "minutes": { "name": "Minutes", "description": "How long to pause internet for." }
+      }
+    },
+    "resume_internet": {
+      "name": "Resume internet",
+      "description": "Cancel an active internet pause for a profile.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to resume internet for." }
+      }
+    },
+    "cancel_extra_time": {
+      "name": "Cancel extra time",
+      "description": "Clear all of today's extra time for a profile.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to clear extra time for." }
+      }
+    },
+    "activate_routine": {
+      "name": "Activate routine",
+      "description": "Activate a routine for a fixed duration (schedule override).",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to activate the routine for." },
+        "routine": { "name": "Routine", "description": "Exact name of the routine to activate." },
+        "duration_minutes": { "name": "Duration (minutes)", "description": "How long to keep the routine active." }
+      }
     }
   }
 }

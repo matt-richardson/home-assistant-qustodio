@@ -7,11 +7,11 @@ import logging
 import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import aiohttp
 
-from .const import LOGIN_RESULT_OK
+from .const import API_BASE, LOGIN_RESULT_OK, USAGE_TYPE_DEFAULT
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -652,6 +652,93 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching data: {err}") from err
 
+    async def _ensure_account_info(self) -> None:
+        """Ensure account_id/account_uid are populated (needed for v2 endpoints).
+
+        login() establishes tokens but does not fetch the account record, so
+        account_uid may be unset when a write method is called directly.
+        """
+        await self.login()
+        if self._account_uid:
+            return
+        session = await self._get_session()
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Accept": "application/json",
+        }
+        await self._fetch_account_info(session, headers)
+
+    async def _authenticated_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+    ) -> Any:
+        """Perform an authenticated request and map errors to exceptions.
+
+        Args:
+            method: HTTP method (GET/POST/DELETE).
+            url: Fully-qualified request URL.
+            params: Optional query parameters.
+            json_body: Optional JSON request body.
+
+        Returns:
+            Parsed JSON (dict/list), or None for empty/204 responses.
+
+        Raises:
+            QustodioAuthenticationError: 401 response.
+            QustodioRateLimitError: 429 response.
+            QustodioAPIError: 5xx or unexpected status / unexpected error.
+            QustodioConnectionError: Network/timeout failure.
+        """
+        await self.login()
+        session = await self._get_session()
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Accept": "application/json",
+        }
+        if json_body is not None:
+            headers["Content-Type"] = "application/json"
+        try:
+            async with session.request(method, url, headers=headers, params=params, json=json_body) as response:
+                if response.status == 401:
+                    raise QustodioAuthenticationError("Authentication failed")
+                if response.status == 429:
+                    raise QustodioRateLimitError("Rate limit exceeded")
+                if response.status >= 500:
+                    raise QustodioAPIError(f"Server error: {response.status}", status_code=response.status)
+                if response.status == 204:
+                    return None
+                if response.status not in (200, 201):
+                    text = await response.text()
+                    raise QustodioAPIError(
+                        f"Unexpected status code {response.status}: {text}",
+                        status_code=response.status,
+                    )
+                try:
+                    return await response.json()
+                except (aiohttp.ContentTypeError, ValueError):
+                    return None
+        except (
+            QustodioAuthenticationError,
+            QustodioConnectionError,
+            QustodioRateLimitError,
+            QustodioAPIError,
+            QustodioDataError,
+        ):
+            raise
+        except asyncio.TimeoutError as err:
+            _LOGGER.error("Timeout on %s %s", method, url)
+            raise QustodioConnectionError(f"Connection timeout for {method} {url}") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Connection error on %s %s: %s", method, url, err)
+            raise QustodioConnectionError(f"Connection error for {method} {url}: {err}") from err
+        except Exception as err:
+            _LOGGER.error("Unexpected error on %s %s: %s", method, url, err)
+            raise QustodioAPIError(f"Unexpected error for {method} {url}: {err}") from err
+
     async def get_app_usage(self, profile_uid: str, min_date: date, max_date: date) -> dict[str, Any]:
         """Get per-app usage data for a profile.
 
@@ -735,3 +822,173 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         except Exception as err:
             _LOGGER.error("Unexpected error getting app usage: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching app usage: {err}") from err
+
+    def _profile_v2_base(self, profile_uid: str) -> str:
+        """Build the v2 base URL for a profile, validating account_uid.
+
+        Raises:
+            QustodioDataError: account_uid is not available.
+        """
+        if not self._account_uid:
+            raise QustodioDataError("Account UID not available")
+        return f"{API_BASE}/v2/accounts/{self._account_uid}/profiles/{profile_uid}"
+
+    def _calendar_restriction_body(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> dict[str, Any]:
+        """Build the shared JSON body for create/update calendar-restriction requests."""
+        return {
+            "account_uid": self._account_uid,
+            "profile_uid": profile_uid,
+            "restriction_type": restriction_type,
+            "usage_type": USAGE_TYPE_DEFAULT,
+            "duration": duration,
+            "rrule": rrule,
+        }
+
+    async def create_calendar_restriction(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> dict[str, Any]:
+        """POST a new calendar restriction (extra time or internet pause).
+
+        Returns:
+            The created restriction dict (includes its ``uid``).
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
+        result = await self._authenticated_request(
+            "POST", url, json_body=self._calendar_restriction_body(profile_uid, restriction_type, duration, rrule)
+        )
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response creating restriction: {result}")
+        return result
+
+    async def update_calendar_restriction(
+        self, profile_uid: str, restriction_type: int, duration: int, rrule: str
+    ) -> None:
+        """PUT a calendar restriction — zeros extra time, cancelling all stacked grants."""
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
+        await self._authenticated_request(
+            "PUT", url, json_body=self._calendar_restriction_body(profile_uid, restriction_type, duration, rrule)
+        )
+
+    async def get_active_restriction(
+        self, profile_uid: str, kind: Literal["extra_time", "pause_internet"]
+    ) -> dict[str, Any] | None:
+        """Return the newest active restriction of the given kind, or None.
+
+        Args:
+            profile_uid: Profile UUID.
+            kind: Type of restriction to query — ``"extra_time"`` or ``"pause_internet"``.
+
+        Returns:
+            The first matching restriction dict, or ``None`` if none found.
+        """
+        await self._ensure_account_info()
+        custom_filter = {
+            "extra_time": "newest_today_extra_time",
+            "pause_internet": "newest_today_pause_internet",
+        }[kind]
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/rules/calendar_restrictions"
+        result = await self._authenticated_request("GET", url, params={"custom_filter": custom_filter})
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response querying restrictions: {result}")
+        items = result.get("items_list", [])
+        return items[0] if items else None
+
+    async def delete_calendar_restriction(self, profile_uid: str, uid: str) -> None:
+        """Delete (cancel) a calendar restriction by uid.
+
+        Args:
+            profile_uid: Profile UUID.
+            uid: Restriction UUID to delete.
+        """
+        await self._ensure_account_info()
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/rules/calendar_restrictions/{uid}"
+        await self._authenticated_request("DELETE", url)
+
+    async def get_routines(self, profile_uid: str) -> list[dict[str, Any]]:
+        """Return the profile's routines (including disabled).
+
+        Args:
+            profile_uid: Profile UUID.
+
+        Returns:
+            List of routine dicts from the API.
+        """
+        await self._ensure_account_info()
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/routines"
+        result = await self._authenticated_request("GET", url, params={"include_disabled": 1})
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response listing routines: {result}")
+        return result.get("items_list", [])
+
+    async def create_routine_schedule(
+        self, profile_uid: str, routine_uid: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Create a routine schedule override (activate a routine now).
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID to schedule.
+            payload: Schedule payload dict (weekdays, start_time, duration_minutes, etc.).
+
+        Returns:
+            The created schedule dict (includes its ``uid``).
+        """
+        await self._ensure_account_info()
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/routines/{routine_uid}/schedules"
+        result = await self._authenticated_request("POST", url, json_body=payload)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response creating routine schedule: {result}")
+        return result
+
+    async def get_active_routine_uid(self, profile_id: str) -> str | None:
+        """Return the uid of the profile's currently active routine, or None.
+
+        Args:
+            profile_id: Numeric profile id (not the uid).
+
+        Returns:
+            The active routine uid, or None when no routine is active.
+        """
+        await self._ensure_account_info()
+        url = f"{API_BASE}/v1/accounts/{self._account_id}/profiles/{profile_id}"
+        result = await self._authenticated_request("GET", url)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response fetching profile: {result}")
+        return result.get("active_routine")
+
+    async def get_routine_schedules(self, profile_uid: str, routine_uid: str) -> list[dict[str, Any]]:
+        """Return the schedules (including overrides) for a routine.
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID to query.
+
+        Returns:
+            List of schedule dicts for the routine.
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/routines/{routine_uid}/schedules"
+        result = await self._authenticated_request("GET", url)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response listing routine schedules: {result}")
+        return result.get("items_list", [])
+
+    async def delete_routine_schedule(self, profile_uid: str, routine_uid: str, schedule_uid: str) -> None:
+        """Delete a routine schedule (e.g. an active override) by uid.
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID containing the schedule.
+            schedule_uid: Schedule UUID to delete.
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/routines/{routine_uid}/schedules/{schedule_uid}"
+        await self._authenticated_request("DELETE", url)

@@ -26,6 +26,16 @@ DEFAULT_UPDATE_INTERVAL = 5  # minutes
 DEFAULT_ENABLE_GPS_TRACKING = True
 DEFAULT_APP_USAGE_CACHE_INTERVAL = 60  # minutes (1 hour)
 
+# Read-only / read-write mode (write services are opt-in)
+CONF_ALLOW_WRITES = "allow_writes"
+DEFAULT_ALLOW_WRITES = False
+
+# API base + write-action constants (confirmed against the Qustodio API)
+API_BASE = "https://api.qustodio.com"
+RESTRICTION_TYPE_EXTRA_TIME = 2
+RESTRICTION_TYPE_PAUSE_INTERNET = 3
+USAGE_TYPE_DEFAULT = 0
+
 
 def get_platform_name(platform: int) -> str:
     """Convert platform code to human-readable name.

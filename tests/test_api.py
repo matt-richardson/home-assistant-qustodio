@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
 import pytest
@@ -1553,3 +1553,341 @@ class TestQustodioApiLoginRetry:
                 await api.login()
 
         await api.close()
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers for _authenticated_request tests
+# ---------------------------------------------------------------------------
+
+
+def _mock_session(status, json_data=None, text_data=""):
+    """Return a mock aiohttp session whose .request returns an async-CM response."""
+    response = MagicMock()
+    response.status = status
+    response.json = AsyncMock(return_value=json_data)
+    response.text = AsyncMock(return_value=text_data)
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=response)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.request = MagicMock(return_value=ctx)
+    return session
+
+
+def _mock_session_raising(exc):
+    """Return a mock aiohttp session whose .request context manager raises on enter."""
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(side_effect=exc)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.request = MagicMock(return_value=ctx)
+    return session
+
+
+def _ready_api():
+    """Return an API instance with a valid token so login() short-circuits."""
+    api = QustodioApi("user@example.com", "pw")
+    api._access_token = "token"
+    api._expires_in = datetime.now() + timedelta(hours=1)
+    api._account_uid = "acc_uid"
+    api._account_id = "acc_id"
+    return api
+
+
+class TestAuthenticatedRequest:
+    """Tests for QustodioApi._authenticated_request()."""
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_post_returns_json(self):
+        """Test POST request returns parsed JSON."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("POST", "https://x", json_body={"a": 1})
+        assert result == {"uid": "r1"}
+        session.request.assert_called_once()
+        assert session.request.call_args.args[0] == "POST"
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_204_returns_none(self):
+        """Test DELETE request with 204 returns None."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("DELETE", "https://x")
+        assert result is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "status,exc",
+        [(401, QustodioAuthenticationError), (429, QustodioRateLimitError), (500, QustodioAPIError)],
+    )
+    async def test_authenticated_request_status_errors(self, status, exc):
+        """Test that error status codes raise the correct exceptions."""
+        api = _ready_api()
+        session = _mock_session(status, text_data="boom")
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(exc):
+                await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_400_raises_api_error(self):
+        """Test that a 400 response raises QustodioAPIError."""
+        api = _ready_api()
+        session = _mock_session(400, text_data="bad request")
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioAPIError):
+                await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_malformed_json_returns_none(self):
+        """Test that a 200 response with unparseable JSON returns None."""
+        api = _ready_api()
+        session = _mock_session(200)
+        session.request.return_value.__aenter__.return_value.json = AsyncMock(side_effect=ValueError("nope"))
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api._authenticated_request("GET", "https://x")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_timeout_raises_connection_error(self):
+        """Test that a TimeoutError is converted to QustodioConnectionError."""
+        api = _ready_api()
+        session = _mock_session_raising(asyncio.TimeoutError())
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioConnectionError):
+                await api._authenticated_request("GET", "https://x")
+
+    @pytest.mark.asyncio
+    async def test_authenticated_request_client_error_raises_connection_error(self):
+        """Test that an aiohttp.ClientError is converted to QustodioConnectionError."""
+        api = _ready_api()
+        session = _mock_session_raising(aiohttp.ClientError())
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioConnectionError):
+                await api._authenticated_request("GET", "https://x")
+
+
+class TestEnsureAccountInfo:
+    """Tests for QustodioApi._ensure_account_info()."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_account_info_skips_when_uid_present(self):
+        """Test that _ensure_account_info skips fetching when uid is already set."""
+        api = _ready_api()  # _account_uid already set
+        with (
+            patch.object(api, "login", AsyncMock(return_value="OK")),
+            patch.object(api, "_fetch_account_info", AsyncMock()) as fetch,
+        ):
+            await api._ensure_account_info()
+        fetch.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_ensure_account_info_fetches_when_uid_missing(self):
+        """Test that _ensure_account_info fetches when uid is not set."""
+        api = _ready_api()
+        api._account_uid = None
+        session = _mock_session(200)
+        with (
+            patch.object(api, "login", AsyncMock(return_value="OK")),
+            patch.object(api, "_get_session", AsyncMock(return_value=session)),
+            patch.object(api, "_fetch_account_info", AsyncMock()) as fetch,
+        ):
+            await api._ensure_account_info()
+        fetch.assert_awaited_once()
+
+
+class TestCalendarRestrictionAndRoutines:
+    """Tests for calendar restriction and routine write/query methods."""
+
+    @pytest.mark.asyncio
+    async def test_create_calendar_restriction_posts_expected_body(self):
+        """Test create_calendar_restriction POSTs the correct body."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1", "restriction_type": 2})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.create_calendar_restriction("puid", 2, 900, "DTSTART:..\nFREQ=DAILY;COUNT=1")
+        assert result["uid"] == "r1"
+        method, url = session.request.call_args.args
+        body = session.request.call_args.kwargs["json"]
+        assert method == "POST"
+        assert url.endswith("/profiles/puid/rules/calendar_restrictions")
+        assert body == {
+            "account_uid": "acc_uid",
+            "profile_uid": "puid",
+            "restriction_type": 2,
+            "usage_type": 0,
+            "duration": 900,
+            "rrule": "DTSTART:..\nFREQ=DAILY;COUNT=1",
+        }
+
+    @pytest.mark.asyncio
+    async def test_update_calendar_restriction_puts_duration_zero(self):
+        """Test update_calendar_restriction PUTs the correct body with duration 0."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"uid": "r1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.update_calendar_restriction("puid", 2, 0, "DTSTART:..\nFREQ=DAILY;COUNT=1")
+        method, url = session.request.call_args.args
+        body = session.request.call_args.kwargs["json"]
+        assert method == "PUT"
+        assert url.endswith("/profiles/puid/rules/calendar_restrictions")
+        assert body == {
+            "account_uid": "acc_uid",
+            "profile_uid": "puid",
+            "restriction_type": 2,
+            "usage_type": 0,
+            "duration": 0,
+            "rrule": "DTSTART:..\nFREQ=DAILY;COUNT=1",
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_returns_first_item(self):
+        """Test get_active_restriction returns the first item from the API."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 1, "items_list": [{"uid": "r9"}]})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_restriction("puid", "extra_time")
+        assert result == {"uid": "r9"}
+        assert session.request.call_args.kwargs["params"] == {"custom_filter": "newest_today_extra_time"}
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_returns_none_when_empty(self):
+        """Test get_active_restriction returns None when no items are found."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 0, "items_list": []})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_restriction("puid", "pause_internet")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_calendar_restriction_calls_delete(self):
+        """Test delete_calendar_restriction sends a DELETE request."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.delete_calendar_restriction("puid", "r1")
+        method, url = session.request.call_args.args
+        assert method == "DELETE"
+        assert url.endswith("/rules/calendar_restrictions/r1")
+
+    @pytest.mark.asyncio
+    async def test_get_routines_returns_items_list(self):
+        """Test get_routines returns the items_list from the API response."""
+        api = _ready_api()
+        session = _mock_session(
+            200, json_data={"total_count": 1, "items_list": [{"uid": "x", "name": "Games allowed"}]}
+        )
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routines("puid")
+        assert result == [{"uid": "x", "name": "Games allowed"}]
+        assert session.request.call_args.kwargs["params"] == {"include_disabled": 1}
+
+    @pytest.mark.asyncio
+    async def test_create_routine_schedule_posts_payload(self):
+        """Test create_routine_schedule POSTs the provided payload."""
+        api = _ready_api()
+        payload = {
+            "overrides": True,
+            "weekdays": ["SU"],
+            "start_time": "11:41",
+            "duration_minutes": 15,
+            "from_date": "2026-06-07",
+            "to_date": "2026-06-07",
+        }
+        session = _mock_session(200, json_data={"uid": "sched1"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.create_routine_schedule("puid", "rouid", payload)
+        assert result["uid"] == "sched1"
+        method, url = session.request.call_args.args
+        assert method == "POST"
+        assert url.endswith("/routines/rouid/schedules")
+        assert session.request.call_args.kwargs["json"] == payload
+
+    @pytest.mark.asyncio
+    async def test_create_calendar_restriction_raises_without_account_uid(self):
+        """Test create_calendar_restriction raises QustodioDataError when account_uid is None."""
+        api = _ready_api()
+        api._account_uid = None
+        with patch.object(api, "_ensure_account_info", AsyncMock()):  # don't repopulate uid
+            with pytest.raises(QustodioDataError):
+                await api.create_calendar_restriction("puid", 2, 900, "rrule")
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_raises_on_non_dict(self):
+        """Test get_active_restriction raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_active_restriction("puid", "extra_time")
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_returns_field(self):
+        """Test get_active_routine_uid returns the active_routine field from the profile."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"active_routine": "rou-7"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_routine_uid("11282538")
+        assert result == "rou-7"
+        method, url = session.request.call_args.args
+        assert method == "GET"
+        assert url.endswith("/v1/accounts/acc_id/profiles/11282538")
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_returns_none_when_absent(self):
+        """Test get_active_routine_uid returns None when active_routine is not set."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"active_routine": None})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_routine_uid("11282538")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_raises_on_non_dict(self):
+        """Test get_active_routine_uid raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_active_routine_uid("11282538")
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_returns_items(self):
+        """Test get_routine_schedules returns the items_list from the API."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 1, "items_list": [{"uid": "s1", "overrides": True}]})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routine_schedules("puid", "rou-7")
+        assert result == [{"uid": "s1", "overrides": True}]
+        _, url = session.request.call_args.args
+        assert url.endswith("/routines/rou-7/schedules")
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_returns_empty_when_missing(self):
+        """Test get_routine_schedules returns empty list when items_list is absent."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 0})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routine_schedules("puid", "rou-7")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_raises_on_non_dict(self):
+        """Test get_routine_schedules raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_routine_schedules("puid", "rou-7")
+
+    @pytest.mark.asyncio
+    async def test_delete_routine_schedule_calls_delete(self):
+        """Test delete_routine_schedule sends a DELETE request for the schedule."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.delete_routine_schedule("puid", "rou-7", "s1")
+        method, url = session.request.call_args.args
+        assert method == "DELETE"
+        assert url.endswith("/routines/rou-7/schedules/s1")
