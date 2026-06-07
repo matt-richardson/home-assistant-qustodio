@@ -70,6 +70,7 @@ Services target a profile using Home Assistant's device picker. Select the profi
 - `cancel_extra_time` clears **all** of today's extra time in a single call, and is safe to call even when none is active.
 - `activate_routine` first removes any routine override currently active for the profile, then applies the new one (Qustodio allows only one active override per profile).
 - `resume_internet` raises an error if there is no active internet pause to cancel.
+- **Quota sensors do not reflect extra time.** The `has_quota_remaining` binary sensor and the `quota_remaining_minutes` attribute are derived from the profile's **base daily quota** only. Extra-time grants (and routine overrides) are stored separately by Qustodio and are not added to that figure, so these sensors will not change when you call `add_extra_time`. They update immediately after any write (the service forces a refresh), but the value reflects the base quota vs screen-time used, not bonus time.
 
 ### Example Automation
 
