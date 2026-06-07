@@ -17,6 +17,8 @@ In scope:
 - Pause / resume a profile's internet for a duration.
 - Cancel an active extra-time grant.
 - Activate a routine for a fixed duration (schedule override).
+- A **read-only / read-write mode** setting that gates all write services.
+  Default is read-only, so writes require explicit opt-in.
 
 Out of scope: enabling/disabling routines, pausing/resuming routines, and
 editing routine schedules or app/web policy (explicitly excluded by the user).
@@ -127,6 +129,30 @@ from the calendar-restriction delete pattern. Since reverting an override is not
 a required service, this assumption does not block the in-scope work; if a
 revert service is added later it must be confirmed by capture first.
 
+## Read-only / read-write mode
+
+A per-config-entry setting controls whether write services are permitted.
+
+- **Stored in** `entry.options` under a new constant `CONF_ALLOW_WRITES`
+  (boolean). Default `False` (read-only).
+- **Set at setup:** the config flow's user step includes a "Enable write
+  actions (read-write mode)" boolean, defaulting to off. The chosen value seeds
+  `entry.options` via `async_create_entry(..., options={CONF_ALLOW_WRITES: ...})`.
+- **Changeable later:** the existing options flow gains the same toggle, so the
+  user can switch between read-only and read-write without removing the
+  integration.
+- **Multiple accounts:** because the setting lives per entry, one account can be
+  read-write while another stays read-only.
+
+**Enforcement model:** all five services are always registered at the domain
+level (registration does not depend on mode). The mode is enforced **per call**:
+each write handler resolves the targeted profile's owning config entry (target
+resolution already yields the entry) and checks
+`entry.options.get(CONF_ALLOW_WRITES, False)`. If `False`, the handler raises
+`ServiceValidationError` explaining the integration is in read-only mode and how
+to enable writes. This keeps multi-entry behaviour correct and avoids services
+appearing/disappearing as modes change.
+
 ## Services
 
 All services target a profile via the HA `target` mechanism (device picker).
@@ -188,6 +214,17 @@ variants.
 - `strings.json`: add a `services:` section with names, descriptions, and field
   labels/descriptions for each service and field.
 
+### `config_flow.py` + `const.py`
+
+- Add `CONF_ALLOW_WRITES` constant (default `False`) to `const.py`.
+- Config flow user step: add an "Enable write actions" boolean (default off).
+  On create, seed `entry.options={CONF_ALLOW_WRITES: <value>}` so the same key
+  is the single source of truth that the options flow later edits.
+- Options flow: add the same boolean alongside the existing `update_interval`
+  and `enable_gps_tracking` options.
+- `strings.json` + `translations/`: labels/descriptions for the new field in
+  both the setup and options steps.
+
 ### `__init__.py`
 
 - Call `async_setup_services(hass)` in `async_setup_entry`.
@@ -197,7 +234,9 @@ variants.
 ## Data flow (example: add_extra_time)
 
 1. User calls `qustodio.add_extra_time` targeting profile device, `minutes: 15`.
-2. Handler resolves device → profile_uid + API client + coordinator.
+2. Handler resolves device → config entry + profile_uid + API client +
+   coordinator, and checks `CONF_ALLOW_WRITES` on the entry (raises
+   `ServiceValidationError` if read-only).
 3. Handler builds rrule (`DTSTART:<local now>\nFREQ=DAILY;COUNT=1`) and calls
    `create_calendar_restriction(profile_uid, 2, 900, rrule)`.
 4. API client POSTs; on success returns the created restriction (with uid).
@@ -207,6 +246,8 @@ variants.
 
 - Reuse the existing `QustodioException` hierarchy for transport/API failures.
 - Service-level user errors raise `homeassistant.exceptions.ServiceValidationError`:
+  - Any write service when the targeted entry is in read-only mode
+    (`CONF_ALLOW_WRITES` false) — explains how to enable writes in options.
   - `resume_internet` / `cancel_extra_time` when no active restriction exists —
     explicit error, not a silent no-op.
   - `activate_routine` when the routine name doesn't match — error message lists
@@ -223,7 +264,10 @@ New `tests/test_services.py`:
 - Each service happy path: asserts correct HTTP method, URL, and payload via a
   mocked API client; asserts `async_request_refresh` is called.
 - Error cases: unknown routine name, no active restriction to cancel/resume,
-  invalid target.
+  invalid target, and **read-only mode rejecting every write service**.
+
+Extend `tests/test_config_flow.py` / `test_options_flow.py` for the new
+`CONF_ALLOW_WRITES` field (default off at setup; toggling in options).
 
 Extend `tests/test_api.py` for the new write methods (success, 401, 429, 5xx,
 and the active-restriction query returning empty vs populated).
