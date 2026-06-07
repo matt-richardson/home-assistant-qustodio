@@ -222,6 +222,28 @@ async def test_activate_routine_resolves_name_and_creates_schedule():
     target.coordinator.async_request_refresh.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_activate_routine_unknown_name_on_one_target_writes_nothing():
+    """A routine name missing on one target must prevent writes on all targets."""
+    api_a = AsyncMock()
+    api_a.get_routines.return_value = [{"uid": "rou-9", "name": "Games allowed"}]
+    api_b = AsyncMock()
+    api_b.get_routines.return_value = [{"uid": "rou-1", "name": "Bedtime"}]  # no "Games allowed"
+    target_a = _resolved(api=api_a)
+    target_b = _resolved(api=api_b)
+    call = MagicMock()
+    call.data = {"device_id": ["device-a", "device-b"], "routine": "Games allowed", "duration_minutes": 30}
+    with patch(
+        "custom_components.qustodio.services._resolve_target",
+        side_effect=[target_a, target_b],
+    ):
+        with pytest.raises(ServiceValidationError):
+            await services._async_activate_routine(MagicMock(), call)
+    # Name resolution happens for all targets before any write, so nothing is written.
+    api_a.create_routine_schedule.assert_not_awaited()
+    api_b.create_routine_schedule.assert_not_awaited()
+
+
 def test_async_setup_services_registers_all():
     """Test that async_setup_services registers all five expected service names."""
     hass = MagicMock()

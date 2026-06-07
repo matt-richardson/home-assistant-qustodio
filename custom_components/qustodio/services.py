@@ -320,9 +320,12 @@ async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> Non
     targets = _targets(hass, call)
     _LOGGER.debug("activate_routine: %s for %s minutes for %d target(s)", name, duration, len(targets))
     payload = build_routine_override_payload(dt_util.now(), duration)
-    for target in targets:
-        routines = await target.api.get_routines(target.profile_uid)
-        routine_uid = resolve_routine_uid(routines, name)
+    # Resolve the routine name on every target before writing anything, so a name
+    # that is missing on one profile cannot leave a partial write on another.
+    resolved = [
+        (target, resolve_routine_uid(await target.api.get_routines(target.profile_uid), name)) for target in targets
+    ]
+    for target, routine_uid in resolved:
         await target.api.create_routine_schedule(target.profile_uid, routine_uid, payload)
         await target.coordinator.async_request_refresh()
 
