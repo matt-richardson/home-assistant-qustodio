@@ -23,6 +23,7 @@ from .const import (
     RESTRICTION_TYPE_EXTRA_TIME,
     RESTRICTION_TYPE_PAUSE_INTERNET,
 )
+from .exceptions import QustodioAPIError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -307,6 +308,25 @@ async def _async_cancel_extra_time(hass: HomeAssistant, call: ServiceCall) -> No
     await _async_cancel_restriction(hass, call, "extra_time", "extra-time grant")
 
 
+async def _clear_active_override(target: ResolvedTarget) -> None:
+    """Delete the profile's active routine override, if any.
+
+    Qustodio permits only one active override per profile, so an existing one
+    must be removed before a new routine can be activated.
+
+    Args:
+        target: The resolved profile context to clear the override for.
+
+    """
+    active_uid = await target.api.get_active_routine_uid(target.profile_id)
+    if not active_uid:
+        return
+    schedules = await target.api.get_routine_schedules(target.profile_uid, active_uid)
+    for schedule in schedules:
+        if schedule.get("overrides"):
+            await target.api.delete_routine_schedule(target.profile_uid, active_uid, schedule["uid"])
+
+
 async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> None:
     """Activate a routine for a fixed duration via a schedule override.
 
@@ -326,7 +346,16 @@ async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> Non
         (target, resolve_routine_uid(await target.api.get_routines(target.profile_uid), name)) for target in targets
     ]
     for target, routine_uid in resolved:
-        await target.api.create_routine_schedule(target.profile_uid, routine_uid, payload)
+        await _clear_active_override(target)
+        try:
+            await target.api.create_routine_schedule(target.profile_uid, routine_uid, payload)
+        except QustodioAPIError as err:
+            if getattr(err, "status_code", None) == 409:
+                raise ServiceValidationError(
+                    "A routine override is already active for this profile. "
+                    "Cancel it in the Qustodio app and try again."
+                ) from err
+            raise
         await target.coordinator.async_request_refresh()
 
 

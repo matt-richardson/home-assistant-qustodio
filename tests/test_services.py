@@ -210,6 +210,7 @@ async def test_activate_routine_resolves_name_and_creates_schedule():
     """Test that _async_activate_routine resolves routine name and calls create_routine_schedule."""
     api = AsyncMock()
     api.get_routines.return_value = [{"uid": "rou-9", "name": "Games allowed"}]
+    api.get_active_routine_uid.return_value = None
     target = _resolved(api=api)
     call = MagicMock()
     call.data = {"device_id": ["device-1"], "routine": "Games allowed", "duration_minutes": 30}
@@ -294,3 +295,58 @@ def test_async_unload_services_removes_registered():
         "cancel_extra_time",
         "activate_routine",
     }
+
+
+@pytest.mark.asyncio
+async def test_activate_routine_clears_existing_override_first():
+    """Test that _async_activate_routine deletes an existing override before creating a new one."""
+    api = AsyncMock()
+    api.get_routines.return_value = [{"uid": "rou-new", "name": "Games allowed"}]
+    api.get_active_routine_uid.return_value = "rou-active"
+    api.get_routine_schedules.return_value = [
+        {"uid": "regular", "overrides": False},
+        {"uid": "ov-1", "overrides": True},
+    ]
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "routine": "Games allowed", "duration_minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_activate_routine(MagicMock(), call)
+    # Only the override (not the regular schedule) is deleted, on the active routine.
+    api.delete_routine_schedule.assert_awaited_once_with("uid-11", "rou-active", "ov-1")
+    api.create_routine_schedule.assert_awaited_once()
+    p_uid, r_uid, _payload = api.create_routine_schedule.await_args.args
+    assert (p_uid, r_uid) == ("uid-11", "rou-new")
+
+
+@pytest.mark.asyncio
+async def test_activate_routine_no_existing_override_skips_delete():
+    """Test that _async_activate_routine skips deletion when no active routine is set."""
+    api = AsyncMock()
+    api.get_routines.return_value = [{"uid": "rou-new", "name": "Games allowed"}]
+    api.get_active_routine_uid.return_value = None
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "routine": "Games allowed", "duration_minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_activate_routine(MagicMock(), call)
+    api.get_routine_schedules.assert_not_awaited()
+    api.delete_routine_schedule.assert_not_awaited()
+    api.create_routine_schedule.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_activate_routine_maps_409_to_validation_error():
+    """Test that a 409 from create_routine_schedule is surfaced as ServiceValidationError."""
+    from custom_components.qustodio.exceptions import QustodioAPIError
+
+    api = AsyncMock()
+    api.get_routines.return_value = [{"uid": "rou-new", "name": "Games allowed"}]
+    api.get_active_routine_uid.return_value = None
+    api.create_routine_schedule.side_effect = QustodioAPIError("conflict", status_code=409)
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "routine": "Games allowed", "duration_minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        with pytest.raises(ServiceValidationError):
+            await services._async_activate_routine(MagicMock(), call)

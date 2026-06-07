@@ -1801,3 +1801,73 @@ class TestCalendarRestrictionAndRoutines:
         with patch.object(api, "_get_session", AsyncMock(return_value=session)):
             with pytest.raises(QustodioDataError):
                 await api.get_active_restriction("puid", "extra_time")
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_returns_field(self):
+        """Test get_active_routine_uid returns the active_routine field from the profile."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"active_routine": "rou-7"})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_routine_uid("11282538")
+        assert result == "rou-7"
+        method, url = session.request.call_args.args
+        assert method == "GET"
+        assert url.endswith("/v1/accounts/acc_id/profiles/11282538")
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_returns_none_when_absent(self):
+        """Test get_active_routine_uid returns None when active_routine is not set."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"active_routine": None})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_active_routine_uid("11282538")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_active_routine_uid_raises_on_non_dict(self):
+        """Test get_active_routine_uid raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_active_routine_uid("11282538")
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_returns_items(self):
+        """Test get_routine_schedules returns the items_list from the API."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 1, "items_list": [{"uid": "s1", "overrides": True}]})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routine_schedules("puid", "rou-7")
+        assert result == [{"uid": "s1", "overrides": True}]
+        _, url = session.request.call_args.args
+        assert url.endswith("/routines/rou-7/schedules")
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_returns_empty_when_missing(self):
+        """Test get_routine_schedules returns empty list when items_list is absent."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"total_count": 0})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_routine_schedules("puid", "rou-7")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_routine_schedules_raises_on_non_dict(self):
+        """Test get_routine_schedules raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_routine_schedules("puid", "rou-7")
+
+    @pytest.mark.asyncio
+    async def test_delete_routine_schedule_calls_delete(self):
+        """Test delete_routine_schedule sends a DELETE request for the schedule."""
+        api = _ready_api()
+        session = _mock_session(204)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.delete_routine_schedule("puid", "rou-7", "s1")
+        method, url = session.request.call_args.args
+        assert method == "DELETE"
+        assert url.endswith("/routines/rou-7/schedules/s1")

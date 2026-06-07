@@ -937,3 +937,48 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         if not isinstance(result, dict):
             raise QustodioDataError(f"Unexpected response creating routine schedule: {result}")
         return result
+
+    async def get_active_routine_uid(self, profile_id: str) -> str | None:
+        """Return the uid of the profile's currently active routine, or None.
+
+        Args:
+            profile_id: Numeric profile id (not the uid).
+
+        Returns:
+            The active routine uid, or None when no routine is active.
+        """
+        await self._ensure_account_info()
+        url = f"{API_BASE}/v1/accounts/{self._account_id}/profiles/{profile_id}"
+        result = await self._authenticated_request("GET", url)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response fetching profile: {result}")
+        return result.get("active_routine")
+
+    async def get_routine_schedules(self, profile_uid: str, routine_uid: str) -> list[dict[str, Any]]:
+        """Return the schedules (including overrides) for a routine.
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID to query.
+
+        Returns:
+            List of schedule dicts for the routine.
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/routines/{routine_uid}/schedules"
+        result = await self._authenticated_request("GET", url)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response listing routine schedules: {result}")
+        return result.get("items_list", [])
+
+    async def delete_routine_schedule(self, profile_uid: str, routine_uid: str, schedule_uid: str) -> None:
+        """Delete a routine schedule (e.g. an active override) by uid.
+
+        Args:
+            profile_uid: Profile UUID.
+            routine_uid: Routine UUID containing the schedule.
+            schedule_uid: Schedule UUID to delete.
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/routines/{routine_uid}/schedules/{schedule_uid}"
+        await self._authenticated_request("DELETE", url)
