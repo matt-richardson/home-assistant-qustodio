@@ -83,6 +83,17 @@ def test_resolve_target_returns_profile_context():
     assert target.profile_uid == "uid-11"
     assert target.coordinator is coordinator
     assert target.api is coordinator.api
+    assert target.profile_id == "11"
+
+
+def test_resolve_target_child_device_raises():
+    """Targeting a child-device HA device (not the profile) is rejected."""
+    hass, registry, coordinator, _ = _fake_hass_with_profile(profile_id="11")
+    device = registry.async_get.return_value
+    device.identifiers = {(DOMAIN, "11_99")}  # child-device identifier, not a profile key
+    with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
+        with pytest.raises(ServiceValidationError, match="child device"):
+            services._resolve_target(hass, "device-1")
 
 
 def test_resolve_target_read_only_raises():
