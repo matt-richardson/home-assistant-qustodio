@@ -14,9 +14,11 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CONF_ALLOW_WRITES,
     CONF_APP_USAGE_CACHE_INTERVAL,
     CONF_ENABLE_GPS_TRACKING,
     CONF_UPDATE_INTERVAL,
+    DEFAULT_ALLOW_WRITES,
     DEFAULT_APP_USAGE_CACHE_INTERVAL,
     DEFAULT_ENABLE_GPS_TRACKING,
     DEFAULT_UPDATE_INTERVAL,
@@ -54,6 +56,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_ALLOW_WRITES, default=DEFAULT_ALLOW_WRITES): bool,
     }
 )
 
@@ -178,10 +181,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                 await self.async_set_unique_id(username.lower())
                 self._abort_if_unique_id_configured()
 
-                # Store the profiles data in the config entry
+                # Pop write-mode toggle into options so it stays out of config data
+                allow_writes = user_input.pop(CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES)
                 user_input[CONF_USERNAME] = username  # Use sanitized username
                 user_input["profiles"] = info["profiles"]
-                return self.async_create_entry(title=info["title"], data=user_input)  # type: ignore[return-value]
+                return self.async_create_entry(  # type: ignore[return-value]
+                    title=info["title"],
+                    data=user_input,
+                    options={CONF_ALLOW_WRITES: allow_writes},
+                )
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
@@ -277,6 +285,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_interval = self._config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         current_gps = self._config_entry.options.get(CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING)
         current_cache = self._config_entry.options.get(CONF_APP_USAGE_CACHE_INTERVAL, DEFAULT_APP_USAGE_CACHE_INTERVAL)
+        current_allow_writes = self._config_entry.options.get(CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES)
 
         options_schema = vol.Schema(
             {
@@ -294,6 +303,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=current_cache,
                     description={"suggested_value": current_cache},
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
+                vol.Optional(
+                    CONF_ALLOW_WRITES,
+                    default=current_allow_writes,
+                ): bool,
             }
         )
 

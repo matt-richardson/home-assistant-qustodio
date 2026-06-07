@@ -6,7 +6,11 @@
         "description": "Enter your Qustodio credentials",
         "data": {
           "username": "Username (Email)",
-          "password": "Password"
+          "password": "Password",
+          "allow_writes": "Enable write actions (read-write mode)"
+        },
+        "data_description": {
+          "allow_writes": "Allow services to change Qustodio settings (extra time, pause internet, routines). Leave off for read-only."
         }
       },
       "reauth_confirm": {
@@ -34,11 +38,13 @@
         "description": "Configure Qustodio integration options",
         "data": {
           "update_interval": "Update interval (minutes)",
-          "enable_gps_tracking": "Enable GPS tracking"
+          "enable_gps_tracking": "Enable GPS tracking",
+          "allow_writes": "Enable write actions (read-write mode)"
         },
         "data_description": {
           "update_interval": "How often to fetch data from Qustodio (1-60 minutes). Lower values provide more real-time data but increase API usage.",
-          "enable_gps_tracking": "Enable GPS device tracking for profiles. Disable to only show screen time sensors."
+          "enable_gps_tracking": "Enable GPS device tracking for profiles. Disable to only show screen time sensors.",
+          "allow_writes": "Allow services to change Qustodio settings. Leave off for read-only."
         }
       }
     }

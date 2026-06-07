@@ -6,11 +6,13 @@
         "description": "Enter your Qustodio account credentials to connect your profiles and devices.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
-          "password": "[%key:common::config_flow::data::password%]"
+          "password": "[%key:common::config_flow::data::password%]",
+          "allow_writes": "Enable write actions (read-write mode)"
         },
         "data_description": {
           "username": "Your Qustodio account email address",
-          "password": "Your Qustodio account password"
+          "password": "Your Qustodio account password",
+          "allow_writes": "Allow services to change Qustodio settings (extra time, pause internet, routines). Leave off for read-only."
         }
       },
       "reauth_confirm": {
@@ -46,12 +48,14 @@
         "data": {
           "update_interval": "Update interval (minutes)",
           "enable_gps_tracking": "Enable GPS location tracking",
-          "app_usage_cache_interval": "App usage cache interval (minutes)"
+          "app_usage_cache_interval": "App usage cache interval (minutes)",
+          "allow_writes": "Enable write actions (read-write mode)"
         },
         "data_description": {
           "update_interval": "How often to check for updates (1-60 minutes)",
           "enable_gps_tracking": "Track device locations using GPS coordinates",
-          "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)"
+          "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)",
+          "allow_writes": "Allow services to change Qustodio settings. Leave off for read-only."
         }
       }
     }
