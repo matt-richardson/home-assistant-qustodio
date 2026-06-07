@@ -61,3 +61,6 @@ homeassistant_test/secrets.yaml
 .DS_Store
 Thumbs.db
 docs/qustodio_api_documentation.md
+
+# Local-only superpowers design/plan docs (kept on disk, not tracked)
+docs/superpowers/
