@@ -5,13 +5,24 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+import voluptuous as vol
+from homeassistant.const import ATTR_DEVICE_ID
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.util import dt as dt_util
 
-from .const import CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES, DOMAIN
+from .const import (
+    CONF_ALLOW_WRITES,
+    DEFAULT_ALLOW_WRITES,
+    DOMAIN,
+    RESTRICTION_TYPE_EXTRA_TIME,
+    RESTRICTION_TYPE_PAUSE_INTERNET,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -152,3 +163,193 @@ def resolve_routine_uid(routines: list[dict[str, Any]], name: str) -> str:
             return routine["uid"]
     available = ", ".join(sorted(r.get("name", "?") for r in routines)) or "(none)"
     raise ServiceValidationError(f"Routine '{name}' not found. Available routines: {available}")
+
+
+# ---------------------------------------------------------------------------
+# Service name constants
+# ---------------------------------------------------------------------------
+
+SERVICE_ADD_EXTRA_TIME = "add_extra_time"
+SERVICE_PAUSE_INTERNET = "pause_internet"
+SERVICE_RESUME_INTERNET = "resume_internet"
+SERVICE_CANCEL_EXTRA_TIME = "cancel_extra_time"
+SERVICE_ACTIVATE_ROUTINE = "activate_routine"
+
+ATTR_MINUTES = "minutes"
+ATTR_DURATION_MINUTES = "duration_minutes"
+ATTR_ROUTINE = "routine"
+
+# ---------------------------------------------------------------------------
+# Voluptuous schemas
+# ---------------------------------------------------------------------------
+
+_MINUTES = vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
+_TARGET = {vol.Required(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string])}
+
+SCHEMA_ADD_EXTRA_TIME = vol.Schema({**_TARGET, vol.Required(ATTR_MINUTES): _MINUTES})
+SCHEMA_PAUSE_INTERNET = vol.Schema({**_TARGET, vol.Required(ATTR_MINUTES): _MINUTES})
+SCHEMA_RESUME_INTERNET = vol.Schema(_TARGET)
+SCHEMA_CANCEL_EXTRA_TIME = vol.Schema(_TARGET)
+SCHEMA_ACTIVATE_ROUTINE = vol.Schema(
+    {**_TARGET, vol.Required(ATTR_ROUTINE): cv.string, vol.Required(ATTR_DURATION_MINUTES): _MINUTES}
+)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _targets(hass: HomeAssistant, call: ServiceCall) -> list[ResolvedTarget]:
+    """Resolve every targeted device to a profile context.
+
+    Args:
+        hass: Home Assistant instance.
+        call: The service call containing device_id list.
+
+    Returns:
+        List of resolved profile contexts.
+
+    """
+    return [_resolve_target(hass, device_id) for device_id in call.data[ATTR_DEVICE_ID]]
+
+
+# ---------------------------------------------------------------------------
+# Service handlers
+# ---------------------------------------------------------------------------
+
+
+async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Grant a profile extra screen time today.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id and minutes fields.
+
+    """
+    minutes = call.data[ATTR_MINUTES]
+    rrule = build_extra_time_rrule(dt_util.now())
+    for target in _targets(hass, call):
+        await target.api.create_calendar_restriction(
+            target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, minutes * 60, rrule
+        )
+        await target.coordinator.async_request_refresh()
+
+
+async def _async_pause_internet(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Pause a profile's internet for the given number of minutes.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id and minutes fields.
+
+    """
+    minutes = call.data[ATTR_MINUTES]
+    rrule = build_pause_rrule(dt_util.now(), minutes)
+    for target in _targets(hass, call):
+        await target.api.create_calendar_restriction(target.profile_uid, RESTRICTION_TYPE_PAUSE_INTERNET, 0, rrule)
+        await target.coordinator.async_request_refresh()
+
+
+async def _async_cancel_restriction(hass: HomeAssistant, call: ServiceCall, kind: str, label: str) -> None:
+    """Cancel the newest active restriction of the given kind for each target.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id field.
+        kind: Restriction kind string (e.g. 'pause_internet', 'extra_time').
+        label: Human-readable label used in error messages.
+
+    Raises:
+        ServiceValidationError: When no active restriction of the given kind exists.
+
+    """
+    for target in _targets(hass, call):
+        active = await target.api.get_active_restriction(target.profile_uid, kind)
+        if not active:
+            raise ServiceValidationError(f"No active {label} to cancel for this profile.")
+        await target.api.delete_calendar_restriction(target.profile_uid, active["uid"])
+        await target.coordinator.async_request_refresh()
+
+
+async def _async_resume_internet(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Cancel an active internet pause for a profile.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id field.
+
+    """
+    await _async_cancel_restriction(hass, call, "pause_internet", "internet pause")
+
+
+async def _async_cancel_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Cancel an active extra-time grant for a profile.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id field.
+
+    """
+    await _async_cancel_restriction(hass, call, "extra_time", "extra-time grant")
+
+
+async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Activate a routine for a fixed duration via a schedule override.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id, routine, and duration_minutes fields.
+
+    """
+    name = call.data[ATTR_ROUTINE]
+    duration = call.data[ATTR_DURATION_MINUTES]
+    payload = build_routine_override_payload(dt_util.now(), duration)
+    for target in _targets(hass, call):
+        routines = await target.api.get_routines(target.profile_uid)
+        routine_uid = resolve_routine_uid(routines, name)
+        await target.api.create_routine_schedule(target.profile_uid, routine_uid, payload)
+        await target.coordinator.async_request_refresh()
+
+
+# ---------------------------------------------------------------------------
+# Registration / teardown
+# ---------------------------------------------------------------------------
+
+
+def async_setup_services(hass: HomeAssistant) -> None:
+    """Register Qustodio services (idempotent across config entries).
+
+    Args:
+        hass: Home Assistant instance.
+
+    """
+    if hass.services.has_service(DOMAIN, SERVICE_ADD_EXTRA_TIME):
+        return
+    registrations = [
+        (SERVICE_ADD_EXTRA_TIME, _async_add_extra_time, SCHEMA_ADD_EXTRA_TIME),
+        (SERVICE_PAUSE_INTERNET, _async_pause_internet, SCHEMA_PAUSE_INTERNET),
+        (SERVICE_RESUME_INTERNET, _async_resume_internet, SCHEMA_RESUME_INTERNET),
+        (SERVICE_CANCEL_EXTRA_TIME, _async_cancel_extra_time, SCHEMA_CANCEL_EXTRA_TIME),
+        (SERVICE_ACTIVATE_ROUTINE, _async_activate_routine, SCHEMA_ACTIVATE_ROUTINE),
+    ]
+    for name, handler, schema in registrations:
+        hass.services.async_register(DOMAIN, name, partial(handler, hass), schema=schema)
+
+
+def async_unload_services(hass: HomeAssistant) -> None:
+    """Remove Qustodio services.
+
+    Args:
+        hass: Home Assistant instance.
+
+    """
+    for name in (
+        SERVICE_ADD_EXTRA_TIME,
+        SERVICE_PAUSE_INTERNET,
+        SERVICE_RESUME_INTERNET,
+        SERVICE_CANCEL_EXTRA_TIME,
+        SERVICE_ACTIVATE_ROUTINE,
+    ):
+        if hass.services.has_service(DOMAIN, name):
+            hass.services.async_remove(DOMAIN, name)

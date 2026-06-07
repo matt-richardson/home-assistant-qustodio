@@ -1,7 +1,7 @@
 """Tests for Qustodio services."""
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
@@ -113,3 +113,140 @@ def test_resolve_target_unknown_device_raises():
     with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
         with pytest.raises(ServiceValidationError):
             services._resolve_target(hass, "missing")
+
+
+# ---------------------------------------------------------------------------
+# Task 7 tests: service handlers and registration
+# ---------------------------------------------------------------------------
+
+
+def _resolved(api=None):
+    """Build a ResolvedTarget with mocked coordinator and optional api."""
+    coordinator = MagicMock()
+    coordinator.async_request_refresh = AsyncMock()
+    return services.ResolvedTarget(
+        coordinator=coordinator,
+        api=api or AsyncMock(),
+        profile_id="11",
+        profile_uid="uid-11",
+    )
+
+
+@pytest.mark.asyncio
+async def test_add_extra_time_creates_restriction_and_refreshes():
+    """Test that _async_add_extra_time calls create_calendar_restriction and refreshes."""
+    target = _resolved()
+    hass = MagicMock()
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_add_extra_time(hass, call)
+    target.api.create_calendar_restriction.assert_awaited_once()
+    args = target.api.create_calendar_restriction.await_args.args
+    assert args[0] == "uid-11"
+    assert args[1] == 2
+    assert args[2] == 900
+    target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_pause_internet_creates_pause_restriction():
+    """Test that _async_pause_internet calls create_calendar_restriction with type 3."""
+    target = _resolved()
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "minutes": 20}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_pause_internet(MagicMock(), call)
+    args = target.api.create_calendar_restriction.await_args.args
+    assert args[0] == "uid-11"
+    assert args[1] == 3
+    assert args[2] == 0
+    target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resume_internet_deletes_active_pause():
+    """Test that _async_resume_internet looks up and deletes an active pause restriction."""
+    api = AsyncMock()
+    api.get_active_restriction.return_value = {"uid": "pause-1"}
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"]}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_resume_internet(MagicMock(), call)
+    api.get_active_restriction.assert_awaited_once_with("uid-11", "pause_internet")
+    api.delete_calendar_restriction.assert_awaited_once_with("uid-11", "pause-1")
+
+
+@pytest.mark.asyncio
+async def test_resume_internet_no_active_raises():
+    """Test that _async_resume_internet raises ServiceValidationError when no active pause."""
+    api = AsyncMock()
+    api.get_active_restriction.return_value = None
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"]}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        with pytest.raises(ServiceValidationError):
+            await services._async_resume_internet(MagicMock(), call)
+
+
+@pytest.mark.asyncio
+async def test_cancel_extra_time_deletes_active_extra_time():
+    """Test that _async_cancel_extra_time looks up and deletes an active extra-time grant."""
+    api = AsyncMock()
+    api.get_active_restriction.return_value = {"uid": "et-1"}
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"]}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_cancel_extra_time(MagicMock(), call)
+    api.get_active_restriction.assert_awaited_once_with("uid-11", "extra_time")
+    api.delete_calendar_restriction.assert_awaited_once_with("uid-11", "et-1")
+
+
+@pytest.mark.asyncio
+async def test_activate_routine_resolves_name_and_creates_schedule():
+    """Test that _async_activate_routine resolves routine name and calls create_routine_schedule."""
+    api = AsyncMock()
+    api.get_routines.return_value = [{"uid": "rou-9", "name": "Games allowed"}]
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "routine": "Games allowed", "duration_minutes": 30}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_activate_routine(MagicMock(), call)
+    api.create_routine_schedule.assert_awaited_once()
+    p_uid, r_uid, payload = api.create_routine_schedule.await_args.args
+    assert (p_uid, r_uid) == ("uid-11", "rou-9")
+    assert payload["duration_minutes"] == 30
+    target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+def test_async_setup_services_registers_all():
+    """Test that async_setup_services registers all five expected service names."""
+    hass = MagicMock()
+    hass.services.has_service.return_value = False
+    services.async_setup_services(hass)
+    registered = {c.args[1] for c in hass.services.async_register.call_args_list}
+    assert registered == {
+        "add_extra_time",
+        "pause_internet",
+        "resume_internet",
+        "cancel_extra_time",
+        "activate_routine",
+    }
+
+
+def test_async_unload_services_removes_registered():
+    """Test that async_unload_services removes all five expected service names."""
+    hass = MagicMock()
+    hass.services.has_service.return_value = True
+    services.async_unload_services(hass)
+    removed = {c.args[1] for c in hass.services.async_remove.call_args_list}
+    assert removed == {
+        "add_extra_time",
+        "pause_internet",
+        "resume_internet",
+        "cancel_extra_time",
+        "activate_routine",
+    }
