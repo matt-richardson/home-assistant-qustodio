@@ -228,8 +228,10 @@ async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
 
     """
     minutes = call.data[ATTR_MINUTES]
+    targets = _targets(hass, call)
+    _LOGGER.debug("add_extra_time: %s minutes for %d target(s)", minutes, len(targets))
     rrule = build_extra_time_rrule(dt_util.now())
-    for target in _targets(hass, call):
+    for target in targets:
         await target.api.create_calendar_restriction(
             target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, minutes * 60, rrule
         )
@@ -245,14 +247,19 @@ async def _async_pause_internet(hass: HomeAssistant, call: ServiceCall) -> None:
 
     """
     minutes = call.data[ATTR_MINUTES]
+    targets = _targets(hass, call)
+    _LOGGER.debug("pause_internet: %s minutes for %d target(s)", minutes, len(targets))
     rrule = build_pause_rrule(dt_util.now(), minutes)
-    for target in _targets(hass, call):
+    for target in targets:
         await target.api.create_calendar_restriction(target.profile_uid, RESTRICTION_TYPE_PAUSE_INTERNET, 0, rrule)
         await target.coordinator.async_request_refresh()
 
 
 async def _async_cancel_restriction(hass: HomeAssistant, call: ServiceCall, kind: str, label: str) -> None:
-    """Cancel the newest active restriction of the given kind for each target.
+    """Cancel active restrictions of the given kind across all targeted profiles.
+
+    Best-effort: cancels every target that has an active restriction. Raises only
+    if no targeted profile had one to cancel.
 
     Args:
         hass: Home Assistant instance.
@@ -261,15 +268,21 @@ async def _async_cancel_restriction(hass: HomeAssistant, call: ServiceCall, kind
         label: Human-readable label used in error messages.
 
     Raises:
-        ServiceValidationError: When no active restriction of the given kind exists.
+        ServiceValidationError: When no targeted profile had an active restriction to cancel.
 
     """
-    for target in _targets(hass, call):
+    _LOGGER.debug("cancel_restriction kind=%s", kind)
+    targets = _targets(hass, call)
+    cancelled = 0
+    for target in targets:
         active = await target.api.get_active_restriction(target.profile_uid, kind)
         if not active:
-            raise ServiceValidationError(f"No active {label} to cancel for this profile.")
+            continue
         await target.api.delete_calendar_restriction(target.profile_uid, active["uid"])
         await target.coordinator.async_request_refresh()
+        cancelled += 1
+    if cancelled == 0:
+        raise ServiceValidationError(f"No active {label} to cancel for the targeted profile(s).")
 
 
 async def _async_resume_internet(hass: HomeAssistant, call: ServiceCall) -> None:
@@ -304,8 +317,10 @@ async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> Non
     """
     name = call.data[ATTR_ROUTINE]
     duration = call.data[ATTR_DURATION_MINUTES]
+    targets = _targets(hass, call)
+    _LOGGER.debug("activate_routine: %s for %s minutes for %d target(s)", name, duration, len(targets))
     payload = build_routine_override_payload(dt_util.now(), duration)
-    for target in _targets(hass, call):
+    for target in targets:
         routines = await target.api.get_routines(target.profile_uid)
         routine_uid = resolve_routine_uid(routines, name)
         await target.api.create_routine_schedule(target.profile_uid, routine_uid, payload)

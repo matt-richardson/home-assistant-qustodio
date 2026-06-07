@@ -237,6 +237,28 @@ def test_async_setup_services_registers_all():
     }
 
 
+def test_resolve_target_non_qustodio_entry_raises():
+    """A device whose config entries aren't Qustodio coordinators is rejected."""
+    hass = MagicMock()
+    hass.data = {DOMAIN: {}}  # no coordinators registered
+    device = MagicMock()
+    device.identifiers = {(DOMAIN, "11")}
+    device.config_entries = {"some_other_entry"}
+    registry = MagicMock()
+    registry.async_get.return_value = device
+    with patch("custom_components.qustodio.services.dr.async_get", return_value=registry):
+        with pytest.raises(ServiceValidationError):
+            services._resolve_target(hass, "device-1")
+
+
+def test_async_setup_services_idempotent_when_already_registered():
+    """Test that async_setup_services returns early when services are already registered."""
+    hass = MagicMock()
+    hass.services.has_service.return_value = True
+    services.async_setup_services(hass)
+    hass.services.async_register.assert_not_called()
+
+
 def test_async_unload_services_removes_registered():
     """Test that async_unload_services removes all five expected service names."""
     hass = MagicMock()
