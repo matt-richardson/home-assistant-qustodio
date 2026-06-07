@@ -823,6 +823,16 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             _LOGGER.error("Unexpected error getting app usage: %s", err)
             raise QustodioAPIError(f"Unexpected error while fetching app usage: {err}") from err
 
+    def _profile_v2_base(self, profile_uid: str) -> str:
+        """Build the v2 base URL for a profile, validating account_uid.
+
+        Raises:
+            QustodioDataError: account_uid is not available.
+        """
+        if not self._account_uid:
+            raise QustodioDataError("Account UID not available")
+        return f"{API_BASE}/v2/accounts/{self._account_uid}/profiles/{profile_uid}"
+
     async def create_calendar_restriction(
         self, profile_uid: str, restriction_type: int, duration: int, rrule: str
     ) -> dict[str, Any]:
@@ -838,9 +848,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             The created restriction (includes its ``uid``).
         """
         await self._ensure_account_info()
-        if not self._account_uid:
-            raise QustodioDataError("Account UID not available")
-        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions"
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/rules/calendar_restrictions"
         body = {
             "account_uid": self._account_uid,
             "profile_uid": profile_uid,
@@ -871,9 +880,12 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             "extra_time": "newest_today_extra_time",
             "pause_internet": "newest_today_pause_internet",
         }[kind]
-        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions"
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/rules/calendar_restrictions"
         result = await self._authenticated_request("GET", url, params={"custom_filter": custom_filter})
-        items = result.get("items_list", []) if isinstance(result, dict) else []
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response querying restrictions: {result}")
+        items = result.get("items_list", [])
         return items[0] if items else None
 
     async def delete_calendar_restriction(self, profile_uid: str, uid: str) -> None:
@@ -884,7 +896,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             uid: Restriction UUID to delete.
         """
         await self._ensure_account_info()
-        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/rules/calendar_restrictions/{uid}"
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/rules/calendar_restrictions/{uid}"
         await self._authenticated_request("DELETE", url)
 
     async def get_routines(self, profile_uid: str) -> list[dict[str, Any]]:
@@ -897,7 +910,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             List of routine dicts from the API.
         """
         await self._ensure_account_info()
-        url = f"{API_BASE}/v2/accounts/{self._account_uid}/profiles/{profile_uid}/routines"
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/routines"
         result = await self._authenticated_request("GET", url, params={"include_disabled": 1})
         if not isinstance(result, dict):
             raise QustodioDataError(f"Unexpected response listing routines: {result}")
@@ -917,7 +931,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             The created schedule dict (includes its ``uid``).
         """
         await self._ensure_account_info()
-        url = f"{API_BASE}/v2/accounts/{self._account_uid}" f"/profiles/{profile_uid}/routines/{routine_uid}/schedules"
+        base = self._profile_v2_base(profile_uid)
+        url = f"{base}/routines/{routine_uid}/schedules"
         result = await self._authenticated_request("POST", url, json_body=payload)
         if not isinstance(result, dict):
             raise QustodioDataError(f"Unexpected response creating routine schedule: {result}")

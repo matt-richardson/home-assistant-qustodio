@@ -1783,3 +1783,21 @@ class TestCalendarRestrictionAndRoutines:
         assert method == "POST"
         assert url.endswith("/routines/rouid/schedules")
         assert session.request.call_args.kwargs["json"] == payload
+
+    @pytest.mark.asyncio
+    async def test_create_calendar_restriction_raises_without_account_uid(self):
+        """Test create_calendar_restriction raises QustodioDataError when account_uid is None."""
+        api = _ready_api()
+        api._account_uid = None
+        with patch.object(api, "_ensure_account_info", AsyncMock()):  # don't repopulate uid
+            with pytest.raises(QustodioDataError):
+                await api.create_calendar_restriction("puid", 2, 900, "rrule")
+
+    @pytest.mark.asyncio
+    async def test_get_active_restriction_raises_on_non_dict(self):
+        """Test get_active_restriction raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_active_restriction("puid", "extra_time")
