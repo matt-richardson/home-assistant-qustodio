@@ -48,6 +48,49 @@ Access via: Devices & Services > Qustodio > Configure
 
 ---
 
+## Services
+
+The integration exposes Home Assistant services to control Qustodio profiles. Write actions are **disabled by default** (read-only mode). To enable them, tick **"Enable write actions (read-write mode)"** during initial setup or later via **Devices & Services > Qustodio > Configure**.
+
+Services target a profile using Home Assistant's device picker. Select the profile device (e.g. "Child One"), not an individual device sensor.
+
+### Available Services
+
+| Service | Fields | Description |
+|---|---|---|
+| `qustodio.add_extra_time` | `minutes` (1–1440) | Grant extra screen time today |
+| `qustodio.pause_internet` | `minutes` (1–1440) | Pause internet for a number of minutes |
+| `qustodio.resume_internet` | — | Cancel an active internet pause |
+| `qustodio.cancel_extra_time` | — | Cancel an active extra-time grant |
+| `qustodio.activate_routine` | `routine` (name), `duration_minutes` (1–1440) | Activate a routine for a fixed duration via a one-off schedule override |
+
+### Example Automation
+
+```yaml
+automation:
+  - alias: "Grant 15 minutes when chores done"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.chores_done
+        to: "on"
+    action:
+      - service: qustodio.add_extra_time
+        target:
+          device_id: <your profile device id>
+        data:
+          minutes: 15
+```
+
+### Read-Only Mode
+
+When the integration is in read-only mode (the default), calling any of the above services raises a `ServiceValidationError` with the message:
+
+> Qustodio is in read-only mode. Enable write actions in the integration options to use this service.
+
+Enable write actions in the integration options to resolve this.
+
+---
+
 ## Development
 
 ### Quick Setup
