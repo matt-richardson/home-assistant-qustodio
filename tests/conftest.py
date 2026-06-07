@@ -422,6 +422,7 @@ def hass() -> HomeAssistant:
     hass_instance.config_entries.async_unload_platforms = AsyncMock(return_value=True)
     hass_instance.config_entries.flow = Mock()
     hass_instance.config_entries.flow.async_init = AsyncMock()
+    hass_instance.services = MagicMock()
     return hass_instance
 
 

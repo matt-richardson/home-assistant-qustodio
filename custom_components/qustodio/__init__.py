@@ -14,6 +14,7 @@ from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .coordinator import QustodioDataUpdateCoordinator
 from .models import CoordinatorData
 from .qustodioapi import QustodioApi
+from .services import async_setup_services, async_unload_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +35,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    async_setup_services(hass)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -64,6 +67,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         # Close the API session to prevent resource leaks
         await coordinator.api.close()
+
+        # Remove services once no config entries remain
+        if not hass.data[DOMAIN]:
+            async_unload_services(hass)
 
     return unload_ok
 
