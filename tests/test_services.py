@@ -13,7 +13,7 @@ from custom_components.qustodio.const import CONF_ALLOW_WRITES, DOMAIN
 def test_build_extra_time_rrule():
     """Test that build_extra_time_rrule produces a single-occurrence DTSTART rrule."""
     now = datetime(2026, 6, 7, 11, 38, 19)
-    assert services.build_extra_time_rrule(now) == "DTSTART:20260607T113819\nFREQ=DAILY;COUNT=1"
+    assert services.build_extra_time_rrule(now) == "DTSTART:20260607T113819\nRRULE:FREQ=DAILY;COUNT=1"
 
 
 def test_build_pause_rrule_appends_until():
@@ -133,9 +133,10 @@ def _resolved(api=None):
 
 
 @pytest.mark.asyncio
-async def test_add_extra_time_creates_restriction_and_refreshes():
-    """Test that _async_add_extra_time calls create_calendar_restriction and refreshes."""
+async def test_add_extra_time_creates_restriction_when_none_active():
+    """Test that _async_add_extra_time creates a new restriction when none is active today."""
     target = _resolved()
+    target.api.get_active_restriction.return_value = None
     hass = MagicMock()
     call = MagicMock()
     call.data = {"device_id": ["device-1"], "minutes": 15}
@@ -146,6 +147,26 @@ async def test_add_extra_time_creates_restriction_and_refreshes():
     assert args[0] == "uid-11"
     assert args[1] == 2
     assert args[2] == 900
+    target.api.update_calendar_restriction.assert_not_awaited()
+    target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_add_extra_time_stacks_onto_active_restriction():
+    """Test that _async_add_extra_time adds to an already-active restriction's duration."""
+    target = _resolved()
+    target.api.get_active_restriction.return_value = {"uid": "r1", "duration": 3600}
+    hass = MagicMock()
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_add_extra_time(hass, call)
+    target.api.update_calendar_restriction.assert_awaited_once()
+    args = target.api.update_calendar_restriction.await_args.args
+    assert args[0] == "uid-11"
+    assert args[1] == 2
+    assert args[2] == 4500
+    target.api.create_calendar_restriction.assert_not_awaited()
     target.coordinator.async_request_refresh.assert_awaited_once()
 
 
