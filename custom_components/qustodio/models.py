@@ -152,6 +152,7 @@ class CoordinatorData:
     profiles: dict[str, ProfileData]
     devices: dict[str, DeviceData]
     app_usage: dict[str, list[AppUsage]] | None = None  # profile_id -> list of apps
+    extra_time_minutes: dict[str, int] | None = None  # profile_id -> extra time granted today
 
     def get_profile_devices(self, profile_id: str) -> list[DeviceData]:
         """Get all devices associated with a profile."""
@@ -178,3 +179,16 @@ class CoordinatorData:
         if not self.app_usage:
             return []
         return self.app_usage.get(profile_id, [])
+
+    def get_extra_time_minutes(self, profile_id: str) -> int:
+        """Get today's granted extra time for a profile, in minutes.
+
+        Args:
+            profile_id: Profile ID to get extra time for
+
+        Returns:
+            Extra time in minutes, or 0 if none granted/available
+        """
+        if not self.extra_time_minutes:
+            return 0
+        return self.extra_time_minutes.get(profile_id, 0)

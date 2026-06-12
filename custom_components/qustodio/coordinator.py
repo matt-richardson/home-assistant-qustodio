@@ -70,6 +70,9 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             # Fetch app usage once per hour (cached)
             await self._fetch_app_usage(data)
 
+            # Fetch today's active extra-time grant per profile
+            await self._fetch_extra_time(data)
+
             self._handle_update_success(update_time, data)
             return data
         except QustodioAuthenticationError as err:
@@ -472,3 +475,31 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Using previous cached app usage data due to fetch failure")
             else:
                 data.app_usage = None
+
+    async def _fetch_extra_time(self, data: CoordinatorData) -> None:
+        """Fetch today's active extra-time grant for all profiles.
+
+        Not cached: extra time can change at any moment via the add_extra_time /
+        cancel_extra_time services, which already trigger a refresh.
+
+        Args:
+            data: Coordinator data to update with extra time minutes
+        """
+        if not isinstance(data, CoordinatorData):
+            _LOGGER.debug("Skipping extra time fetch - data is not CoordinatorData instance")
+            return
+
+        extra_time_by_profile: dict[str, int] = {}
+        for profile_id, profile in data.profiles.items():
+            try:
+                active = await self.api.get_active_restriction(profile.uid, "extra_time")
+                extra_time_by_profile[profile_id] = (active.get("duration", 0) // 60) if active else 0
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                _LOGGER.warning(
+                    "Failed to fetch extra time for profile %s: %s",
+                    profile_id,
+                    err,
+                )
+                extra_time_by_profile[profile_id] = 0
+
+        data.extra_time_minutes = extra_time_by_profile

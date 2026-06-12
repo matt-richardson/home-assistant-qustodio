@@ -27,6 +27,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = setup_profile_entities(coordinator, entry, QustodioSensor)
     _LOGGER.debug("Setting up %d profile screen time sensors", len(entities))
 
+    # Profile-level time remaining sensors (includes today's extra time)
+    time_remaining_entities = setup_profile_entities(coordinator, entry, QustodioTimeRemainingSensor)
+    _LOGGER.debug("Setting up %d profile time remaining sensors", len(time_remaining_entities))
+    entities.extend(time_remaining_entities)
+
     # Device-level sensors
     device_entities = setup_device_entities(coordinator, entry, QustodioDeviceMdmTypeSensor)
     _LOGGER.debug("Setting up %d device MDM type sensors", len(device_entities))
@@ -199,6 +204,67 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
 
         # Count questionable apps
         attributes["questionable_apps"] = sum(1 for app in app_usage if app.questionable)
+
+
+class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
+    """Sensor reporting today's remaining screen time, including extra time."""
+
+    _attr_attribution = ATTRIBUTION
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, profile_data)
+        self._attr_name = f"{self._profile_name} Time Remaining"
+        self._attr_unique_id = f"{DOMAIN}_time_remaining_{self._profile_id}"
+        self._attr_device_class = SensorDeviceClass.DURATION
+        self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
+        self._attr_suggested_display_precision = 1
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    def _get_extra_time_minutes(self) -> int:
+        """Return today's granted extra time in minutes."""
+        if isinstance(self.coordinator.data, CoordinatorData):
+            return self.coordinator.data.get_extra_time_minutes(self._profile_id)
+        return 0
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the remaining minutes today, including any extra time."""
+        data = self._get_profile_data()
+        if not data:
+            return None
+
+        raw = data.raw_data
+        quota = raw.get("quota", 0)
+        time_used = raw.get("time", 0)
+        extra_time = self._get_extra_time_minutes()
+
+        return max(0, quota - time_used + extra_time)
+
+    @property
+    def icon(self) -> str:
+        """Return the icon of the sensor."""
+        if (self.native_value or 0) > 0:
+            return ICON_IN_TIME
+        return ICON_NO_TIME
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes."""
+        data = self._get_profile_data()
+        if not data:
+            return None
+
+        raw = data.raw_data
+        attributes = self._build_base_attributes(data)
+        attributes.update(
+            {
+                "quota_minutes": raw.get("quota", 0),
+                "time_used_minutes": raw.get("time", 0),
+                "extra_time_minutes": self._get_extra_time_minutes(),
+            }
+        )
+        return attributes
 
 
 class QustodioDeviceMdmTypeSensor(QustodioDeviceEntity, SensorEntity):

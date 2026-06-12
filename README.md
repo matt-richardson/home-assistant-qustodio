@@ -7,6 +7,7 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 ## Features
 
 - **Screen Time Tracking**: Monitor daily screen time usage per profile with comprehensive attributes
+- **Time Remaining Tracking**: `sensor.{profile}_time_remaining` reports today's remaining screen time, including any extra time granted
 - **Per-App Usage Tracking**: Track time spent in individual apps with top apps, total usage, and questionable app detection
 - **GPS Device Tracking**: Track device locations in real-time (per-device trackers)
 - **Profile & Device Monitoring**: 13 profile-level + 7 device-level binary sensors
@@ -71,6 +72,7 @@ Services target a profile using Home Assistant's device picker. Select the profi
 - `activate_routine` first removes any routine override currently active for the profile, then applies the new one (Qustodio allows only one active override per profile).
 - `resume_internet` raises an error if there is no active internet pause to cancel.
 - **Quota sensors do not reflect extra time.** The `has_quota_remaining` binary sensor and the `quota_remaining_minutes` attribute are derived from the profile's **base daily quota** only. Extra-time grants (and routine overrides) are stored separately by Qustodio and are not added to that figure, so these sensors will not change when you call `add_extra_time`. They update immediately after any write (the service forces a refresh), but the value reflects the base quota vs screen-time used, not bonus time.
+- **Use `sensor.{profile}_time_remaining` for "how much time is left today" automations.** Unlike `quota_remaining_minutes`, this sensor's value is `quota - time_used + extra_time`, so it correctly reflects any extra time granted via `add_extra_time` and matches the "Time left" figure shown in the Qustodio app.
 
 ### Example Automation
 

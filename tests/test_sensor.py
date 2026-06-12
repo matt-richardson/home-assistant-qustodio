@@ -9,7 +9,7 @@ from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 
 from custom_components.qustodio.const import ATTRIBUTION, DOMAIN, ICON_IN_TIME, ICON_NO_TIME, MANUFACTURER
-from custom_components.qustodio.sensor import QustodioSensor, async_setup_entry
+from custom_components.qustodio.sensor import QustodioSensor, QustodioTimeRemainingSensor, async_setup_entry
 
 
 class TestQustodioSensorSetup:
@@ -31,10 +31,11 @@ class TestQustodioSensorSetup:
 
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-        # Should create one screen time sensor per profile (2) + one MDM type sensor per device (2) = 4
-        assert len(entities_added) == 4
-        # First 2 should be profile sensors, next 2 should be device sensors
+        # Screen time sensor per profile (2) + time remaining sensor per profile (2)
+        # + one MDM type sensor per device (2) = 6
+        assert len(entities_added) == 6
         assert sum(1 for entity in entities_added if isinstance(entity, QustodioSensor)) == 2
+        assert sum(1 for entity in entities_added if isinstance(entity, QustodioTimeRemainingSensor)) == 2
 
 
 class TestQustodioSensor:
@@ -520,6 +521,95 @@ class TestQustodioSensor:
         # Should return None when data is invalid
         attributes = sensor.extra_state_attributes
         assert attributes is None
+
+
+class TestQustodioTimeRemainingSensor:
+    """Tests for QustodioTimeRemainingSensor class."""
+
+    def test_time_remaining_sensor_init(self, mock_coordinator: Mock) -> None:
+        """Test sensor initialization."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        assert sensor._attr_name == "Child One Time Remaining"
+        assert sensor._attr_unique_id == f"{DOMAIN}_time_remaining_profile_1"
+        assert sensor.device_class == SensorDeviceClass.DURATION
+        assert sensor.native_unit_of_measurement == UnitOfTime.MINUTES
+        assert sensor.suggested_display_precision == 1
+        assert sensor.state_class == SensorStateClass.MEASUREMENT
+
+    def test_native_value_no_extra_time(self, mock_coordinator: Mock) -> None:
+        """Test native value with no extra time granted."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        # profile_1 has quota=300, time=120, no extra time => 180
+        assert sensor.native_value == 180
+
+    def test_native_value_with_extra_time(self, mock_coordinator: Mock) -> None:
+        """Test native value includes extra time granted today."""
+        mock_coordinator.data.extra_time_minutes = {"profile_1": 60}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        # quota=300 - time=120 + extra_time=60 => 240
+        assert sensor.native_value == 240
+
+    def test_native_value_clamped_at_zero(self, mock_coordinator: Mock) -> None:
+        """Test native value is clamped at zero when time used exceeds quota plus extra time."""
+        profile_data = {"id": "profile_2", "name": "Child Two"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        # profile_2 has quota=60, time=70.2, no extra time => clamped to 0
+        assert sensor.native_value == 0
+
+    def test_native_value_without_data(self, mock_coordinator: Mock) -> None:
+        """Test native value when coordinator has no data."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        mock_coordinator.data = None
+
+        assert sensor.native_value is None
+
+    def test_icon_with_time_remaining(self, mock_coordinator: Mock) -> None:
+        """Test icon when time remains."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        assert sensor.icon == ICON_IN_TIME
+
+    def test_icon_with_no_time_remaining(self, mock_coordinator: Mock) -> None:
+        """Test icon when no time remains."""
+        profile_data = {"id": "profile_2", "name": "Child Two"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        assert sensor.icon == ICON_NO_TIME
+
+    def test_extra_state_attributes(self, mock_coordinator: Mock) -> None:
+        """Test extra state attributes include quota, time used, and extra time."""
+        mock_coordinator.data.extra_time_minutes = {"profile_1": 60}
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        attributes = sensor.extra_state_attributes
+
+        assert attributes is not None
+        assert attributes["quota_minutes"] == 300
+        assert attributes["time_used_minutes"] == 120
+        assert attributes["extra_time_minutes"] == 60
+
+    def test_extra_state_attributes_without_data(self, mock_coordinator: Mock) -> None:
+        """Test extra state attributes when coordinator has no data."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        mock_coordinator.data = None
+
+        assert sensor.extra_state_attributes is None
 
 
 class TestQustodioDeviceMdmTypeSensor:
