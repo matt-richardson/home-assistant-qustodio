@@ -866,15 +866,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
     async def update_calendar_restriction(
         self, profile_uid: str, restriction_type: int, duration: int, rrule: str
     ) -> None:
-        """PUT a calendar restriction - observed to cancel today's grant in practice.
-
-        Confirmed against a live account: calling this with a non-zero ``duration``
-        to stack onto an active grant zeroed it instead. The exact trigger isn't
-        confirmed (e.g. it may depend on whether the existing grant's window has
-        already elapsed), so treat any non-zero use as unsafe. Use only for
-        cancel_extra_time (``duration=0``). To grant or stack extra time, use
-        ``create_calendar_restriction`` (POST) instead.
-        """
+        """PUT sets today's extra time to duration (0 clears it)."""
         await self._ensure_account_info()
         url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
         await self._authenticated_request(

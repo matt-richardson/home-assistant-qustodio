@@ -201,11 +201,7 @@ async def test_add_extra_time_creates_restriction_when_none_active():
 
 @pytest.mark.asyncio
 async def test_add_extra_time_stacks_onto_active_restriction():
-    """Test that _async_add_extra_time adds to an already-active restriction's duration.
-
-    Must use create_calendar_restriction (POST), never update_calendar_restriction
-    (PUT) - PUT zeros extra time and cancels all stacked grants instead of combining.
-    """
+    """Test that _async_add_extra_time adds to an already-active restriction's duration."""
     target = _resolved()
     target.api.get_active_restriction.return_value = {"uid": "r1", "duration": 3600}
     hass = MagicMock()
