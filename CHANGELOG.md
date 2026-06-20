@@ -8,9 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.0...v1.5.1) (2026-06-20)
 
 
+### Documentation
+
+* document quota-sensor limitation and consolidate/clean up docs ([27dcda2](https://github.com/matt-richardson/home-assistant-qustodio/commit/27dcda2de799126f15189dc023093ebc405a09a8))
+
+
 ### Miscellaneous Chores
 
-* force release 1.5.1 ([ec763c3](https://github.com/matt-richardson/home-assistant-qustodio/commit/ec763c3b2c2b56336364dbc902a2ca267bf67248))
+* add MIT License ([#20](https://github.com/matt-richardson/home-assistant-qustodio/issues/20)) ([d38321d](https://github.com/matt-richardson/home-assistant-qustodio/commit/d38321dc6f2561d5c3a646e5031373002f001f03))
 
 ## [1.5.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.1...v1.5.0) (2026-06-07)
 
