@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.0...v1.5.1) (2026-06-20)
+
+
+### Documentation
+
+* document quota-sensor limitation and consolidate/clean up docs ([27dcda2](https://github.com/matt-richardson/home-assistant-qustodio/commit/27dcda2de799126f15189dc023093ebc405a09a8))
+
+
+### Miscellaneous Chores
+
+* add MIT License ([#20](https://github.com/matt-richardson/home-assistant-qustodio/issues/20)) ([d38321d](https://github.com/matt-richardson/home-assistant-qustodio/commit/d38321dc6f2561d5c3a646e5031373002f001f03))
+
 ## [1.5.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.1...v1.5.0) (2026-06-07)
 
 
