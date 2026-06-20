@@ -5,9 +5,31 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
+from icalendar import Calendar
 
 from custom_components.qustodio import services
 from custom_components.qustodio.const import CONF_ALLOW_WRITES, DOMAIN
+
+
+def _assert_valid_rrule(rrule: str) -> Calendar:
+    """Validate a DTSTART/RRULE block against RFC 5545 and return the parsed VEVENT.
+
+    The block is wrapped in a minimal VEVENT so icalendar parses it the same way a
+    real calendar client would. icalendar silently drops a recurrence line that
+    lacks the ``RRULE:`` property prefix (exactly the bug fixed in #18), so asserting
+    that the RRULE component is present and carries a FREQ is what gives this teeth.
+    """
+    ical = (
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//qustodio-tests//EN\r\n"
+        "BEGIN:VEVENT\r\nUID:test\r\n" + rrule.replace("\n", "\r\n") + "\r\n"
+        "END:VEVENT\r\nEND:VCALENDAR\r\n"
+    )
+    event = Calendar.from_ical(ical).walk("VEVENT")[0]
+    assert event.get("DTSTART") is not None, "rrule is missing a DTSTART"
+    recur = event.get("RRULE")
+    assert recur is not None, "rrule has no RRULE component (is the 'RRULE:' prefix present?)"
+    assert recur.get("FREQ"), "RRULE is missing FREQ"
+    return event
 
 
 def test_build_extra_time_rrule():
@@ -21,6 +43,25 @@ def test_build_pause_rrule_appends_until():
     now = datetime(2026, 6, 7, 11, 31, 8)
     rrule = services.build_pause_rrule(now, 15)
     assert rrule == "DTSTART:20260607T113108\nRRULE:FREQ=DAILY;COUNT=1;UNTIL=20260607T114608"
+
+
+def test_extra_time_rrule_is_valid_rfc5545():
+    """The extra-time rrule must parse as RFC 5545 with a real RRULE component."""
+    event = _assert_valid_rrule(services.build_extra_time_rrule(datetime(2026, 6, 7, 11, 38, 19)))
+    assert event.get("RRULE").get("COUNT") == [1]
+
+
+def test_pause_rrule_is_valid_rfc5545():
+    """The pause rrule must parse as RFC 5545 and carry an UNTIL bound."""
+    event = _assert_valid_rrule(services.build_pause_rrule(datetime(2026, 6, 7, 11, 31, 8), 15))
+    assert event.get("RRULE").get("UNTIL")
+
+
+def test_rrule_validator_rejects_missing_rrule_prefix():
+    """Guard the validator itself: the pre-#18 form (no 'RRULE:' prefix) must fail."""
+    buggy = "DTSTART:20260607T113819\nFREQ=DAILY;COUNT=1"
+    with pytest.raises(AssertionError):
+        _assert_valid_rrule(buggy)
 
 
 def test_build_routine_override_payload():
