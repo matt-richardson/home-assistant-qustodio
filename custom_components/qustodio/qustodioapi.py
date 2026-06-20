@@ -866,7 +866,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
     async def update_calendar_restriction(
         self, profile_uid: str, restriction_type: int, duration: int, rrule: str
     ) -> None:
-        """PUT a calendar restriction, replacing today's grant with ``duration`` (0 cancels it)."""
+        """PUT sets today's extra time to duration (0 clears it)."""
         await self._ensure_account_info()
         url = f"{self._profile_v2_base(profile_uid)}/rules/calendar_restrictions"
         await self._authenticated_request(

@@ -161,10 +161,17 @@ def test_resolve_target_unknown_device_raises():
 # ---------------------------------------------------------------------------
 
 
-def _resolved(api=None):
-    """Build a ResolvedTarget with mocked coordinator and optional api."""
+def _resolved(api=None, quota=300, time_used=0):
+    """Build a ResolvedTarget with mocked coordinator and optional api.
+
+    Defaults to a profile that is well within quota (no overage), so existing
+    duration assertions are unaffected unless a test overrides quota/time_used.
+    """
     coordinator = MagicMock()
     coordinator.async_request_refresh = AsyncMock()
+    profile = MagicMock()
+    profile.raw_data = {"quota": quota, "time": time_used}
+    coordinator.data.profiles = {"11": profile}
     return services.ResolvedTarget(
         coordinator=coordinator,
         api=api or AsyncMock(),
@@ -202,13 +209,39 @@ async def test_add_extra_time_stacks_onto_active_restriction():
     call.data = {"device_id": ["device-1"], "minutes": 15}
     with patch("custom_components.qustodio.services._resolve_target", return_value=target):
         await services._async_add_extra_time(hass, call)
-    target.api.update_calendar_restriction.assert_awaited_once()
-    args = target.api.update_calendar_restriction.await_args.args
+    target.api.create_calendar_restriction.assert_awaited_once()
+    args = target.api.create_calendar_restriction.await_args.args
     assert args[0] == "uid-11"
     assert args[1] == 2
     assert args[2] == 4500
-    target.api.create_calendar_restriction.assert_not_awaited()
+    target.api.update_calendar_restriction.assert_not_awaited()
     target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_add_extra_time_covers_overage_left_by_a_cancelled_grant():
+    """Test that a new grant still covers screen time already used beyond quota.
+
+    Scenario: quota=30, an earlier 30-minute extra-time grant was fully used
+    (time=60), then cancel_extra_time zeroed the server's record of that grant
+    (so get_active_restriction now returns None). A fresh 60-minute grant
+    should still result in 60 minutes of *usable* remaining time, not have the
+    already-used overage eat into it a second time.
+    """
+    target = _resolved(quota=30, time_used=60)
+    target.api.get_active_restriction.return_value = None
+    hass = MagicMock()
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "minutes": 60}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_add_extra_time(hass, call)
+    target.api.create_calendar_restriction.assert_awaited_once()
+    args = target.api.create_calendar_restriction.await_args.args
+    assert args[0] == "uid-11"
+    assert args[1] == 2
+    # 60 new minutes + 30 minutes overage (60 used - 30 quota) = 90 minutes
+    assert args[2] == 90 * 60
+    target.api.update_calendar_restriction.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -234,19 +234,18 @@ async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
     rrule = build_extra_time_rrule(dt_util.now())
     for target in targets:
         active = await target.api.get_active_restriction(target.profile_uid, "extra_time")
-        duration = minutes * 60
-        if active is None:
-            await target.api.create_calendar_restriction(
-                target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule
-            )
-        else:
-            # Stack onto the active grant: sum durations and re-anchor the rrule's
-            # DTSTART to now. Re-anchoring is intentional — the PUT replaces today's
-            # single extra-time restriction, so the start time tracks the latest grant.
-            duration += active.get("duration", 0)
-            await target.api.update_calendar_restriction(
-                target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule
-            )
+        active_seconds = active.get("duration", 0) if active else 0
+
+        # Screen time already used beyond quota is real and must still be
+        # covered even if it came from a grant that was since cancelled
+        # or expired - a fresh grant must not let it eat into the new minutes.
+        profile = target.coordinator.data.profiles[target.profile_id]
+        raw = profile.raw_data
+        overage_seconds = max(0, ((raw.get("time") or 0) - (raw.get("quota") or 0)) * 60)
+
+        base_seconds = max(active_seconds, overage_seconds)
+        duration = minutes * 60 + base_seconds
+        await target.api.create_calendar_restriction(target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule)
         await target.coordinator.async_request_refresh()
 
 
