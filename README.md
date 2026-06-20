@@ -235,4 +235,4 @@ Contributions are welcome! See [docs/contributing.md](docs/contributing.md) for 
 
 ## License
 
-This integration is provided as-is for personal use.
+Released under the [MIT License](LICENSE).
