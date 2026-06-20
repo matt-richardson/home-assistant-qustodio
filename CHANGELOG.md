@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.2...v1.6.0) (2026-06-20)
+
+
+### Features
+
+* add time remaining sensor including extra time ([#19](https://github.com/matt-richardson/home-assistant-qustodio/issues/19)) ([6899342](https://github.com/matt-richardson/home-assistant-qustodio/commit/6899342d1b5ab3275973cf14ec98311280c4912f))
+
+
+### Bug Fixes
+
+* stop using PUT to stack add_extra_time, it cancels the grant instead ([#24](https://github.com/matt-richardson/home-assistant-qustodio/issues/24)) ([6e45859](https://github.com/matt-richardson/home-assistant-qustodio/commit/6e458596b891f712e2df755b5f599b9a902f3048))
+
 ## [1.5.2](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.1...v1.5.2) (2026-06-20)
 
 
