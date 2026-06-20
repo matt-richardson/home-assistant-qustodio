@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.0...v1.5.1) (2026-06-20)
+
+
+### Miscellaneous Chores
+
+* force release 1.5.1 ([ec763c3](https://github.com/matt-richardson/home-assistant-qustodio/commit/ec763c3b2c2b56336364dbc902a2ca267bf67248))
+
 ## [1.5.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.4.1...v1.5.0) (2026-06-07)
 
 
