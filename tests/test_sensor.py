@@ -532,12 +532,30 @@ class TestQustodioTimeRemainingSensor:
 
         sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
 
-        assert sensor._attr_name == "Child One Time Remaining"
+        assert sensor.name == "Child One Time Remaining"
         assert sensor._attr_unique_id == f"{DOMAIN}_time_remaining_profile_1"
         assert sensor.device_class == SensorDeviceClass.DURATION
         assert sensor.native_unit_of_measurement == UnitOfTime.MINUTES
         assert sensor.suggested_display_precision == 1
         assert sensor.state_class == SensorStateClass.MEASUREMENT
+
+    def test_name_reflects_current_profile_name(self, mock_coordinator: Mock) -> None:
+        """Test name updates if the profile is renamed, without recreating the entity."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        mock_coordinator.data.profiles["profile_1"].name = "Renamed Child"
+
+        assert sensor.name == "Renamed Child Time Remaining"
+
+    def test_name_without_data(self, mock_coordinator: Mock) -> None:
+        """Test name falls back to the init-time profile name when coordinator has no data."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        mock_coordinator.data = None
+
+        assert sensor.name == "Child One Time Remaining"
 
     def test_native_value_no_extra_time(self, mock_coordinator: Mock) -> None:
         """Test native value with no extra time granted."""
@@ -573,6 +591,16 @@ class TestQustodioTimeRemainingSensor:
         mock_coordinator.data = None
 
         assert sensor.native_value is None
+
+    def test_native_value_handles_null_quota_and_time(self, mock_coordinator: Mock) -> None:
+        """Test native value treats explicit None quota/time as 0, not a crash."""
+        mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = None
+        mock_coordinator.data.profiles["profile_1"].raw_data["time"] = None
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        assert sensor.native_value == 0
 
     def test_icon_with_time_remaining(self, mock_coordinator: Mock) -> None:
         """Test icon when time remains."""

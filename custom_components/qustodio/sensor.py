@@ -214,12 +214,18 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Time Remaining"
         self._attr_unique_id = f"{DOMAIN}_time_remaining_{self._profile_id}"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_suggested_display_precision = 1
         self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        data = self._get_profile_data()
+        profile_name = data.name if data else self._profile_name
+        return f"{profile_name} Time Remaining"
 
     def _get_extra_time_minutes(self) -> int:
         """Return today's granted extra time in minutes."""
@@ -235,8 +241,8 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
             return None
 
         raw = data.raw_data
-        quota = raw.get("quota", 0)
-        time_used = raw.get("time", 0)
+        quota = raw.get("quota") or 0
+        time_used = raw.get("time") or 0
         extra_time = self._get_extra_time_minutes()
 
         return max(0, quota - time_used + extra_time)
@@ -259,8 +265,8 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
         attributes = self._build_base_attributes(data)
         attributes.update(
             {
-                "quota_minutes": raw.get("quota", 0),
-                "time_used_minutes": raw.get("time", 0),
+                "quota_minutes": raw.get("quota") or 0,
+                "time_used_minutes": raw.get("time") or 0,
                 "extra_time_minutes": self._get_extra_time_minutes(),
             }
         )

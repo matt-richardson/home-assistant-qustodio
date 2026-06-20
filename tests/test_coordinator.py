@@ -790,3 +790,42 @@ class TestQustodioDataUpdateCoordinator:
         result = await coordinator._async_update_data()
 
         assert result.extra_time_minutes == {"profile_1": 0, "profile_2": 15}
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_extra_time_falls_back_to_last_known_value_on_failure(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test a transient failure after a successful fetch keeps the last known value.
+
+        This avoids time_remaining incorrectly dropping to zero due to a network blip.
+        """
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={})
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": []}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # First update succeeds with 30 minutes of extra time
+        mock_qustodio_api.get_active_restriction.return_value = {"uid": "r1", "duration": 1800}
+        first_result = await coordinator._async_update_data()
+        assert first_result.extra_time_minutes == {"profile_1": 30}
+
+        # Second update fails transiently - should fall back to the last known value
+        mock_qustodio_api.get_active_restriction.side_effect = Exception("Network blip")
+        second_result = await coordinator._async_update_data()
+        assert second_result.extra_time_minutes == {"profile_1": 30}
