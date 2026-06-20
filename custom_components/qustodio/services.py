@@ -105,7 +105,7 @@ def build_extra_time_rrule(now: datetime) -> str:
         An rrule string with DTSTART and a single-occurrence FREQ=DAILY rule.
 
     """
-    return f"DTSTART:{_format_dt(now)}\nFREQ=DAILY;COUNT=1"
+    return f"DTSTART:{_format_dt(now)}\nRRULE:FREQ=DAILY;COUNT=1"
 
 
 def build_pause_rrule(now: datetime, minutes: int) -> str:
@@ -233,9 +233,17 @@ async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
     _LOGGER.debug("add_extra_time: %s minutes for %d target(s)", minutes, len(targets))
     rrule = build_extra_time_rrule(dt_util.now())
     for target in targets:
-        await target.api.create_calendar_restriction(
-            target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, minutes * 60, rrule
-        )
+        active = await target.api.get_active_restriction(target.profile_uid, "extra_time")
+        duration = minutes * 60
+        if active is None:
+            await target.api.create_calendar_restriction(
+                target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule
+            )
+        else:
+            duration += active.get("duration", 0)
+            await target.api.update_calendar_restriction(
+                target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule
+            )
         await target.coordinator.async_request_refresh()
 
 
