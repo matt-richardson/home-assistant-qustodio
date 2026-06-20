@@ -48,6 +48,10 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         self._cached_app_usage: dict[str, list] | None = None
         self._app_usage_cache_seconds = self._get_app_usage_cache_seconds(entry)
 
+        # Last known-good extra time per profile, used as a fallback if a single
+        # profile's fetch fails (so a transient blip doesn't zero out time_remaining)
+        self._last_known_extra_time: dict[str, int] = {}
+
         # Get update interval from options or use default
         update_interval = self._get_update_interval(entry)
 
@@ -69,6 +73,9 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Fetch app usage once per hour (cached)
             await self._fetch_app_usage(data)
+
+            # Fetch today's active extra-time grant per profile
+            await self._fetch_extra_time(data)
 
             self._handle_update_success(update_time, data)
             return data
@@ -472,3 +479,38 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Using previous cached app usage data due to fetch failure")
             else:
                 data.app_usage = None
+
+    async def _fetch_extra_time(self, data: CoordinatorData) -> None:
+        """Fetch today's active extra-time grant for all profiles.
+
+        Fetched every poll, not cached: extra time can change out-of-band (granted
+        or cancelled in the Qustodio app, with no HA refresh) and is scoped to today,
+        so it must be re-read each cycle and after the daily rollover.
+
+        Args:
+            data: Coordinator data to update with extra time minutes
+        """
+        if not isinstance(data, CoordinatorData):
+            _LOGGER.debug("Skipping extra time fetch - data is not CoordinatorData instance")
+            return
+
+        extra_time_by_profile: dict[str, int] = {}
+        for profile_id, profile in data.profiles.items():
+            try:
+                active = await self.api.get_active_restriction(profile.uid, "extra_time")
+                minutes = (active.get("duration", 0) // 60) if active else 0
+                extra_time_by_profile[profile_id] = minutes
+                self._last_known_extra_time[profile_id] = minutes
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                # Fall back to the last known-good value so a transient failure
+                # doesn't make time_remaining incorrectly drop to zero
+                fallback = self._last_known_extra_time.get(profile_id, 0)
+                _LOGGER.warning(
+                    "Failed to fetch extra time for profile %s: %s (using last known value: %d)",
+                    profile_id,
+                    err,
+                    fallback,
+                )
+                extra_time_by_profile[profile_id] = fallback
+
+        data.extra_time_minutes = extra_time_by_profile

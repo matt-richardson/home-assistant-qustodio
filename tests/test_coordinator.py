@@ -687,3 +687,145 @@ class TestQustodioDataUpdateCoordinator:
         assert result.app_usage is not None
         assert "profile_1" in result.app_usage
         assert result.app_usage["profile_1"] == []
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_extra_time_with_active_restriction(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_extra_time converts an active restriction's duration to minutes."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={})
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": []}
+        mock_qustodio_api.get_active_restriction.return_value = {"uid": "r1", "duration": 3600}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+        result = await coordinator._async_update_data()
+
+        mock_qustodio_api.get_active_restriction.assert_awaited_with("uid1", "extra_time")
+        assert result.extra_time_minutes == {"profile_1": 60}
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_extra_time_with_no_active_restriction(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_extra_time records 0 minutes when no restriction is active."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={})
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": []}
+        mock_qustodio_api.get_active_restriction.return_value = None
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+        result = await coordinator._async_update_data()
+
+        assert result.extra_time_minutes == {"profile_1": 0}
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_extra_time_handles_profile_error_gracefully(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test _fetch_extra_time continues when one profile's lookup fails."""
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        profile2 = ProfileData(
+            id="profile_2",
+            uid="uid2",
+            name="Child Two",
+            device_count=1,
+            device_ids=[2],
+            raw_data={"id": 2, "uid": "uid2", "name": "Child Two"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1, "profile_2": profile2}, devices={})
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": []}
+        # First profile fails, second succeeds
+        mock_qustodio_api.get_active_restriction.side_effect = [
+            Exception("API Error for profile 1"),
+            {"uid": "r2", "duration": 900},
+        ]
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+        result = await coordinator._async_update_data()
+
+        assert result.extra_time_minutes == {"profile_1": 0, "profile_2": 15}
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    async def test_fetch_extra_time_falls_back_to_last_known_value_on_failure(
+        self,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """Test a transient failure after a successful fetch keeps the last known value.
+
+        This avoids time_remaining incorrectly dropping to zero due to a network blip.
+        """
+        from custom_components.qustodio.models import CoordinatorData, ProfileData
+
+        profile1 = ProfileData(
+            id="profile_1",
+            uid="uid1",
+            name="Child One",
+            device_count=1,
+            device_ids=[1],
+            raw_data={"id": 1, "uid": "uid1", "name": "Child One"},
+        )
+        coordinator_data = CoordinatorData(profiles={"profile_1": profile1}, devices={})
+
+        mock_qustodio_api.get_data.return_value = coordinator_data
+        mock_qustodio_api.get_app_usage.return_value = {"items": []}
+
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # First update succeeds with 30 minutes of extra time
+        mock_qustodio_api.get_active_restriction.return_value = {"uid": "r1", "duration": 1800}
+        first_result = await coordinator._async_update_data()
+        assert first_result.extra_time_minutes == {"profile_1": 30}
+
+        # Second update fails transiently - should fall back to the last known value
+        mock_qustodio_api.get_active_restriction.side_effect = Exception("Network blip")
+        second_result = await coordinator._async_update_data()
+        assert second_result.extra_time_minutes == {"profile_1": 30}
