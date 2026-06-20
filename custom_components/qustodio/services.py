@@ -240,6 +240,9 @@ async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
                 target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule
             )
         else:
+            # Stack onto the active grant: sum durations and re-anchor the rrule's
+            # DTSTART to now. Re-anchoring is intentional — the PUT replaces today's
+            # single extra-time restriction, so the start time tracks the latest grant.
             duration += active.get("duration", 0)
             await target.api.update_calendar_restriction(
                 target.profile_uid, RESTRICTION_TYPE_EXTRA_TIME, duration, rrule

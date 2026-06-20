@@ -39,6 +39,7 @@ pytest-mock
 # Additional testing utilities
 freezegun  # For date/time mocking
 responses  # For HTTP mocking
+icalendar  # RFC 5545 validation of generated rrule strings (test-only)
 
 # Missing Home Assistant dependencies
 numpy  # Required by stream component
