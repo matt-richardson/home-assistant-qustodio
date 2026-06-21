@@ -1,23 +1,30 @@
 # Development requirements for Qustodio Home Assistant integration
-# Requires Python 3.13+
+# Supports Python 3.11-3.14.
 
-# Home Assistant core
-homeassistant>=2024.1.0
+# Home Assistant core — the supported HA version depends on the Python version:
+# - Python >=3.13: modern HA (2025.12+), which ships current aiodns/pycares and
+#   an orjson with cp314 wheels (required for Python 3.14).
+# - Python <3.13: HA 2024.3.x, the last line supporting Python 3.11/3.12.
+homeassistant>=2025.12.0; python_version >= "3.13"
+homeassistant>=2024.3.0,<2024.4.0; python_version < "3.13"
 
 # Core dependencies with compatibility fixes
 aiohttp>=3.8.0
 voluptuous
 async-timeout
 
-# Compatibility fixes for josepy/acme conflict
-josepy<1.14.0
-acme>=1.21.0
-
+# Legacy compatibility pins — only required for the old-HA (Python <3.13) path.
+# Modern HA (the >=3.13 path) pins its own compatible josepy/acme/pycares.
+#
+# Compatibility fixes for josepy/acme conflict:
+josepy<1.14.0; python_version < "3.13"
+acme>=1.21.0; python_version < "3.13"
+#
 # pycares 5.x removed `ares_query_a_result`, which the aiodns 3.x version
-# pinned by Home Assistant references in its type annotations. On Python
-# <=3.13 those annotations are evaluated eagerly at import, raising
-# AttributeError. Constrain pycares to the 4.x line aiodns 3.x supports.
-pycares>=4.9.0,<5
+# pinned by older Home Assistant references in its type annotations. Those
+# annotations are evaluated eagerly at import, raising AttributeError.
+# Constrain pycares to the 4.x line aiodns 3.x supports.
+pycares>=4.9.0,<5; python_version < "3.13"
 
 # Development tools
 black
