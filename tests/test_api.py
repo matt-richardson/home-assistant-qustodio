@@ -464,6 +464,10 @@ class TestQustodioApiGetData:
             assert profile1_raw["panic_button_enabled"] is True
             # Check questionable events count is carried through from the profiles response
             assert profile1_raw["questionable_events_count"] == 3
+            # Restricted-hours bitmasks are piggybacked off the same rules request
+            assert data.profiles["profile_1"].restricted_hours == mock_api_rules_response["time_restrictions"][
+                "time_ranges"
+            ]
             # Check device data
             assert len(data.devices) == 2
 
@@ -2058,6 +2062,50 @@ class TestCalendarRestrictionAndRoutines:
         with patch.object(api, "_get_session", AsyncMock(return_value=session)):
             with pytest.raises(QustodioDataError):
                 await api.get_routine_schedules("puid", "rou-7")
+
+    @pytest.mark.asyncio
+    async def test_get_rules_returns_dict(self):
+        """Test get_rules returns the full rules dict from the API."""
+        api = _ready_api()
+        rules = {"profile": 123, "time_restrictions": {"time_ranges": {"mon": 1}}}
+        session = _mock_session(200, json_data=rules)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_rules("123")
+        assert result == rules
+        method, url = session.request.call_args.args
+        assert method == "GET"
+        assert url.endswith("/v1/accounts/acc_id/profiles/123/rules?app_rules=1")
+
+    @pytest.mark.asyncio
+    async def test_get_rules_raises_on_non_dict(self):
+        """Test get_rules raises QustodioDataError on non-dict response."""
+        api = _ready_api()
+        session = _mock_session(200, json_data=["not", "a", "dict"])
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            with pytest.raises(QustodioDataError):
+                await api.get_rules("123")
+
+    @pytest.mark.asyncio
+    async def test_put_rules_sends_full_document_unchanged(self):
+        """Test put_rules PUTs the given rules dict as-is.
+
+        The rules endpoint replaces the whole document, so this is the
+        regression test for unrelated fields (web filtering, app rules, etc.)
+        surviving a write that only intends to change time_ranges.
+        """
+        api = _ready_api()
+        rules = {
+            "profile": 123,
+            "web": {"is_category_list": True},
+            "time_restrictions": {"time_ranges": {"mon": 5}},
+        }
+        session = _mock_session(200, json_data={})
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.put_rules("123", rules)
+        method, url = session.request.call_args.args
+        assert method == "PUT"
+        assert url.endswith("/v1/accounts/acc_id/profiles/123/rules?app_rules=1")
+        assert session.request.call_args.kwargs["json"] == rules
 
     @pytest.mark.asyncio
     async def test_delete_routine_schedule_calls_delete(self):

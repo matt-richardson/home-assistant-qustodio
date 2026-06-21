@@ -22,12 +22,14 @@ from .const import (
     DOMAIN,
     RESTRICTION_TYPE_EXTRA_TIME,
     RESTRICTION_TYPE_PAUSE_INTERNET,
+    RULES_WEEKDAY_CODES,
 )
 from .exceptions import QustodioAPIError
 
 _LOGGER = logging.getLogger(__name__)
 
 # Qustodio weekday codes indexed by datetime.weekday() (Mon=0 .. Sun=6)
+# Distinct from RULES_WEEKDAY_CODES (const.py), which is for the rules API.
 _WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 
 
@@ -145,6 +147,27 @@ def build_routine_override_payload(now: datetime, duration_minutes: int) -> dict
     }
 
 
+def set_hours_blocked(mask: int, start_hour: int, end_hour: int, blocked: bool) -> int:
+    """Flip the bits for hours ``[start_hour, end_hour)`` in a weekday bitmask.
+
+    Args:
+        mask: Current 24-bit hour bitmask (bit N represents hour N).
+        start_hour: First hour to change (0-23), inclusive.
+        end_hour: Last hour to change (1-24), exclusive.
+        blocked: True sets the bits (blocked); False clears them (allowed).
+
+    Returns:
+        The updated bitmask; bits outside the given range are left untouched.
+
+    """
+    hours_mask = 0
+    for hour in range(start_hour, end_hour):
+        hours_mask |= 1 << hour
+    if blocked:
+        return mask | hours_mask
+    return mask & ~hours_mask
+
+
 def resolve_routine_uid(routines: list[dict[str, Any]], name: str) -> str:
     """Resolve a routine name to its uid, raising if not found.
 
@@ -175,10 +198,15 @@ SERVICE_PAUSE_INTERNET = "pause_internet"
 SERVICE_RESUME_INTERNET = "resume_internet"
 SERVICE_CANCEL_EXTRA_TIME = "cancel_extra_time"
 SERVICE_ACTIVATE_ROUTINE = "activate_routine"
+SERVICE_BLOCK_HOURS = "block_hours"
+SERVICE_ALLOW_HOURS = "allow_hours"
 
 ATTR_MINUTES = "minutes"
 ATTR_DURATION_MINUTES = "duration_minutes"
 ATTR_ROUTINE = "routine"
+ATTR_WEEKDAYS = "weekdays"
+ATTR_START_HOUR = "start_hour"
+ATTR_END_HOUR = "end_hour"
 
 # ---------------------------------------------------------------------------
 # Voluptuous schemas
@@ -186,6 +214,8 @@ ATTR_ROUTINE = "routine"
 
 _MINUTES = vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
 _TARGET = {vol.Required(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string])}
+_START_HOUR = vol.All(vol.Coerce(int), vol.Range(min=0, max=23))
+_END_HOUR = vol.All(vol.Coerce(int), vol.Range(min=1, max=24))
 
 SCHEMA_ADD_EXTRA_TIME = vol.Schema({**_TARGET, vol.Required(ATTR_MINUTES): _MINUTES})
 SCHEMA_PAUSE_INTERNET = vol.Schema({**_TARGET, vol.Required(ATTR_MINUTES): _MINUTES})
@@ -193,6 +223,14 @@ SCHEMA_RESUME_INTERNET = vol.Schema(_TARGET)
 SCHEMA_CANCEL_EXTRA_TIME = vol.Schema(_TARGET)
 SCHEMA_ACTIVATE_ROUTINE = vol.Schema(
     {**_TARGET, vol.Required(ATTR_ROUTINE): cv.string, vol.Required(ATTR_DURATION_MINUTES): _MINUTES}
+)
+SCHEMA_HOURS = vol.Schema(
+    {
+        **_TARGET,
+        vol.Required(ATTR_WEEKDAYS): vol.All(cv.ensure_list, [vol.In(RULES_WEEKDAY_CODES)]),
+        vol.Required(ATTR_START_HOUR): _START_HOUR,
+        vol.Required(ATTR_END_HOUR): _END_HOUR,
+    }
 )
 
 
@@ -374,6 +412,65 @@ async def _async_activate_routine(hass: HomeAssistant, call: ServiceCall) -> Non
         await target.coordinator.async_request_refresh()
 
 
+async def _async_set_hours(hass: HomeAssistant, call: ServiceCall, blocked: bool) -> None:
+    """Mark an hour range as blocked or allowed on the given weekdays.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id, weekdays, start_hour, and end_hour fields.
+        blocked: True to block the range, False to allow it.
+
+    Raises:
+        ServiceValidationError: When end_hour is not after start_hour.
+
+    """
+    weekdays = call.data[ATTR_WEEKDAYS]
+    start_hour = call.data[ATTR_START_HOUR]
+    end_hour = call.data[ATTR_END_HOUR]
+    if end_hour <= start_hour:
+        raise ServiceValidationError("end_hour must be greater than start_hour.")
+
+    targets = _targets(hass, call)
+    _LOGGER.debug(
+        "%s hours %d-%d on %s for %d target(s)",
+        "block" if blocked else "allow",
+        start_hour,
+        end_hour,
+        weekdays,
+        len(targets),
+    )
+    for target in targets:
+        rules = await target.api.get_rules(target.profile_id)
+        time_restrictions = rules.setdefault("time_restrictions", {})
+        time_ranges = time_restrictions.setdefault("time_ranges", {})
+        for day in weekdays:
+            time_ranges[day] = set_hours_blocked(time_ranges.get(day, 0), start_hour, end_hour, blocked)
+        await target.api.put_rules(target.profile_id, rules)
+        await target.coordinator.async_request_refresh()
+
+
+async def _async_block_hours(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Mark an hour range as blocked on the given weekdays.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id, weekdays, start_hour, and end_hour fields.
+
+    """
+    await _async_set_hours(hass, call, blocked=True)
+
+
+async def _async_allow_hours(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Mark an hour range as allowed on the given weekdays.
+
+    Args:
+        hass: Home Assistant instance.
+        call: Service call with device_id, weekdays, start_hour, and end_hour fields.
+
+    """
+    await _async_set_hours(hass, call, blocked=False)
+
+
 # ---------------------------------------------------------------------------
 # Registration / teardown
 # ---------------------------------------------------------------------------
@@ -394,6 +491,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         (SERVICE_RESUME_INTERNET, _async_resume_internet, SCHEMA_RESUME_INTERNET),
         (SERVICE_CANCEL_EXTRA_TIME, _async_cancel_extra_time, SCHEMA_CANCEL_EXTRA_TIME),
         (SERVICE_ACTIVATE_ROUTINE, _async_activate_routine, SCHEMA_ACTIVATE_ROUTINE),
+        (SERVICE_BLOCK_HOURS, _async_block_hours, SCHEMA_HOURS),
+        (SERVICE_ALLOW_HOURS, _async_allow_hours, SCHEMA_HOURS),
     ]
     for name, handler, schema in registrations:
         hass.services.async_register(DOMAIN, name, partial(handler, hass), schema=schema)
@@ -412,6 +511,8 @@ def async_unload_services(hass: HomeAssistant) -> None:
         SERVICE_RESUME_INTERNET,
         SERVICE_CANCEL_EXTRA_TIME,
         SERVICE_ACTIVATE_ROUTINE,
+        SERVICE_BLOCK_HOURS,
+        SERVICE_ALLOW_HOURS,
     ):
         if hass.services.has_service(DOMAIN, name):
             hass.services.async_remove(DOMAIN, name)

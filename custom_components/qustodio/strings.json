@@ -129,6 +129,26 @@
         "routine": { "name": "Routine", "description": "Exact name of the routine to activate." },
         "duration_minutes": { "name": "Duration (minutes)", "description": "How long to keep the routine active." }
       }
+    },
+    "block_hours": {
+      "name": "Block hours",
+      "description": "Mark an hour range as blocked on the given weekdays.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to block hours for." },
+        "weekdays": { "name": "Weekdays", "description": "Weekdays the hour range applies to." },
+        "start_hour": { "name": "Start hour", "description": "First hour to block (0-23), inclusive." },
+        "end_hour": { "name": "End hour", "description": "Last hour to block (1-24), exclusive." }
+      }
+    },
+    "allow_hours": {
+      "name": "Allow hours",
+      "description": "Mark an hour range as allowed on the given weekdays.",
+      "fields": {
+        "device_id": { "name": "Profile", "description": "The Qustodio profile to allow hours for." },
+        "weekdays": { "name": "Weekdays", "description": "Weekdays the hour range applies to." },
+        "start_hour": { "name": "Start hour", "description": "First hour to allow (0-23), inclusive." },
+        "end_hour": { "name": "End hour", "description": "Last hour to allow (1-24), exclusive." }
+      }
     }
   }
 }

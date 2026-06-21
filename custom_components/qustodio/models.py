@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import aiohttp
@@ -124,6 +124,9 @@ class ProfileData:
     device_count: int
     device_ids: list[int]
     raw_data: dict[str, Any]  # Keep raw data for fields not yet modeled
+    restricted_hours: dict[str, int] = field(
+        default_factory=dict
+    )  # weekday code (mon/tue/wed/thr/fri/sat/sun) -> 24-bit hour bitmask
 
     @staticmethod
     def from_api_response(data: dict[str, Any]) -> ProfileData:
@@ -135,6 +138,7 @@ class ProfileData:
             device_count=data.get("device_count", 0),
             device_ids=data.get("device_ids", []),
             raw_data=data,  # Keep full data for backward compat
+            restricted_hours=data.get("time_ranges", {}),
         )
 
 

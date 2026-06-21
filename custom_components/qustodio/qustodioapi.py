@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 import aiohttp
 
-from .const import API_BASE, LOGIN_RESULT_OK, USAGE_TYPE_DEFAULT
+from .const import API_BASE, LOGIN_RESULT_OK, RULES_WEEKDAY_CODES, USAGE_TYPE_DEFAULT
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -479,7 +479,12 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         profile_data: dict[str, Any],
         dow: str,
     ) -> None:
-        """Fetch quota and rule-based lock/pause/tracking state for a profile."""
+        """Fetch quota and rule-based lock/pause/tracking state for a profile.
+
+        Also stashes the weekday->hour-bitmask restricted-hours map on
+        ``profile_data["time_ranges"]``, reusing this same rules request
+        instead of issuing a second one for it.
+        """
         profile_id = profile_data["id"]
         profile_name = profile_data["name"]
         profile_data["quota"] = 0
@@ -497,6 +502,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                     rules_data = await response.json()
                     self._log_api_response(f"rules/{profile_name}", response.status, rules_data)
                     time_restrictions = rules_data.get("time_restrictions", {})
+                    profile_data["time_ranges"] = time_restrictions.get("time_ranges", {})
                     profile_data["quota"] = time_restrictions.get("quotas", {}).get(dow, 0)
                     profile_data["is_lock_computer"] = time_restrictions.get("is_lock_computer", False)
                     profile_data["is_lock_navigation"] = time_restrictions.get("is_lock_navigation", False)
@@ -621,8 +627,9 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             await self._fetch_account_info(session, headers)
             devices_raw = await self._fetch_devices(session, headers)
             profiles_data = await self._fetch_profiles(session, headers)
-            days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-            dow = days[datetime.today().weekday()]
+
+            # Process each profile
+            dow = RULES_WEEKDAY_CODES[datetime.today().weekday()]
             profiles_dict: dict[str, ProfileData] = {}
             for profile in profiles_data:
                 if "id" not in profile or "name" not in profile:
@@ -899,6 +906,42 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         base = self._profile_v2_base(profile_uid)
         url = f"{base}/rules/calendar_restrictions/{uid}"
         await self._authenticated_request("DELETE", url)
+
+    async def get_rules(self, profile_id: str) -> dict[str, Any]:
+        """Return the full rules object for a profile.
+
+        This is the same v1 ``rules`` document the app PUTs back wholesale to
+        change anything in it (web filtering, app rules, time restrictions,
+        location, etc.) — there is no partial-update endpoint.
+
+        Args:
+            profile_id: Numeric profile id (not the uid).
+
+        Returns:
+            The full rules dict from the API.
+        """
+        await self._ensure_account_info()
+        url = URL_RULES.format(self._account_id, profile_id)
+        result = await self._authenticated_request("GET", url)
+        if not isinstance(result, dict):
+            raise QustodioDataError(f"Unexpected response fetching rules: {result}")
+        return result
+
+    async def put_rules(self, profile_id: str, rules: dict[str, Any]) -> None:
+        """PUT a full rules document back, replacing it wholesale.
+
+        Callers must fetch the current document with :meth:`get_rules` first
+        and mutate only the fields they intend to change — there is no
+        partial-update endpoint, so anything omitted here is cleared.
+
+        Args:
+            profile_id: Numeric profile id (not the uid).
+            rules: The full rules dict to write (typically a mutated copy of
+                a prior :meth:`get_rules` result).
+        """
+        await self._ensure_account_info()
+        url = URL_RULES.format(self._account_id, profile_id)
+        await self._authenticated_request("PUT", url, json_body=rules)
 
     async def get_routines(self, profile_uid: str) -> list[dict[str, Any]]:
         """Return the profile's routines (including disabled).
