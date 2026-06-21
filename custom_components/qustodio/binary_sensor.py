@@ -190,7 +190,6 @@ class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
         super().__init__(coordinator, profile_data)
         self._attr_name = f"{self._profile_name} Navigation Locked"
         self._attr_unique_id = f"{DOMAIN}_navigation_locked_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.LOCK
         self._attr_icon = "mdi:web-cancel"
 
     @property
@@ -281,7 +280,6 @@ class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
         super().__init__(coordinator, profile_data)
         self._attr_name = f"{self._profile_name} Browser Locked"
         self._attr_unique_id = f"{DOMAIN}_browser_locked_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.LOCK
         self._attr_icon = "mdi:web-box"
 
     @property
@@ -325,7 +323,6 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
         super().__init__(coordinator, profile_data)
         self._attr_name = f"{self._profile_name} Computer Locked"
         self._attr_unique_id = f"{DOMAIN}_computer_locked_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.LOCK
         self._attr_icon = "mdi:laptop-off"
 
     @property
@@ -449,7 +446,6 @@ class QustodioDeviceBinarySensorBrowserLocked(QustodioDeviceBinarySensor):
         super().__init__(coordinator, profile_data, device_data)
         self._attr_name = f"{self._profile_name} {self._device_name} Browser Locked"
         self._attr_unique_id = f"{DOMAIN}_device_browser_locked_{self._profile_id}_{self._device_id}"
-        self._attr_device_class = BinarySensorDeviceClass.LOCK
         self._attr_icon = "mdi:web-box"
 
     @property

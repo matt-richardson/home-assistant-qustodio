@@ -249,7 +249,7 @@ class TestQustodioBinarySensorNavigationLocked:
 
         assert sensor._profile_id == "profile_1"
         assert sensor.unique_id == f"{DOMAIN}_navigation_locked_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.LOCK
+        assert sensor.device_class is None
         assert sensor.icon == "mdi:web-cancel"
 
     def test_is_on_true(self, mock_coordinator: Mock) -> None:
@@ -392,7 +392,7 @@ class TestQustodioBinarySensorBrowserLocked:
 
         assert sensor._profile_id == "profile_1"
         assert sensor.unique_id == f"{DOMAIN}_browser_locked_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.LOCK
+        assert sensor.device_class is None
         assert sensor.icon == "mdi:web-box"
 
     def test_is_on_true(self, mock_coordinator: Mock) -> None:
@@ -464,7 +464,7 @@ class TestQustodioBinarySensorComputerLocked:
 
         assert sensor._profile_id == "profile_1"
         assert sensor.unique_id == f"{DOMAIN}_computer_locked_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.LOCK
+        assert sensor.device_class is None
         assert sensor.icon == "mdi:laptop-off"
 
     def test_is_on_true(self, mock_coordinator: Mock) -> None:
