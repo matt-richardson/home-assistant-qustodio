@@ -16,6 +16,11 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 - **Diagnostics Support**: Built-in diagnostics with automatic data redaction and statistics tracking
 - **95% Test Coverage**: Production-ready with comprehensive testing and 10.00/10 Pylint score
 
+## Supported versions
+
+Tested in CI on **Python 3.11–3.14** against **Home Assistant 2024.3 through 2026.6+**
+(HA 2024.3.x on Python 3.11/3.12; current HA on Python 3.13/3.14).
+
 ## Installation
 
 ### HACS (Recommended)
