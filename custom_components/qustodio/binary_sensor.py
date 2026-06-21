@@ -293,7 +293,6 @@ class QustodioBinarySensorTimeRestricted(QustodioBinarySensor):
         super().__init__(coordinator, profile_data)
         self._attr_name = f"{self._profile_name} Time Restricted"
         self._attr_unique_id = f"{DOMAIN}_time_restricted_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.LOCK
         self._attr_icon = "mdi:clock-alert-outline"
 
     @property
