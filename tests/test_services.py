@@ -344,7 +344,7 @@ async def test_activate_routine_unknown_name_on_one_target_writes_nothing():
 
 
 def test_async_setup_services_registers_all():
-    """Test that async_setup_services registers all five expected service names."""
+    """Test that async_setup_services registers all seven expected service names."""
     hass = MagicMock()
     hass.services.has_service.return_value = False
     services.async_setup_services(hass)
@@ -355,6 +355,8 @@ def test_async_setup_services_registers_all():
         "resume_internet",
         "cancel_extra_time",
         "activate_routine",
+        "block_hours",
+        "allow_hours",
     }
 
 
@@ -381,7 +383,7 @@ def test_async_setup_services_idempotent_when_already_registered():
 
 
 def test_async_unload_services_removes_registered():
-    """Test that async_unload_services removes all five expected service names."""
+    """Test that async_unload_services removes all seven expected service names."""
     hass = MagicMock()
     hass.services.has_service.return_value = True
     services.async_unload_services(hass)
@@ -392,6 +394,8 @@ def test_async_unload_services_removes_registered():
         "resume_internet",
         "cancel_extra_time",
         "activate_routine",
+        "block_hours",
+        "allow_hours",
     }
 
 
@@ -448,3 +452,94 @@ async def test_activate_routine_maps_409_to_validation_error():
     with patch("custom_components.qustodio.services._resolve_target", return_value=target):
         with pytest.raises(ServiceValidationError):
             await services._async_activate_routine(MagicMock(), call)
+
+
+# ---------------------------------------------------------------------------
+# block_hours / allow_hours
+# ---------------------------------------------------------------------------
+
+
+def test_set_hours_blocked_sets_bits_in_range():
+    """Test that set_hours_blocked sets exactly the bits for hours 22-23."""
+    assert services.set_hours_blocked(0, 22, 24, blocked=True) == (1 << 22) | (1 << 23)
+
+
+def test_set_hours_blocked_preserves_bits_outside_range():
+    """Test that set_hours_blocked leaves bits outside the given range untouched."""
+    mask = 1 << 5  # hour 5 already blocked
+    result = services.set_hours_blocked(mask, 22, 24, blocked=True)
+    assert result == mask | (1 << 22) | (1 << 23)
+
+
+def test_set_hours_blocked_allow_clears_bits_in_range():
+    """Test that set_hours_blocked clears only the given range when allowing."""
+    mask = (1 << 22) | (1 << 23) | (1 << 5)
+    result = services.set_hours_blocked(mask, 22, 24, blocked=False)
+    assert result == (1 << 5)
+
+
+@pytest.mark.asyncio
+async def test_block_hours_sets_bits_and_preserves_unrelated_fields():
+    """_async_block_hours must read-modify-write: only time_ranges[day] changes."""
+    api = AsyncMock()
+    api.get_rules.return_value = {
+        "profile": 11,
+        "web": {"is_category_list": True},
+        "time_restrictions": {"time_ranges": {"mon": 1, "tue": 2}},
+    }
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "weekdays": ["mon"], "start_hour": 22, "end_hour": 24}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_block_hours(MagicMock(), call)
+    api.put_rules.assert_awaited_once()
+    profile_id, rules = api.put_rules.await_args.args
+    assert profile_id == "11"
+    assert rules["time_restrictions"]["time_ranges"]["mon"] == 1 | (1 << 22) | (1 << 23)
+    assert rules["time_restrictions"]["time_ranges"]["tue"] == 2  # untouched
+    assert rules["web"] == {"is_category_list": True}  # unrelated field survives the PUT
+    target.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_allow_hours_clears_bits_for_targeted_weekday():
+    """_async_allow_hours clears the targeted hour range, leaving other bits set."""
+    api = AsyncMock()
+    api.get_rules.return_value = {"time_restrictions": {"time_ranges": {"mon": (1 << 22) | (1 << 23) | 1}}}
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "weekdays": ["mon"], "start_hour": 22, "end_hour": 24}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_allow_hours(MagicMock(), call)
+    _profile_id, rules = api.put_rules.await_args.args
+    assert rules["time_restrictions"]["time_ranges"]["mon"] == 1
+
+
+@pytest.mark.asyncio
+async def test_block_hours_applies_same_range_to_every_listed_weekday():
+    """A single call with multiple weekdays applies the same hour range to each."""
+    api = AsyncMock()
+    api.get_rules.return_value = {"time_restrictions": {"time_ranges": {}}}
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "weekdays": ["mon", "tue"], "start_hour": 0, "end_hour": 7}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_block_hours(MagicMock(), call)
+    _profile_id, rules = api.put_rules.await_args.args
+    expected = sum(1 << h for h in range(7))
+    assert rules["time_restrictions"]["time_ranges"]["mon"] == expected
+    assert rules["time_restrictions"]["time_ranges"]["tue"] == expected
+
+
+@pytest.mark.asyncio
+async def test_block_hours_end_before_start_raises_without_writing():
+    """end_hour <= start_hour must raise before any profile is read or written."""
+    api = AsyncMock()
+    target = _resolved(api=api)
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "weekdays": ["mon"], "start_hour": 10, "end_hour": 10}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        with pytest.raises(ServiceValidationError):
+            await services._async_block_hours(MagicMock(), call)
+    api.get_rules.assert_not_awaited()
+    api.put_rules.assert_not_awaited()

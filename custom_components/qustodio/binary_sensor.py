@@ -9,9 +9,10 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from . import setup_device_entities, setup_profile_entities
-from .const import ATTRIBUTION, DOMAIN
+from .const import ATTRIBUTION, DOMAIN, RULES_WEEKDAY_CODES
 from .entity import QustodioBaseEntity, QustodioDeviceEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ async def async_setup_entry(
         QustodioBinarySensorHasQuestionableEvents,
         QustodioBinarySensorLocationTrackingEnabled,
         QustodioBinarySensorComputerLocked,
+        QustodioBinarySensorTimeRestricted,
     ]:
         entities.extend(setup_profile_entities(coordinator, entry, sensor_class))
 
@@ -265,6 +267,55 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
         # available=True guarantees profile exists
         assert profile is not None
         return profile.raw_data.get("is_lock_computer", False)
+
+
+def _format_blocked_ranges(mask: int) -> list[str]:
+    """Convert an hour bitmask into merged "HH:00-HH:00" range strings."""
+    ranges: list[str] = []
+    start: int | None = None
+    for hour in range(24):
+        blocked = bool(mask & (1 << hour))
+        if blocked and start is None:
+            start = hour
+        elif not blocked and start is not None:
+            ranges.append(f"{start:02d}:00-{hour:02d}:00")
+            start = None
+    if start is not None:
+        ranges.append(f"{start:02d}:00-24:00")
+    return ranges
+
+
+class QustodioBinarySensorTimeRestricted(QustodioBinarySensor):
+    """Binary sensor for whether the profile's current hour is blocked."""
+
+    def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, profile_data)
+        self._attr_name = f"{self._profile_name} Time Restricted"
+        self._attr_unique_id = f"{DOMAIN}_time_restricted_{self._profile_id}"
+        self._attr_device_class = BinarySensorDeviceClass.LOCK
+        self._attr_icon = "mdi:clock-alert-outline"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the current hour is blocked."""
+        if not self.available:
+            return None
+        profile = self._get_profile_data()
+        # available=True guarantees profile exists
+        assert profile is not None
+        now = dt_util.now()
+        day = RULES_WEEKDAY_CODES[now.weekday()]
+        mask = profile.restricted_hours.get(day, 0)
+        return bool(mask & (1 << now.hour))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the blocked-hour ranges for each weekday."""
+        profile = self._get_profile_data()
+        if not profile:
+            return None
+        return {day: _format_blocked_ranges(profile.restricted_hours.get(day, 0)) for day in RULES_WEEKDAY_CODES}
 
 
 # Device-Level Binary Sensors

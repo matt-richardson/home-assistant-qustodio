@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import HomeAssistant
@@ -16,6 +17,7 @@ from custom_components.qustodio.binary_sensor import (
     QustodioBinarySensorLocationTrackingEnabled,
     QustodioBinarySensorNavigationLocked,
     QustodioBinarySensorPanicButtonEnabled,
+    QustodioBinarySensorTimeRestricted,
     QustodioBinarySensorUnauthorizedRemove,
     async_setup_entry,
 )
@@ -41,9 +43,9 @@ class TestQustodioBinarySensorSetup:
 
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-        # Should create 9 profile binary sensors (9 × 2 profiles = 18)
-        # + 7 device binary sensors (7 × 2 devices = 14) = 32 total
-        assert len(entities_added) == 32
+        # Should create 10 profile binary sensors (10 × 2 profiles = 20)
+        # + 7 device binary sensors (7 × 2 devices = 14) = 34 total
+        assert len(entities_added) == 34
         assert all(hasattr(entity, "is_on") for entity in entities_added)
 
 
@@ -378,6 +380,72 @@ class TestQustodioBinarySensorComputerLocked:
         assert sensor.is_on is None
 
 
+class TestQustodioBinarySensorTimeRestricted:
+    """Tests for TimeRestricted binary sensor."""
+
+    def test_sensor_init(self, mock_coordinator: Mock) -> None:
+        """Test sensor initialization."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        assert sensor._profile_id == "profile_1"
+        assert sensor.unique_id == f"{DOMAIN}_time_restricted_profile_1"
+        assert sensor.device_class == BinarySensorDeviceClass.LOCK
+        assert sensor.icon == "mdi:clock-alert-outline"
+
+    def test_is_on_true_when_current_hour_blocked(self, mock_coordinator: Mock) -> None:
+        """Test sensor is on when the current hour's bit is set for today."""
+        mock_coordinator.data.profiles["profile_1"].restricted_hours = {"sun": 1 << 23}
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        # 2026-06-07 is a Sunday.
+        with patch(
+            "custom_components.qustodio.binary_sensor.dt_util.now",
+            return_value=datetime(2026, 6, 7, 23, 30),
+        ):
+            assert sensor.is_on is True
+
+    def test_is_on_false_when_current_hour_allowed(self, mock_coordinator: Mock) -> None:
+        """Test sensor is off when the current hour's bit is clear for today."""
+        mock_coordinator.data.profiles["profile_1"].restricted_hours = {"sun": 1 << 23}
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        with patch(
+            "custom_components.qustodio.binary_sensor.dt_util.now",
+            return_value=datetime(2026, 6, 7, 10, 0),
+        ):
+            assert sensor.is_on is False
+
+    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
+        """Test sensor when coordinator update failed."""
+        mock_coordinator.last_update_success = False
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        assert sensor.is_on is None
+
+    def test_extra_state_attributes_formats_merged_ranges(self, mock_coordinator: Mock) -> None:
+        """Test attributes expose merged blocked-hour ranges per weekday."""
+        mock_coordinator.data.profiles["profile_1"].restricted_hours = {
+            "mon": (1 << 22) | (1 << 23) | 0b1111111,  # hours 0-6 and 22-23
+        }
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["mon"] == ["00:00-07:00", "22:00-24:00"]
+        assert attrs["tue"] == []
+
+    def test_extra_state_attributes_none_when_profile_missing(self, mock_coordinator: Mock) -> None:
+        """Test attributes are None when the profile cannot be found."""
+        profile_data = {"id": "profile_999", "name": "Unknown"}
+        sensor = QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data)
+
+        assert sensor.extra_state_attributes is None
+
+
 class TestQustodioBinarySensorAttribution:
     """Tests for binary sensor attribution."""
 
@@ -395,6 +463,7 @@ class TestQustodioBinarySensorAttribution:
             QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data),
             QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data),
             QustodioBinarySensorComputerLocked(mock_coordinator, profile_data),
+            QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data),
         ]
 
         for sensor in sensors:
@@ -419,6 +488,7 @@ class TestQustodioBinarySensorNoneReturns:
             QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data),
             QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data),
             QustodioBinarySensorComputerLocked(mock_coordinator, profile_data),
+            QustodioBinarySensorTimeRestricted(mock_coordinator, profile_data),
         ]
 
         # All sensors should return None when profile data is unavailable

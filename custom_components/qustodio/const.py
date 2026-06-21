@@ -36,6 +36,10 @@ RESTRICTION_TYPE_EXTRA_TIME = 2
 RESTRICTION_TYPE_PAUSE_INTERNET = 3
 USAGE_TYPE_DEFAULT = 0
 
+# Rules-API weekday codes indexed by datetime.weekday() (Mon=0 .. Sun=6).
+# Note "thr" for Thursday, not "thu" - that's how the real API keys it.
+RULES_WEEKDAY_CODES = ["mon", "tue", "wed", "thr", "fri", "sat", "sun"]
+
 
 def get_platform_name(platform: int) -> str:
     """Convert platform code to human-readable name.

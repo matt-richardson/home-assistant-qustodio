@@ -98,3 +98,111 @@ activate_routine:
           max: 1440
           unit_of_measurement: minutes
           mode: box
+block_hours:
+  name: Block hours
+  description: Mark an hour range as blocked on the given weekdays.
+  fields:
+    device_id:
+      name: Profile
+      description: The Qustodio profile to block hours for.
+      required: true
+      selector:
+        device:
+          integration: qustodio
+          multiple: true
+    weekdays:
+      name: Weekdays
+      description: Weekdays the hour range applies to.
+      required: true
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: mon
+              label: Monday
+            - value: tue
+              label: Tuesday
+            - value: wed
+              label: Wednesday
+            - value: thr
+              label: Thursday
+            - value: fri
+              label: Friday
+            - value: sat
+              label: Saturday
+            - value: sun
+              label: Sunday
+    start_hour:
+      name: Start hour
+      description: First hour to block (0-23), inclusive.
+      required: true
+      example: 22
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    end_hour:
+      name: End hour
+      description: Last hour to block (1-24), exclusive.
+      required: true
+      example: 24
+      selector:
+        number:
+          min: 1
+          max: 24
+          mode: box
+allow_hours:
+  name: Allow hours
+  description: Mark an hour range as allowed on the given weekdays.
+  fields:
+    device_id:
+      name: Profile
+      description: The Qustodio profile to allow hours for.
+      required: true
+      selector:
+        device:
+          integration: qustodio
+          multiple: true
+    weekdays:
+      name: Weekdays
+      description: Weekdays the hour range applies to.
+      required: true
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: mon
+              label: Monday
+            - value: tue
+              label: Tuesday
+            - value: wed
+              label: Wednesday
+            - value: thr
+              label: Thursday
+            - value: fri
+              label: Friday
+            - value: sat
+              label: Saturday
+            - value: sun
+              label: Sunday
+    start_hour:
+      name: Start hour
+      description: First hour to allow (0-23), inclusive.
+      required: true
+      example: 7
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    end_hour:
+      name: End hour
+      description: Last hour to allow (1-24), exclusive.
+      required: true
+      example: 22
+      selector:
+        number:
+          min: 1
+          max: 24
+          mode: box
