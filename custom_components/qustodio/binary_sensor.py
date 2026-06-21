@@ -31,14 +31,11 @@ async def async_setup_entry(
         QustodioBinarySensorIsOnline,
         QustodioBinarySensorHasQuotaRemaining,
         QustodioBinarySensorInternetPaused,
-        QustodioBinarySensorProtectionDisabled,
-        QustodioBinarySensorPanicButtonActive,
+        QustodioBinarySensorPanicButtonEnabled,
         QustodioBinarySensorNavigationLocked,
         QustodioBinarySensorUnauthorizedRemove,
         QustodioBinarySensorHasQuestionableEvents,
         QustodioBinarySensorLocationTrackingEnabled,
-        QustodioBinarySensorBrowserLocked,
-        QustodioBinarySensorVpnDisabled,
         QustodioBinarySensorComputerLocked,
     ]:
         entities.extend(setup_profile_entities(coordinator, entry, sensor_class))
@@ -135,51 +132,28 @@ class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
         return pause_ends_at is not None
 
 
-class QustodioBinarySensorProtectionDisabled(QustodioBinarySensor):
-    """Binary sensor for protection disabled status."""
-
-    def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
-        """Initialize the binary sensor."""
-        super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Protection Disabled"
-        self._attr_unique_id = f"{DOMAIN}_protection_disabled_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.PROBLEM
-        self._attr_icon = "mdi:shield-off"
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if protection is disabled."""
-        if not self.available:
-            return None
-        profile = self._get_profile_data()
-        # available=True guarantees profile exists
-        assert profile is not None
-        return profile.raw_data.get("protection_disabled", False)
-
-
 # Phase 2: Safety & Monitoring Sensors
 
 
-class QustodioBinarySensorPanicButtonActive(QustodioBinarySensor):
-    """Binary sensor for panic button status."""
+class QustodioBinarySensorPanicButtonEnabled(QustodioBinarySensor):
+    """Binary sensor for whether the panic button feature is enabled."""
 
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Panic Button Active"
-        self._attr_unique_id = f"{DOMAIN}_panic_button_active_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.SAFETY
-        self._attr_icon = "mdi:alert-circle"
+        self._attr_name = f"{self._profile_name} Panic Button Enabled"
+        self._attr_unique_id = f"{DOMAIN}_panic_button_enabled_{self._profile_id}"
+        self._attr_icon = "mdi:alert-circle-outline"
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if panic button is active."""
+        """Return true if the panic button feature is enabled for this profile."""
         if not self.available:
             return None
         profile = self._get_profile_data()
         # available=True guarantees profile exists
         assert profile is not None
-        return profile.raw_data.get("panic_button_active", False)
+        return profile.raw_data.get("panic_button_enabled", False)
 
 
 class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
@@ -200,7 +174,7 @@ class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
         profile = self._get_profile_data()
         # available=True guarantees profile exists
         assert profile is not None
-        return profile.raw_data.get("navigation_locked", False)
+        return profile.raw_data.get("is_lock_navigation", False)
 
 
 class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
@@ -272,49 +246,6 @@ class QustodioBinarySensorLocationTrackingEnabled(QustodioBinarySensor):
         return profile.raw_data.get("location_tracking_enabled", False)
 
 
-class QustodioBinarySensorBrowserLocked(QustodioBinarySensor):
-    """Binary sensor for browser locked status."""
-
-    def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
-        """Initialize the binary sensor."""
-        super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Browser Locked"
-        self._attr_unique_id = f"{DOMAIN}_browser_locked_{self._profile_id}"
-        self._attr_icon = "mdi:web-box"
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if browser is locked."""
-        if not self.available:
-            return None
-        profile = self._get_profile_data()
-        # available=True guarantees profile exists
-        assert profile is not None
-        return profile.raw_data.get("browser_locked", False)
-
-
-class QustodioBinarySensorVpnDisabled(QustodioBinarySensor):
-    """Binary sensor for VPN disabled status."""
-
-    def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
-        """Initialize the binary sensor."""
-        super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} VPN Disabled"
-        self._attr_unique_id = f"{DOMAIN}_vpn_disabled_{self._profile_id}"
-        self._attr_device_class = BinarySensorDeviceClass.PROBLEM
-        self._attr_icon = "mdi:vpn"
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if VPN is disabled."""
-        if not self.available:
-            return None
-        profile = self._get_profile_data()
-        # available=True guarantees profile exists
-        assert profile is not None
-        return profile.raw_data.get("vpn_disabled", False)
-
-
 class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
     """Binary sensor for computer locked status."""
 
@@ -333,7 +264,7 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
         profile = self._get_profile_data()
         # available=True guarantees profile exists
         assert profile is not None
-        return profile.raw_data.get("computer_locked", False)
+        return profile.raw_data.get("is_lock_computer", False)
 
 
 # Device-Level Binary Sensors
