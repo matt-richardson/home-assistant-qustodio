@@ -87,6 +87,9 @@ def mock_config_entry() -> Mock:
     entry.options = {}
     entry.discovery_keys = {}
     entry.subentries_data = []
+    # Modern HA (2025.12+) reads entry.update_listeners in
+    # async_update_reload_and_abort; an empty list is a safe no-op on all versions.
+    entry.update_listeners = []
     return entry
 
 
@@ -414,16 +417,32 @@ def hass() -> HomeAssistant:
 
     Note: This returns a Mock for fast unit tests.
     For integration tests that need a real HA instance, use hass_instance fixture.
+
+    Modern Home Assistant (2025.12+, used on Python >=3.13) calls
+    ``frame.report_usage`` during ``DataUpdateCoordinator.__init__`` (the
+    "pass the config entry explicitly" deprecation), which raises
+    "Frame helper not set up" against a bare Mock hass. Patch it out for the
+    duration of the test; the patch is a no-op on older HA that lacks it.
     """
-    hass_instance = Mock(spec=HomeAssistant)
-    hass_instance.data = {}
-    hass_instance.config_entries = Mock()
-    hass_instance.config_entries.async_forward_entry_setups = AsyncMock()
-    hass_instance.config_entries.async_unload_platforms = AsyncMock(return_value=True)
-    hass_instance.config_entries.flow = Mock()
-    hass_instance.config_entries.flow.async_init = AsyncMock()
-    hass_instance.services = MagicMock()
-    return hass_instance
+    import homeassistant.helpers.frame as frame_module  # pylint: disable=import-outside-toplevel
+
+    frame_patches = []
+    if hasattr(frame_module, "report_usage"):
+        frame_patches.append(patch("homeassistant.helpers.frame.report_usage"))
+
+    with ExitStack() as stack:
+        for frame_patch in frame_patches:
+            stack.enter_context(frame_patch)
+
+        hass_instance = Mock(spec=HomeAssistant)
+        hass_instance.data = {}
+        hass_instance.config_entries = Mock()
+        hass_instance.config_entries.async_forward_entry_setups = AsyncMock()
+        hass_instance.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        hass_instance.config_entries.flow = Mock()
+        hass_instance.config_entries.flow.async_init = AsyncMock()
+        hass_instance.services = MagicMock()
+        yield hass_instance
 
 
 def _setup_ha_instance_data(ha_instance: HomeAssistant) -> None:
