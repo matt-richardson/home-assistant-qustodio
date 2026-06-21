@@ -390,7 +390,7 @@ class TestQustodioBinarySensorTimeRestricted:
 
         assert sensor._profile_id == "profile_1"
         assert sensor.unique_id == f"{DOMAIN}_time_restricted_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.LOCK
+        assert sensor.device_class is None
         assert sensor.icon == "mdi:clock-alert-outline"
 
     def test_is_on_true_when_current_hour_blocked(self, mock_coordinator: Mock) -> None:
