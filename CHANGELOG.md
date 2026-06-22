@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.6.0...v1.7.0) (2026-06-22)
+
+
+### Features
+
+* keep last-known data through transient connection blips ([41b7381](https://github.com/matt-richardson/home-assistant-qustodio/commit/41b738152e55def70c2d795ab27bc0c42de681ae))
+* retry transient connection errors during data fetch ([a2d4bef](https://github.com/matt-richardson/home-assistant-qustodio/commit/a2d4bef0f14381f46e1dc834457ba85f8b7c5eb3))
+
+
+### Bug Fixes
+
+* drop misleading LOCK device class from 4 binary sensors ([#28](https://github.com/matt-richardson/home-assistant-qustodio/issues/28)) ([1185c76](https://github.com/matt-richardson/home-assistant-qustodio/commit/1185c7659c350bffa3709e5dee525b804ba4cd1b))
+* log transient connection errors at debug, not error ([a388d67](https://github.com/matt-richardson/home-assistant-qustodio/commit/a388d67c9eb8cdbfbf8d4178df12de276eeda70e))
+
 ## [1.6.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.5.2...v1.6.0) (2026-06-20)
 
 
