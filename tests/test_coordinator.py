@@ -656,6 +656,84 @@ class TestQustodioDataUpdateCoordinator:
         assert result2.app_usage["profile_1"][0].name == "YouTube"
 
     @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
+    async def test_connection_error_returns_stale_data_below_threshold(
+        self,
+        mock_create_issue: Mock,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+        mock_config_entry: Any,
+    ) -> None:
+        """After a prior success, transient connection errors return last-known data without raising."""
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        # Prime with one successful update so self.data is populated.
+        mock_qustodio_api.get_data.return_value = mock_profile_data
+        first = await coordinator._async_update_data()
+        coordinator.data = first  # mimic HA storing the result between refreshes
+
+        # Now fail transiently twice: should return stale data, not raise, no issue.
+        mock_qustodio_api.get_data.side_effect = QustodioConnectionError("Connection timeout")
+        mock_qustodio_api.get_data.return_value = None
+
+        for _ in range(2):
+            result = await coordinator._async_update_data()
+            assert result == mock_profile_data
+
+        assert mock_create_issue.call_count == 0
+        assert coordinator.statistics["consecutive_failures"] == 2
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
+    async def test_connection_error_escalates_at_threshold(
+        self,
+        mock_create_issue: Mock,
+        mock_delete_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+        mock_config_entry: Any,
+    ) -> None:
+        """The third consecutive connection error raises UpdateFailed and creates the issue."""
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        mock_qustodio_api.get_data.return_value = mock_profile_data
+        coordinator.data = await coordinator._async_update_data()
+
+        mock_qustodio_api.get_data.side_effect = QustodioConnectionError("Connection timeout")
+        mock_qustodio_api.get_data.return_value = None
+
+        # Failures 1 and 2 tolerated.
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
+        assert mock_create_issue.call_count == 0
+
+        # Failure 3 escalates.
+        with pytest.raises(UpdateFailed, match="Connection error"):
+            await coordinator._async_update_data()
+
+        mock_create_issue.assert_called_once()
+        assert coordinator.statistics["consecutive_failures"] == 3
+
+    @patch("custom_components.qustodio.coordinator.ir.async_create_issue")
+    async def test_connection_error_raises_when_no_prior_data(
+        self,
+        mock_create_issue: Mock,
+        hass: HomeAssistant,
+        mock_qustodio_api: AsyncMock,
+        mock_config_entry: Any,
+    ) -> None:
+        """With no prior data (e.g. first refresh), a connection error raises immediately."""
+        mock_qustodio_api.get_data.side_effect = QustodioConnectionError("Connection timeout")
+        coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+        assert coordinator.data is None
+        with pytest.raises(UpdateFailed, match="Connection error"):
+            await coordinator._async_update_data()
+
+    @patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
     async def test_fetch_app_usage_exception_without_cache(
         self,
         mock_delete_issue: Mock,
