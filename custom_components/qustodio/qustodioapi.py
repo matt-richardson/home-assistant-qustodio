@@ -148,14 +148,9 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         """
         # Exponential backoff: base_delay * (2 ^ (attempt - 1))
         delay = self._retry_config.base_delay * (self._retry_config.exponential_base ** (attempt - 1))
-
-        # Cap at max delay
         delay = min(delay, self._retry_config.max_delay)
-
-        # Add jitter (±25% of delay)
         jitter = delay * 0.25 * (2 * random.random() - 1)
         delay = delay + jitter
-
         _LOGGER.debug("Retry attempt %d: waiting %.2f seconds", attempt, delay)
         await asyncio.sleep(delay)
 
@@ -421,10 +416,8 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
 
             account_data = await response.json()
             self._log_api_response("account", response.status, account_data)
-
             if "id" not in account_data:
                 raise QustodioDataError("Account data missing required 'id' field")
-
             self._account_id = account_data["id"]
             self._account_uid = account_data.get("uid", account_data["id"])
 
@@ -461,7 +454,6 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
 
             profiles_data = await response.json()
             self._log_api_response("profiles", response.status, profiles_data)
-
             if not isinstance(profiles_data, list):
                 raise QustodioDataError("Profiles data is not a list")
             return profiles_data
@@ -580,6 +572,9 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
     async def get_data(self) -> CoordinatorData:
         """Get data from Qustodio API with retry logic.
 
+        Login runs once (with its own retry); the data fetch is retried separately
+        so a transient blip mid-fetch recovers within the poll.
+
         Raises:
             QustodioAuthenticationError: Authentication failed
             QustodioConnectionError: Network/connection issues
@@ -587,52 +582,72 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             QustodioDataError: Response missing expected data
         """
         _LOGGER.debug("Getting data from Qustodio API")
+        await self.login()
+        return await self._fetch_with_retry()
 
+    async def _fetch_with_retry(self) -> CoordinatorData:
+        """Run the data fetch, retrying transient connection errors with backoff.
+
+        Returns:
+            The fetched coordinator data.
+
+        Raises:
+            QustodioConnectionError: Connection failed after all retry attempts.
+            QustodioAuthenticationError / QustodioAPIError / QustodioDataError:
+                Propagated unchanged (not retried here).
+        """
+        last_exception: QustodioConnectionError | None = None
+        for attempt in range(1, self._retry_config.max_attempts + 1):
+            try:
+                return await self._fetch_all_data()
+            except QustodioConnectionError as err:
+                last_exception = err
+                if not self._should_retry(err, attempt):
+                    raise
+                _LOGGER.debug(
+                    "Transient error fetching data (attempt %d/%d): %s",
+                    attempt,
+                    self._retry_config.max_attempts,
+                    err,
+                )
+                await self._retry_delay(attempt)
+        if last_exception:
+            raise last_exception
+        raise QustodioConnectionError("Data fetch failed after all retry attempts")
+
+    async def _fetch_all_data(self) -> CoordinatorData:
+        """Fetch account, devices, and profiles and assemble CoordinatorData.
+
+        Raises:
+            QustodioAuthenticationError: Authentication failed
+            QustodioConnectionError: Network/connection issues
+            QustodioAPIError: API returned unexpected error
+            QustodioDataError: Response missing expected data
+        """
         try:
-            # Login will raise exceptions on failure (with retry logic)
-            await self.login()
-
             session = await self._get_session()
-
             headers = {
                 "Authorization": f"Bearer {self._access_token}",
                 "Accept": "application/json",
                 "Content-Type": "application/json",
             }
-
-            # Get account info
             await self._fetch_account_info(session, headers)
-
-            # Get devices
             devices_raw = await self._fetch_devices(session, headers)
-
-            # Get profiles
             profiles_data = await self._fetch_profiles(session, headers)
-
-            # Process each profile
             days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
             dow = days[datetime.today().weekday()]
             profiles_dict: dict[str, ProfileData] = {}
-
             for profile in profiles_data:
                 if "id" not in profile or "name" not in profile:
                     _LOGGER.warning("Profile missing required fields, skipping")
                     continue
-
                 ctx = ProfileContext(session=session, headers=headers, profile=profile, devices=devices_raw, dow=dow)
-
                 profile_data = await self._process_profile(ctx)
-
-                # Convert to ProfileData dataclass
                 profiles_dict[str(profile_data["id"])] = ProfileData.from_api_response(profile_data)
-
-            # Convert devices to DeviceData dataclasses
             devices_dict: dict[str, DeviceData] = {}
             for device_id, device_data in devices_raw.items():
                 devices_dict[str(device_id)] = DeviceData.from_api_response(device_data)
-
             return CoordinatorData(profiles=profiles_dict, devices=devices_dict)
-
         except (
             QustodioAuthenticationError,
             QustodioConnectionError,
@@ -640,13 +655,12 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             QustodioAPIError,
             QustodioDataError,
         ):
-            # Re-raise our own exceptions
             raise
         except asyncio.TimeoutError as err:
-            _LOGGER.error("Timeout getting data from Qustodio API")
+            _LOGGER.debug("Timeout getting data from Qustodio API")
             raise QustodioConnectionError("Connection timeout while fetching data") from err
         except aiohttp.ClientError as err:
-            _LOGGER.error("Connection error getting data from Qustodio API: %s", err)
+            _LOGGER.debug("Connection error getting data from Qustodio API: %s", err)
             raise QustodioConnectionError(f"Connection error while fetching data: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error getting data from Qustodio API: %s", err)
@@ -759,25 +773,19 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         _LOGGER.debug("Getting app usage for profile %s from %s to %s", profile_uid, min_date, max_date)
 
         try:
-            # Ensure we're authenticated
             await self.login()
-
             session = await self._get_session()
             headers = {
                 "Authorization": f"Bearer {self._access_token}",
                 "Accept": "application/json",
             }
-
-            # Use account_uid (not account_id) for v2 endpoints
             if not self._account_uid:
                 raise QustodioDataError("Account UID not available")
-
             endpoint = f"/v2/accounts/{self._account_uid}/profiles/{profile_uid}/summary/domains-and-apps"
             params = {
                 "min_date": min_date.isoformat(),
                 "max_date": max_date.isoformat(),
             }
-
             async with session.get(
                 f"https://api.qustodio.com{endpoint}",
                 headers=headers,
@@ -795,15 +803,11 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                         f"Unexpected status code {response.status}: {text}",
                         status_code=response.status,
                     )
-
                 data = await response.json()
-
                 if not isinstance(data, dict) or "items" not in data:
                     raise QustodioDataError(f"Invalid response format from app usage endpoint: {data}")
-
                 _LOGGER.debug("Retrieved %d apps for profile %s", len(data.get("items", [])), profile_uid)
                 return data
-
         except (
             QustodioAuthenticationError,
             QustodioConnectionError,
@@ -811,7 +815,6 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
             QustodioAPIError,
             QustodioDataError,
         ):
-            # Re-raise our own exceptions
             raise
         except asyncio.TimeoutError as err:
             _LOGGER.error("Timeout getting app usage from Qustodio API")
