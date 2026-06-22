@@ -531,6 +531,87 @@ class TestQustodioApiGetData:
             with pytest.raises(QustodioDataError, match="Profiles data is not a list"):
                 await api.get_data()
 
+    async def test_get_data_retries_transient_fetch_error(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+        mock_api_account_response: dict,
+        mock_api_profiles_response: list,
+        mock_api_devices_response: list,
+        mock_api_rules_response: dict,
+        mock_api_hourly_summary_response: list,
+    ) -> None:
+        """A transient connection error during the fetch is retried in-cycle and succeeds."""
+
+        def _resp(payload):
+            r = Mock()
+            r.__aenter__ = AsyncMock(return_value=r)
+            r.__aexit__ = AsyncMock(return_value=None)
+            r.status = 200
+            r.json = AsyncMock(return_value=payload)
+            return r
+
+        login_response = _resp(mock_api_login_response)
+
+        failing = Mock()
+        failing.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("DNS timeout"))
+        failing.__aexit__ = AsyncMock(return_value=None)
+
+        rules_response = _resp(mock_api_rules_response)
+        hourly_response = _resp(mock_api_hourly_summary_response)
+
+        mock_aiohttp_session.post = Mock(return_value=login_response)
+        # Attempt 1: account fetch raises. Attempt 2: full success sequence.
+        mock_aiohttp_session.get = Mock(
+            side_effect=[
+                failing,
+                _resp(mock_api_account_response),
+                _resp(mock_api_devices_response),
+                _resp(mock_api_profiles_response),
+                rules_response,
+                hourly_response,
+                rules_response,
+                hourly_response,
+            ]
+        )
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            api = QustodioApi("test@example.com", "password")
+            with patch.object(api, "_retry_delay", AsyncMock()):
+                data = await api.get_data()
+
+        assert len(data.profiles) == 2
+        assert mock_aiohttp_session.get.call_count == 8  # 1 failed + 7 successful
+
+    async def test_get_data_retries_exhausted(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+    ) -> None:
+        """When every fetch attempt fails, get_data raises QustodioConnectionError after max_attempts."""
+        login_response = Mock()
+        login_response.__aenter__ = AsyncMock(return_value=login_response)
+        login_response.__aexit__ = AsyncMock(return_value=None)
+        login_response.status = 200
+        login_response.json = AsyncMock(return_value=mock_api_login_response)
+
+        def _failing():
+            r = Mock()
+            r.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("DNS timeout"))
+            r.__aexit__ = AsyncMock(return_value=None)
+            return r
+
+        mock_aiohttp_session.post = Mock(return_value=login_response)
+        mock_aiohttp_session.get = Mock(side_effect=[_failing() for _ in range(3)])
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            api = QustodioApi("test@example.com", "password")
+            with patch.object(api, "_retry_delay", AsyncMock()):
+                with pytest.raises(QustodioConnectionError):
+                    await api.get_data()
+
+        assert mock_aiohttp_session.get.call_count == 3  # default max_attempts
+
 
 class TestQustodioApiHelperMethods:
     """Tests for QustodioApi helper methods."""
