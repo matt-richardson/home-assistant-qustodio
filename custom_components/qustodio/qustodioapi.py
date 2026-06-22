@@ -366,13 +366,13 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                 return await self._do_login_request(session, data)
 
             except asyncio.TimeoutError as err:
-                _LOGGER.error("Login timeout (attempt %d/%d)", attempt, self._retry_config.max_attempts)
+                _LOGGER.debug("Login timeout (attempt %d/%d)", attempt, self._retry_config.max_attempts)
                 last_exception = QustodioConnectionError("Connection timeout during login")
                 if not self._should_retry(last_exception, attempt):
                     raise last_exception from err
                 await self._retry_delay(attempt)
             except aiohttp.ClientError as err:
-                _LOGGER.error(
+                _LOGGER.debug(
                     "Login connection error (attempt %d/%d): %s", attempt, self._retry_config.max_attempts, err
                 )
                 last_exception = QustodioConnectionError(f"Connection error during login: {err}")
@@ -744,10 +744,10 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         ):
             raise
         except asyncio.TimeoutError as err:
-            _LOGGER.error("Timeout on %s %s", method, url)
+            _LOGGER.debug("Timeout on %s %s", method, url)
             raise QustodioConnectionError(f"Connection timeout for {method} {url}") from err
         except aiohttp.ClientError as err:
-            _LOGGER.error("Connection error on %s %s: %s", method, url, err)
+            _LOGGER.debug("Connection error on %s %s: %s", method, url, err)
             raise QustodioConnectionError(f"Connection error for {method} {url}: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error on %s %s: %s", method, url, err)
@@ -817,10 +817,10 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         ):
             raise
         except asyncio.TimeoutError as err:
-            _LOGGER.error("Timeout getting app usage from Qustodio API")
+            _LOGGER.debug("Timeout getting app usage from Qustodio API")
             raise QustodioConnectionError("Connection timeout while fetching app usage") from err
         except aiohttp.ClientError as err:
-            _LOGGER.error("Connection error getting app usage: %s", err)
+            _LOGGER.debug("Connection error getting app usage: %s", err)
             raise QustodioConnectionError(f"Connection error while fetching app usage: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error getting app usage: %s", err)
