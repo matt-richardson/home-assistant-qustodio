@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -611,6 +612,38 @@ class TestQustodioApiGetData:
                     await api.get_data()
 
         assert mock_aiohttp_session.get.call_count == 3  # default max_attempts
+
+    async def test_transient_fetch_errors_log_at_debug_not_error(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+        caplog,
+    ) -> None:
+        """Transient connection errors during fetch must not log at ERROR."""
+        login_response = Mock()
+        login_response.__aenter__ = AsyncMock(return_value=login_response)
+        login_response.__aexit__ = AsyncMock(return_value=None)
+        login_response.status = 200
+        login_response.json = AsyncMock(return_value=mock_api_login_response)
+
+        def _failing():
+            r = Mock()
+            r.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("DNS timeout"))
+            r.__aexit__ = AsyncMock(return_value=None)
+            return r
+
+        mock_aiohttp_session.post = Mock(return_value=login_response)
+        mock_aiohttp_session.get = Mock(side_effect=[_failing() for _ in range(3)])
+
+        with patch("aiohttp.ClientSession", return_value=mock_aiohttp_session):
+            api = QustodioApi("test@example.com", "password")
+            with patch.object(api, "_retry_delay", AsyncMock()):
+                with caplog.at_level(logging.DEBUG, logger="custom_components.qustodio.qustodioapi"):
+                    with pytest.raises(QustodioConnectionError):
+                        await api.get_data()
+
+        connection_errors = [r for r in caplog.records if r.levelno >= logging.ERROR and "onnection" in r.getMessage()]
+        assert connection_errors == []
 
 
 class TestQustodioApiHelperMethods:
