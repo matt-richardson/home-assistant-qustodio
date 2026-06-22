@@ -31,6 +31,10 @@ from .qustodioapi import QustodioApi
 
 _LOGGER = logging.getLogger(__name__)
 
+# Tolerate this many consecutive connection failures (returning last-known data)
+# before surfacing a warning + UI issue and marking entities unavailable.
+CONNECTION_ERROR_THRESHOLD = 3
+
 
 class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the API."""
@@ -77,7 +81,7 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         except QustodioRateLimitError as err:
             self._handle_rate_limit_error(err)
         except QustodioConnectionError as err:
-            self._handle_connection_error(err)
+            return self._handle_connection_error(err)
         except QustodioAPIError as err:
             self._handle_api_error(err)
         except QustodioDataError as err:
@@ -138,22 +142,45 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
         )
         raise UpdateFailed(f"Rate limit exceeded: {err}") from err
 
-    def _handle_connection_error(self, err: QustodioConnectionError) -> None:
-        """Handle connection errors.
+    def _handle_connection_error(self, err: QustodioConnectionError) -> Any:
+        """Handle connection errors with a stale-data fallback.
+
+        Transient connection blips self-correct on the next poll, so for the
+        first few consecutive failures we keep the last-known data (entities
+        stay available, nothing is logged above DEBUG, no issue is created).
+        Only once failures persist do we surface a warning + issue and let the
+        update fail.
 
         Args:
             err: The connection error
+
+        Returns:
+            The last-known coordinator data when tolerating a transient blip.
+
+        Raises:
+            UpdateFailed: When failures persist or there is no prior data.
         """
         self._track_failure("QustodioConnectionError")
-        _LOGGER.warning("Connection error: %s", err)
+        consecutive = self.statistics["consecutive_failures"]
 
-        # Only create issue after multiple consecutive failures
-        if self.statistics["consecutive_failures"] >= 3:
+        # Tolerate transient blips: keep last-known data, stay quiet.
+        if consecutive < CONNECTION_ERROR_THRESHOLD and self.data is not None:
+            _LOGGER.debug(
+                "Transient connection error (%d/%d), keeping last-known data: %s",
+                consecutive,
+                CONNECTION_ERROR_THRESHOLD,
+                err,
+            )
+            return self.data
+
+        # Persistent failure (or no prior data): surface and fail the update.
+        _LOGGER.warning("Connection error: %s", err)
+        if consecutive >= CONNECTION_ERROR_THRESHOLD:
             self._create_issue(
                 "connection_error",
                 "connection_error",
                 severity=ir.IssueSeverity.WARNING,
-                translation_placeholders={"consecutive_failures": str(self.statistics["consecutive_failures"])},
+                translation_placeholders={"consecutive_failures": str(consecutive)},
             )
         raise UpdateFailed(f"Connection error: {err}") from err
 
