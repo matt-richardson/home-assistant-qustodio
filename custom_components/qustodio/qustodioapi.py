@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
@@ -19,30 +18,7 @@ from .exceptions import (
     QustodioDataError,
     QustodioRateLimitError,
 )
-from .models import CoordinatorData, DeviceData, ProfileData
-
-
-@dataclass
-class ProfileContext:
-    """Context for processing a profile."""
-
-    session: aiohttp.ClientSession
-    headers: dict[str, Any]
-    profile: dict[str, Any]
-    devices: dict[str, Any]
-    dow: str
-
-
-@dataclass
-class RetryConfig:
-    """Configuration for retry logic."""
-
-    timeout: int = 15
-    max_attempts: int = 3
-    base_delay: float = 1.0
-    max_delay: float = 30.0
-    exponential_base: int = 2
-
+from .models import CoordinatorData, DeviceData, ProfileContext, ProfileData, RetryConfig
 
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
