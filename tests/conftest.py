@@ -170,6 +170,7 @@ def mock_api_profiles_response() -> list[dict[str, Any]]:
                     "longitude": -122.4194,
                     "accuracy": 10,
                 },
+                "questionable_events": {"count": 3, "start_date": None, "end_date": None},
             },
         },
         {
@@ -181,6 +182,7 @@ def mock_api_profiles_response() -> list[dict[str, Any]]:
                 "is_online": False,
                 "lastseen": "2025-11-23T09:15:00Z",
                 "location": {},
+                "questionable_events": {"count": 0, "start_date": None, "end_date": None},
             },
         },
     ]
@@ -223,7 +225,12 @@ def mock_api_rules_response() -> dict[str, Any]:
                 "sat": 180,
                 "sun": 180,
             },
+            "is_lock_computer": True,
+            "is_lock_navigation": True,
+            "pause_internet": {"ends_at": None},
         },
+        "location": {"enabled": True, "location_update_frequency": 3600},
+        "panic": {"mode": 1},
     }
 
 
@@ -288,14 +295,11 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
         "quota": 300,
         "time": 120,
         "pause_internet_ends_at": "2025-11-23T12:00:00Z",
-        "protection_disabled": True,
-        "panic_button_active": True,
-        "navigation_locked": True,
+        "panic_button_enabled": True,
+        "is_lock_navigation": True,
         "questionable_events_count": 3,
         "location_tracking_enabled": True,
-        "browser_locked": True,
-        "vpn_disabled": True,
-        "computer_locked": True,
+        "is_lock_computer": True,
     }
 
     profile2_raw = {
@@ -315,14 +319,11 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
         "quota": 60,
         "time": 70.2,
         "pause_internet_ends_at": None,
-        "protection_disabled": False,
-        "panic_button_active": False,
-        "navigation_locked": False,
+        "panic_button_enabled": False,
+        "is_lock_navigation": False,
         "questionable_events_count": 0,
         "location_tracking_enabled": False,
-        "browser_locked": False,
-        "vpn_disabled": False,
-        "computer_locked": False,
+        "is_lock_computer": False,
     }
 
     # Create DeviceData objects

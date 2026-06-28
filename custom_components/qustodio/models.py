@@ -5,6 +5,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import aiohttp
+
+
+@dataclass
+class ProfileContext:
+    """Context for processing a profile."""
+
+    session: aiohttp.ClientSession
+    headers: dict[str, Any]
+    profile: dict[str, Any]
+    devices: dict[str, Any]
+    dow: str
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry logic."""
+
+    timeout: int = 15
+    max_attempts: int = 3
+    base_delay: float = 1.0
+    max_delay: float = 30.0
+    exponential_base: int = 2
+
 
 @dataclass
 class UserStatus:

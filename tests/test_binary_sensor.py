@@ -8,7 +8,6 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import HomeAssistant
 
 from custom_components.qustodio.binary_sensor import (
-    QustodioBinarySensorBrowserLocked,
     QustodioBinarySensorComputerLocked,
     QustodioBinarySensorHasQuestionableEvents,
     QustodioBinarySensorHasQuotaRemaining,
@@ -16,10 +15,8 @@ from custom_components.qustodio.binary_sensor import (
     QustodioBinarySensorIsOnline,
     QustodioBinarySensorLocationTrackingEnabled,
     QustodioBinarySensorNavigationLocked,
-    QustodioBinarySensorPanicButtonActive,
-    QustodioBinarySensorProtectionDisabled,
+    QustodioBinarySensorPanicButtonEnabled,
     QustodioBinarySensorUnauthorizedRemove,
-    QustodioBinarySensorVpnDisabled,
     async_setup_entry,
 )
 from custom_components.qustodio.const import ATTRIBUTION, DOMAIN, MANUFACTURER
@@ -44,9 +41,9 @@ class TestQustodioBinarySensorSetup:
 
         await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-        # Should create 12 profile binary sensors (12 × 2 profiles = 24)
-        # + 7 device binary sensors (7 × 2 devices = 14) = 38 total
-        assert len(entities_added) == 38
+        # Should create 9 profile binary sensors (9 × 2 profiles = 18)
+        # + 7 device binary sensors (7 × 2 devices = 14) = 32 total
+        assert len(entities_added) == 32
         assert all(hasattr(entity, "is_on") for entity in entities_added)
 
 
@@ -167,30 +164,29 @@ class TestQustodioBinarySensorInternetPaused:
         assert sensor.is_on is None
 
 
-class TestQustodioBinarySensorProtectionDisabled:
-    """Tests for ProtectionDisabled binary sensor."""
+class TestQustodioBinarySensorPanicButtonEnabled:
+    """Tests for PanicButtonEnabled binary sensor."""
 
     def test_sensor_init(self, mock_coordinator: Mock) -> None:
         """Test sensor initialization."""
         profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data)
+        sensor = QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data)
 
         assert sensor._profile_id == "profile_1"
-        assert sensor.unique_id == f"{DOMAIN}_protection_disabled_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.PROBLEM
-        assert sensor.icon == "mdi:shield-off"
+        assert sensor.unique_id == f"{DOMAIN}_panic_button_enabled_profile_1"
+        assert sensor.icon == "mdi:alert-circle-outline"
 
     def test_is_on_true(self, mock_coordinator: Mock) -> None:
-        """Test sensor when protection is disabled."""
+        """Test sensor when panic button feature is enabled."""
         profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data)
+        sensor = QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data)
 
         assert sensor.is_on is True
 
     def test_is_on_false(self, mock_coordinator: Mock) -> None:
-        """Test sensor when protection is enabled."""
+        """Test sensor when panic button feature is not enabled."""
         profile_data = {"id": "profile_2", "name": "Child Two"}
-        sensor = QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data)
+        sensor = QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data)
 
         assert sensor.is_on is False
 
@@ -198,43 +194,7 @@ class TestQustodioBinarySensorProtectionDisabled:
         """Test sensor when coordinator update failed."""
         mock_coordinator.last_update_success = False
         profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data)
-
-        assert sensor.is_on is None
-
-
-class TestQustodioBinarySensorPanicButtonActive:
-    """Tests for PanicButtonActive binary sensor."""
-
-    def test_sensor_init(self, mock_coordinator: Mock) -> None:
-        """Test sensor initialization."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
-
-        assert sensor._profile_id == "profile_1"
-        assert sensor.unique_id == f"{DOMAIN}_panic_button_active_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.SAFETY
-        assert sensor.icon == "mdi:alert-circle"
-
-    def test_is_on_true(self, mock_coordinator: Mock) -> None:
-        """Test sensor when panic button is active."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
-
-        assert sensor.is_on is True
-
-    def test_is_on_false(self, mock_coordinator: Mock) -> None:
-        """Test sensor when panic button is not active."""
-        profile_data = {"id": "profile_2", "name": "Child Two"}
-        sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
-
-        assert sensor.is_on is False
-
-    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
-        """Test sensor when coordinator update failed."""
-        mock_coordinator.last_update_success = False
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data)
+        sensor = QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data)
 
         assert sensor.is_on is None
 
@@ -382,78 +342,6 @@ class TestQustodioBinarySensorLocationTrackingEnabled:
         assert sensor.is_on is None
 
 
-class TestQustodioBinarySensorBrowserLocked:
-    """Tests for BrowserLocked binary sensor."""
-
-    def test_sensor_init(self, mock_coordinator: Mock) -> None:
-        """Test sensor initialization."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data)
-
-        assert sensor._profile_id == "profile_1"
-        assert sensor.unique_id == f"{DOMAIN}_browser_locked_profile_1"
-        assert sensor.device_class is None
-        assert sensor.icon == "mdi:web-box"
-
-    def test_is_on_true(self, mock_coordinator: Mock) -> None:
-        """Test sensor when browser is locked."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data)
-
-        assert sensor.is_on is True
-
-    def test_is_on_false(self, mock_coordinator: Mock) -> None:
-        """Test sensor when browser is not locked."""
-        profile_data = {"id": "profile_2", "name": "Child Two"}
-        sensor = QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data)
-
-        assert sensor.is_on is False
-
-    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
-        """Test sensor when coordinator update failed."""
-        mock_coordinator.last_update_success = False
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data)
-
-        assert sensor.is_on is None
-
-
-class TestQustodioBinarySensorVpnDisabled:
-    """Tests for VpnDisabled binary sensor."""
-
-    def test_sensor_init(self, mock_coordinator: Mock) -> None:
-        """Test sensor initialization."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data)
-
-        assert sensor._profile_id == "profile_1"
-        assert sensor.unique_id == f"{DOMAIN}_vpn_disabled_profile_1"
-        assert sensor.device_class == BinarySensorDeviceClass.PROBLEM
-        assert sensor.icon == "mdi:vpn"
-
-    def test_is_on_true(self, mock_coordinator: Mock) -> None:
-        """Test sensor when VPN is disabled."""
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data)
-
-        assert sensor.is_on is True
-
-    def test_is_on_false(self, mock_coordinator: Mock) -> None:
-        """Test sensor when VPN is enabled."""
-        profile_data = {"id": "profile_2", "name": "Child Two"}
-        sensor = QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data)
-
-        assert sensor.is_on is False
-
-    def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
-        """Test sensor when coordinator update failed."""
-        mock_coordinator.last_update_success = False
-        profile_data = {"id": "profile_1", "name": "Child One"}
-        sensor = QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data)
-
-        assert sensor.is_on is None
-
-
 class TestQustodioBinarySensorComputerLocked:
     """Tests for ComputerLocked binary sensor."""
 
@@ -501,14 +389,11 @@ class TestQustodioBinarySensorAttribution:
             QustodioBinarySensorIsOnline(mock_coordinator, profile_data),
             QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data),
             QustodioBinarySensorInternetPaused(mock_coordinator, profile_data),
-            QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data),
-            QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data),
+            QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data),
             QustodioBinarySensorNavigationLocked(mock_coordinator, profile_data),
             QustodioBinarySensorUnauthorizedRemove(mock_coordinator, profile_data),
             QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data),
             QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data),
-            QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data),
-            QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data),
             QustodioBinarySensorComputerLocked(mock_coordinator, profile_data),
         ]
 
@@ -528,14 +413,11 @@ class TestQustodioBinarySensorNoneReturns:
             QustodioBinarySensorIsOnline(mock_coordinator, profile_data),
             QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data),
             QustodioBinarySensorInternetPaused(mock_coordinator, profile_data),
-            QustodioBinarySensorProtectionDisabled(mock_coordinator, profile_data),
-            QustodioBinarySensorPanicButtonActive(mock_coordinator, profile_data),
+            QustodioBinarySensorPanicButtonEnabled(mock_coordinator, profile_data),
             QustodioBinarySensorNavigationLocked(mock_coordinator, profile_data),
             QustodioBinarySensorUnauthorizedRemove(mock_coordinator, profile_data),
             QustodioBinarySensorHasQuestionableEvents(mock_coordinator, profile_data),
             QustodioBinarySensorLocationTrackingEnabled(mock_coordinator, profile_data),
-            QustodioBinarySensorBrowserLocked(mock_coordinator, profile_data),
-            QustodioBinarySensorVpnDisabled(mock_coordinator, profile_data),
             QustodioBinarySensorComputerLocked(mock_coordinator, profile_data),
         ]
 

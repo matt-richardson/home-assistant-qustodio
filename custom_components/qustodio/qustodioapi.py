@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
@@ -19,30 +18,7 @@ from .exceptions import (
     QustodioDataError,
     QustodioRateLimitError,
 )
-from .models import CoordinatorData, DeviceData, ProfileData
-
-
-@dataclass
-class ProfileContext:
-    """Context for processing a profile."""
-
-    session: aiohttp.ClientSession
-    headers: dict[str, Any]
-    profile: dict[str, Any]
-    devices: dict[str, Any]
-    dow: str
-
-
-@dataclass
-class RetryConfig:
-    """Configuration for retry logic."""
-
-    timeout: int = 15
-    max_attempts: int = 3
-    base_delay: float = 1.0
-    max_delay: float = 30.0
-    exponential_base: int = 2
-
+from .models import CoordinatorData, DeviceData, ProfileContext, ProfileData, RetryConfig
 
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
@@ -494,17 +470,24 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         profile_data["longitude"] = location.get("longitude")
         profile_data["accuracy"] = location.get("accuracy", 0)
         profile_data["lastseen"] = status.get("lastseen")
+        profile_data["questionable_events_count"] = status.get("questionable_events", {}).get("count", 0)
 
-    async def _fetch_quota(
+    async def _fetch_rules_data(
         self,
         session: aiohttp.ClientSession,
         headers: dict[str, str],
         profile_data: dict[str, Any],
         dow: str,
-    ) -> int:
-        """Fetch quota for a profile."""
+    ) -> None:
+        """Fetch quota and rule-based lock/pause/tracking state for a profile."""
         profile_id = profile_data["id"]
         profile_name = profile_data["name"]
+        profile_data["quota"] = 0
+        profile_data["is_lock_computer"] = False
+        profile_data["is_lock_navigation"] = False
+        profile_data["pause_internet_ends_at"] = None
+        profile_data["location_tracking_enabled"] = False
+        profile_data["panic_button_enabled"] = False
         try:
             async with session.get(
                 URL_RULES.format(self._account_id, profile_id),
@@ -514,13 +497,17 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
                     rules_data = await response.json()
                     self._log_api_response(f"rules/{profile_name}", response.status, rules_data)
                     time_restrictions = rules_data.get("time_restrictions", {})
-                    quotas = time_restrictions.get("quotas", {})
-                    return quotas.get(dow, 0)
-                self._log_api_response(f"rules/{profile_name}", response.status, error=f"HTTP {response.status}")
-                _LOGGER.debug("No rules found for profile %s", profile_name)
+                    profile_data["quota"] = time_restrictions.get("quotas", {}).get(dow, 0)
+                    profile_data["is_lock_computer"] = time_restrictions.get("is_lock_computer", False)
+                    profile_data["is_lock_navigation"] = time_restrictions.get("is_lock_navigation", False)
+                    profile_data["pause_internet_ends_at"] = time_restrictions.get("pause_internet", {}).get("ends_at")
+                    profile_data["location_tracking_enabled"] = rules_data.get("location", {}).get("enabled", False)
+                    profile_data["panic_button_enabled"] = bool(rules_data.get("panic", {}).get("mode", 0))
+                else:
+                    self._log_api_response(f"rules/{profile_name}", response.status, error=f"HTTP {response.status}")
+                    _LOGGER.debug("No rules found for profile %s", profile_name)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.warning("Failed to get rules for profile %s: %s", profile_name, err)
-        return 0
 
     async def _fetch_screen_time(
         self,
@@ -564,7 +551,7 @@ class QustodioApi:  # pylint: disable=too-many-instance-attributes
         self._check_device_tampering(profile_data, ctx.profile, ctx.devices)
         self._set_location_data(profile_data, ctx.profile, ctx.devices)
 
-        profile_data["quota"] = await self._fetch_quota(ctx.session, ctx.headers, profile_data, ctx.dow)
+        await self._fetch_rules_data(ctx.session, ctx.headers, profile_data, ctx.dow)
         profile_data["time"] = await self._fetch_screen_time(ctx.session, ctx.headers, profile_data)
 
         return profile_data

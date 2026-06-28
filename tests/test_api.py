@@ -455,6 +455,15 @@ class TestQustodioApiGetData:
             assert "profile_2" in data.profiles
             assert data.profiles["profile_1"].name == "Child One"
             assert data.profiles["profile_2"].name == "Child Two"
+            # Check rule-based fields are carried through from the rules response
+            profile1_raw = data.profiles["profile_1"].raw_data
+            assert profile1_raw["is_lock_computer"] is True
+            assert profile1_raw["is_lock_navigation"] is True
+            assert profile1_raw["pause_internet_ends_at"] is None
+            assert profile1_raw["location_tracking_enabled"] is True
+            assert profile1_raw["panic_button_enabled"] is True
+            # Check questionable events count is carried through from the profiles response
+            assert profile1_raw["questionable_events_count"] == 3
             # Check device data
             assert len(data.devices) == 2
 
@@ -885,6 +894,7 @@ class TestQustodioApiHelperMethods:
                     "longitude": -122.4194,
                     "accuracy": 10,
                 },
+                "questionable_events": {"count": 2, "start_date": None, "end_date": None},
             }
         }
         devices = {"device_1": {"name": "iPhone 12"}}
@@ -896,6 +906,7 @@ class TestQustodioApiHelperMethods:
         assert profile_data["longitude"] == -122.4194
         assert profile_data["accuracy"] == 10
         assert profile_data["lastseen"] == "2025-11-23T10:30:00Z"
+        assert profile_data["questionable_events_count"] == 2
 
     async def test_set_location_data_offline(self) -> None:
         """Test setting location data for offline profile."""
@@ -915,6 +926,59 @@ class TestQustodioApiHelperMethods:
         assert profile_data["current_device"] is None
         assert profile_data["latitude"] is None
         assert profile_data["longitude"] is None
+        assert profile_data["questionable_events_count"] == 0
+
+    async def test_fetch_rules_data_success(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_rules_response: dict,
+    ) -> None:
+        """Test successful rules fetch populates lock/pause/tracking state."""
+        rules_response = Mock()
+        rules_response.__aenter__ = AsyncMock(return_value=rules_response)
+        rules_response.__aexit__ = AsyncMock(return_value=None)
+        rules_response.status = 200
+        rules_response.json = AsyncMock(return_value=mock_api_rules_response)
+
+        mock_aiohttp_session.get = Mock(return_value=rules_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+        profile_data = {"id": "profile_1", "name": "Child One"}
+
+        await api._fetch_rules_data(mock_aiohttp_session, {"Authorization": "Bearer token"}, profile_data, "mon")
+
+        assert profile_data["quota"] == 120
+        assert profile_data["is_lock_computer"] is True
+        assert profile_data["is_lock_navigation"] is True
+        assert profile_data["pause_internet_ends_at"] is None
+        assert profile_data["location_tracking_enabled"] is True
+        assert profile_data["panic_button_enabled"] is True
+
+    async def test_fetch_rules_data_http_error_defaults(
+        self,
+        mock_aiohttp_session: Mock,
+    ) -> None:
+        """Test rules fetch falls back to safe defaults on HTTP error."""
+        rules_response = Mock()
+        rules_response.__aenter__ = AsyncMock(return_value=rules_response)
+        rules_response.__aexit__ = AsyncMock(return_value=None)
+        rules_response.status = 404
+
+        mock_aiohttp_session.get = Mock(return_value=rules_response)
+
+        api = QustodioApi("test@example.com", "password")
+        api._account_id = "account_123"
+        profile_data = {"id": "profile_1", "name": "Child One"}
+
+        await api._fetch_rules_data(mock_aiohttp_session, {"Authorization": "Bearer token"}, profile_data, "mon")
+
+        assert profile_data["quota"] == 0
+        assert profile_data["is_lock_computer"] is False
+        assert profile_data["is_lock_navigation"] is False
+        assert profile_data["pause_internet_ends_at"] is None
+        assert profile_data["location_tracking_enabled"] is False
+        assert profile_data["panic_button_enabled"] is False
 
 
 class TestQustodioApiSessionManagement:
