@@ -32,6 +32,7 @@ DEFAULT_ALLOW_WRITES = False
 
 # API base + write-action constants (confirmed against the Qustodio API)
 API_BASE = "https://api.qustodio.com"
+URL_RULES = "https://api.qustodio.com/v1/accounts/{}/profiles/{}/rules?app_rules=1"
 RESTRICTION_TYPE_EXTRA_TIME = 2
 RESTRICTION_TYPE_PAUSE_INTERNET = 3
 USAGE_TYPE_DEFAULT = 0

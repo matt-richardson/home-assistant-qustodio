@@ -465,9 +465,10 @@ class TestQustodioApiGetData:
             # Check questionable events count is carried through from the profiles response
             assert profile1_raw["questionable_events_count"] == 3
             # Restricted-hours bitmasks are piggybacked off the same rules request
-            assert data.profiles["profile_1"].restricted_hours == mock_api_rules_response["time_restrictions"][
-                "time_ranges"
-            ]
+            assert (
+                data.profiles["profile_1"].restricted_hours
+                == mock_api_rules_response["time_restrictions"]["time_ranges"]
+            )
             # Check device data
             assert len(data.devices) == 2
 
