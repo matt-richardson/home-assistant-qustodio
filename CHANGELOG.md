@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.7.0...v2.0.0) (2026-06-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* Removed the Protection Disabled, Browser Locked, and VPN Disabled profile binary sensors. They never reflected real API data because the backing fields do not exist at the profile level; use the device-level equivalents instead.
+
+### Bug Fixes
+
+* flag [#31](https://github.com/matt-richardson/home-assistant-qustodio/issues/31) removal of fabricated profile binary sensors as breaking ([#33](https://github.com/matt-richardson/home-assistant-qustodio/issues/33)) ([9a71b8c](https://github.com/matt-richardson/home-assistant-qustodio/commit/9a71b8cc3fa88a4b49f8e259a8a2b3b2f35c3a1b))
+* wire profile binary sensors to real Qustodio data, drop fabricated ones ([#31](https://github.com/matt-richardson/home-assistant-qustodio/issues/31)) ([887dcec](https://github.com/matt-richardson/home-assistant-qustodio/commit/887dcec404be7f2f58bf3bae546ce582df233bda))
+
 ## [1.7.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.6.0...v1.7.0) (2026-06-22)
 
 
