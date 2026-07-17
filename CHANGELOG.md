@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v2.0.0...v2.1.0) (2026-07-17)
+
+
+### Features
+
+* add block_hours/allow_hours services for per-weekday restricted times ([0950256](https://github.com/matt-richardson/home-assistant-qustodio/commit/09502566d7f632e04420d553cfc52144c010b445))
+
+
+### Bug Fixes
+
+* drop misleading LOCK device class from time_restricted sensor ([e19627e](https://github.com/matt-richardson/home-assistant-qustodio/commit/e19627e68306fcf9741bea57cfa4fd609aa5c41c))
+* split calendar-restriction/routine methods out of qustodioapi.py ([b218eea](https://github.com/matt-richardson/home-assistant-qustodio/commit/b218eea7f71927a52882e57713d9e8c1398ecdd8))
+
 ## [2.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v1.7.0...v2.0.0) (2026-06-28)
 
 
