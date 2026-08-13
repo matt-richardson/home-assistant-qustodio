@@ -17,10 +17,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install dependencies
@@ -45,7 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        # Home Assistant 2026.8 (the floor for DeviceInfo["via_device_id"])
+        # requires Python >=3.14.2, so earlier interpreters cannot install it.
+        python-version: ["3.14"]
 
     steps:
       - name: Checkout code

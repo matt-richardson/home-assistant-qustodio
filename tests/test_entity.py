@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
+from custom_components.qustodio.const import DOMAIN
 from custom_components.qustodio.entity import QustodioBaseEntity, QustodioDeviceEntity
 from custom_components.qustodio.models import UserStatus
 
@@ -140,6 +141,53 @@ class TestQustodioDeviceEntityDeviceInfo:
 
         # Should fall back to cached name - lines 119-120
         assert "Device Name" in device_info["name"]
+
+
+class TestQustodioDeviceEntityViaDeviceId:
+    """Tests that device entities link to their profile device via ``via_device_id``.
+
+    ``via_device`` is deprecated from HA Core 2026.8 and removed in 2027.8; the
+    replacement takes the parent's device registry id rather than an identifier
+    tuple, because identifiers are only unique per config entry.
+    """
+
+    def test_device_info_links_to_profile_device_by_registry_id(self, mock_coordinator: Mock) -> None:
+        """Device info carries the profile device's registry id, not a via_device tuple."""
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+        entity = QustodioDeviceEntity(mock_coordinator, profile_data, device_data)
+
+        registry = Mock()
+        registry.async_get_device.return_value = Mock(id="profile_device_entry_id")
+
+        with patch("custom_components.qustodio.entity.dr.async_get", return_value=registry) as async_get:
+            device_info = entity.device_info
+
+        async_get.assert_called_once_with(mock_coordinator.hass)
+        registry.async_get_device.assert_called_once_with(identifiers={(DOMAIN, "profile_1")})
+        assert device_info["via_device_id"] == "profile_device_entry_id"
+        assert "via_device" not in device_info
+
+    def test_device_info_omits_link_when_profile_device_not_registered(self, mock_coordinator: Mock) -> None:
+        """No link is emitted when the profile device is absent from the registry.
+
+        Passing an unregistered id raises DeviceInfoError in HA 2026.8+, which
+        aborts the entity entirely, so omitting the key is the safe fallback.
+        """
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+        entity = QustodioDeviceEntity(mock_coordinator, profile_data, device_data)
+
+        registry = Mock()
+        registry.async_get_device.return_value = None
+
+        with patch("custom_components.qustodio.entity.dr.async_get", return_value=registry):
+            device_info = entity.device_info
+
+        assert "via_device_id" not in device_info
+        assert "via_device" not in device_info
+        # The device itself is still registered, just unparented.
+        assert device_info["identifiers"] == {(DOMAIN, "profile_1_device_1")}
 
 
 class TestQustodioDeviceEntityGetUserStatus:

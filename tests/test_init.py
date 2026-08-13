@@ -75,6 +75,73 @@ class TestAsyncSetupEntry:
             assert "other_entry" in hass.data[DOMAIN]
 
 
+class TestProfileDevicePreRegistration:
+    """Tests that profile devices are registered before platforms are forwarded.
+
+    Platforms are set up concurrently by ``async_forward_entry_setups``, so a
+    device entity may build its ``device_info`` before the profile entity that
+    would otherwise create the parent device. Registering profiles up front makes
+    ``via_device_id`` resolution deterministic.
+    """
+
+    async def test_setup_entry_registers_a_device_per_profile(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Mock,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+    ) -> None:
+        """Each configured profile gets a device registry entry during setup."""
+        registry = Mock()
+        with (
+            patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch(
+                "custom_components.qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh",
+                new_callable=AsyncMock,
+            ),
+            patch("custom_components.qustodio.dr.async_get", return_value=registry),
+        ):
+            mock_qustodio_api.get_data.return_value = mock_profile_data
+
+            await async_setup_entry(hass, mock_config_entry)
+
+        calls = registry.async_get_or_create.call_args_list
+        assert [call.kwargs["identifiers"] for call in calls] == [
+            {(DOMAIN, "profile_1")},
+            {(DOMAIN, "profile_2")},
+        ]
+        assert [call.kwargs["name"] for call in calls] == ["Child One", "Child Two"]
+        # Every device must be tied to this config entry, or the registry rejects it.
+        assert {call.kwargs["config_entry_id"] for call in calls} == {mock_config_entry.entry_id}
+
+    async def test_profiles_registered_before_platforms_are_forwarded(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: Mock,
+        mock_qustodio_api: AsyncMock,
+        mock_profile_data: dict[str, Any],
+    ) -> None:
+        """Registration happens before platform setup, not after."""
+        calls: list[str] = []
+        registry = Mock()
+        registry.async_get_or_create.side_effect = lambda **_: calls.append("register")
+        hass.config_entries.async_forward_entry_setups = AsyncMock(side_effect=lambda *_, **__: calls.append("forward"))
+
+        with (
+            patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
+            patch(
+                "custom_components.qustodio.QustodioDataUpdateCoordinator.async_config_entry_first_refresh",
+                new_callable=AsyncMock,
+            ),
+            patch("custom_components.qustodio.dr.async_get", return_value=registry),
+        ):
+            mock_qustodio_api.get_data.return_value = mock_profile_data
+
+            await async_setup_entry(hass, mock_config_entry)
+
+        assert calls == ["register", "register", "forward"]
+
+
 class TestAsyncUnloadEntry:
     """Tests for async_unload_entry."""
 
