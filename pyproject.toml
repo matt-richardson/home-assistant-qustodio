@@ -1,12 +1,14 @@
 [tool.black]
 line-length = 120
-target-version = ['py311']
+# No target-version: let black infer it per file. Pinning py314 makes black
+# rewrite `except (A, B):` into PEP 758's `except A, B:` across the codebase,
+# which is valid but unrelated churn.
 
 [tool.pylint.format]
 max-line-length = 120
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 ignore_missing_imports = true
 exclude = [
     "venv/",

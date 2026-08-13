@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -136,14 +137,25 @@ class QustodioDeviceEntity(CoordinatorEntity):
             }
             model_id = platform_map.get(device_data.platform, "device")
 
-        return DeviceInfo(
+        device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{self._profile_id}_{self._device_id}")},
             name=f"{self._profile_name} {device_name}",
             manufacturer=MANUFACTURER,
             model=f"{platform_name} Device",
             model_id=model_id,
-            via_device=(DOMAIN, self._profile_id),
         )
+
+        # Link to the parent profile device. `via_device` is deprecated from HA
+        # Core 2026.8, and its replacement takes the parent's registry id rather
+        # than an identifier tuple. An id that is not registered raises
+        # DeviceInfoError and aborts the entity, so omit the link if the profile
+        # device is missing. async_setup_entry pre-registers profile devices, so
+        # this fallback should not trigger in practice.
+        profile_device = dr.async_get(self.coordinator.hass).async_get_device(identifiers={(DOMAIN, self._profile_id)})
+        if profile_device is not None:
+            device_info["via_device_id"] = profile_device.id
+
+        return device_info
 
     @property
     def available(self) -> bool:

@@ -12,6 +12,7 @@ import pytest
 from homeassistant.config_entries import HANDLERS, ConfigEntries, ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from custom_components.qustodio.const import DOMAIN
 from custom_components.qustodio.models import CoordinatorData, DeviceData, ProfileData, UserStatus
@@ -446,6 +447,15 @@ def hass() -> HomeAssistant:
 
         hass_instance = Mock(spec=HomeAssistant)
         hass_instance.data = {}
+
+        # Device entities resolve their parent profile device through the device
+        # registry to populate `via_device_id`, so `dr.async_get(hass)` must
+        # return something. Individual tests patch this when they assert on the
+        # resulting link.
+        device_registry = Mock()
+        device_registry.async_get_device.return_value = Mock(id="mock_profile_device_id")
+        hass_instance.data[dr.DATA_REGISTRY] = device_registry
+
         hass_instance.config_entries = Mock()
         hass_instance.config_entries.async_forward_entry_setups = AsyncMock()
         hass_instance.config_entries.async_unload_platforms = AsyncMock(return_value=True)

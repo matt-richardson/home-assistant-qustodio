@@ -8,9 +8,10 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN, MANUFACTURER
 from .coordinator import QustodioDataUpdateCoordinator
 from .models import CoordinatorData
 from .qustodioapi import QustodioApi
@@ -38,12 +39,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async_setup_services(hass)
 
+    _register_profile_devices(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register options update listener
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
     return True
+
+
+def _register_profile_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Register a device for each profile before platforms are set up.
+
+    Device entities link to their profile device via ``via_device_id``, which
+    must reference a device that is already in the registry. Platforms are set up
+    concurrently by ``async_forward_entry_setups``, so a device entity can build
+    its ``device_info`` before the profile entity that would create the parent.
+    Registering profiles up front makes that resolution deterministic.
+
+    Args:
+        hass: The Home Assistant instance
+        entry: The config entry holding the configured profiles
+    """
+    device_registry = dr.async_get(hass)
+
+    for profile_data in entry.data.get("profiles", {}).values():
+        profile_id = str(profile_data["id"])
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, profile_id)},
+            name=profile_data.get("name", profile_id),
+            manufacturer=MANUFACTURER,
+            model="Profile",
+            model_id="profile",
+        )
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
