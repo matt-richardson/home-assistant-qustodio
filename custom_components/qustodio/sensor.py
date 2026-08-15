@@ -290,7 +290,7 @@ class QustodioDeviceMdmTypeSensor(QustodioDeviceEntity, SensorEntity):
         """Return the MDM type."""
         device = self._get_device_data()
         if device and device.mdm:
-            mdm_type = device.mdm.get("type")
+            mdm_type = device.mdm.get("profile_type")
             if mdm_type is not None:
                 # Map MDM type codes to human-readable names
                 mdm_type_map = {
