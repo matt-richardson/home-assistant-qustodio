@@ -66,3 +66,8 @@ docs/qustodio_api_documentation.md
 docs/superpowers/
 /docs/api-discovery
 homeassistant_test/.ha_run.lock
+
+# Credentials - never commit
+.env
+.env.*
+!.env.example
