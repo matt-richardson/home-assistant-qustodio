@@ -656,13 +656,38 @@ class TestQustodioDeviceMdmTypeSensor:
         assert sensor._attr_unique_id == "qustodio_device_mdm_type_profile_1_device_1"
         assert sensor._attr_icon == "mdi:shield-account"
 
-    def test_mdm_type_none(self, mock_coordinator: Mock) -> None:
-        """Test MDM type sensor when type is 0 (None)."""
+    def test_mdm_type_from_real_api_payload(self, mock_coordinator: Mock) -> None:
+        """Test the sensor against the mdm object the API actually returns.
+
+        The API has no `type` key. A real mdm object (see the devices response in
+        docs/qustodio_api_documentation.md) carries `profile_type`, and reading
+        the wrong key leaves the sensor permanently None on MDM-managed devices.
+        """
         from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
 
-        # Set MDM type to 0
         device_data_dict = mock_coordinator.data.devices["device_1"]
-        device_data_dict.mdm = {"type": 0}
+        device_data_dict.mdm = {
+            "origin": 1,
+            "profile_type": 1,
+            "unauthorized_remove": False,
+            "stick_to_vpn_server": False,
+            "is_localfilter": True,
+            "is_smartgeo": False,
+        }
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        device_data = {"id": "device_1", "name": "iPhone"}
+
+        sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
+        assert sensor.native_value == "DEP"
+
+    def test_mdm_type_none(self, mock_coordinator: Mock) -> None:
+        """Test MDM type sensor when profile_type is 0 (None)."""
+        from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
+
+        # Set MDM profile_type to 0
+        device_data_dict = mock_coordinator.data.devices["device_1"]
+        device_data_dict.mdm = {"profile_type": 0}
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         device_data = {"id": "device_1", "name": "iPhone"}
@@ -671,11 +696,11 @@ class TestQustodioDeviceMdmTypeSensor:
         assert sensor.native_value == "None"
 
     def test_mdm_type_dep(self, mock_coordinator: Mock) -> None:
-        """Test MDM type sensor when type is 1 (DEP)."""
+        """Test MDM type sensor when profile_type is 1 (DEP)."""
         from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
 
         device_data_dict = mock_coordinator.data.devices["device_1"]
-        device_data_dict.mdm = {"type": 1}
+        device_data_dict.mdm = {"profile_type": 1}
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         device_data = {"id": "device_1", "name": "iPhone"}
@@ -684,11 +709,11 @@ class TestQustodioDeviceMdmTypeSensor:
         assert sensor.native_value == "DEP"
 
     def test_mdm_type_mdm(self, mock_coordinator: Mock) -> None:
-        """Test MDM type sensor when type is 2 (MDM)."""
+        """Test MDM type sensor when profile_type is 2 (MDM)."""
         from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
 
         device_data_dict = mock_coordinator.data.devices["device_1"]
-        device_data_dict.mdm = {"type": 2}
+        device_data_dict.mdm = {"profile_type": 2}
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         device_data = {"id": "device_1", "name": "iPhone"}
@@ -697,11 +722,11 @@ class TestQustodioDeviceMdmTypeSensor:
         assert sensor.native_value == "MDM"
 
     def test_mdm_type_supervised(self, mock_coordinator: Mock) -> None:
-        """Test MDM type sensor when type is 3 (Supervised)."""
+        """Test MDM type sensor when profile_type is 3 (Supervised)."""
         from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
 
         device_data_dict = mock_coordinator.data.devices["device_1"]
-        device_data_dict.mdm = {"type": 3}
+        device_data_dict.mdm = {"profile_type": 3}
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         device_data = {"id": "device_1", "name": "iPhone"}
@@ -710,11 +735,11 @@ class TestQustodioDeviceMdmTypeSensor:
         assert sensor.native_value == "Supervised"
 
     def test_mdm_type_unknown(self, mock_coordinator: Mock) -> None:
-        """Test MDM type sensor when type is unknown."""
+        """Test MDM type sensor when profile_type is unknown."""
         from custom_components.qustodio.sensor import QustodioDeviceMdmTypeSensor
 
         device_data_dict = mock_coordinator.data.devices["device_1"]
-        device_data_dict.mdm = {"type": 99}
+        device_data_dict.mdm = {"profile_type": 99}
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         device_data = {"id": "device_1", "name": "iPhone"}
