@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v2.1.0...v3.0.0) (2026-08-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* requires Home Assistant 2026.8.0 or later, which in turn requires Python 3.14.2 or later. `via_device_id` does not exist in `DeviceInfo` before 2026.8, and `entity_platform` passes device info straight into `async_get_or_create`, so the integration cannot support both sides of that boundary. The CI matrix and pre-commit drop Python 3.11-3.13 accordingly.
+
+### Bug Fixes
+
+* replace deprecated DeviceInfo via_device with via_device_id ([40fdda9](https://github.com/matt-richardson/home-assistant-qustodio/commit/40fdda941cd683dd0346d6046088c78b5093680f))
+
 ## [2.1.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v2.0.0...v2.1.0) (2026-07-17)
 
 
