@@ -9,8 +9,10 @@ repos:
     hooks:
       - id: trailing-whitespace
         exclude: ^CHANGELOG\.md$
+      # Home Assistant writes .HA_VERSION with no trailing newline and rewrites
+      # it on every run, so fixing it here would leave the file permanently dirty.
       - id: end-of-file-fixer
-        exclude: ^CHANGELOG\.md$
+        exclude: ^(CHANGELOG\.md|homeassistant_test/\.HA_VERSION)$
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
