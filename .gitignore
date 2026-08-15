@@ -64,3 +64,5 @@ docs/qustodio_api_documentation.md
 
 # Local-only superpowers design/plan docs (kept on disk, not tracked)
 docs/superpowers/
+/docs/api-discovery
+homeassistant_test/.ha_run.lock
