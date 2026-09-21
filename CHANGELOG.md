@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v3.0.0...v3.0.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* read MDM type from profile_type, not the non-existent type key ([#40](https://github.com/matt-richardson/home-assistant-qustodio/issues/40)) ([462bf9f](https://github.com/matt-richardson/home-assistant-qustodio/commit/462bf9fb19626857f0922c1e4b965cec577b8f21))
+* replace deprecated device_registry.async_get_device with async_get_device_id_by_identifier ([#43](https://github.com/matt-richardson/home-assistant-qustodio/issues/43)) ([4617b3b](https://github.com/matt-richardson/home-assistant-qustodio/commit/4617b3b11014a9a2faebe77707b8002a1657b900))
+
 ## [3.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v2.1.0...v3.0.0) (2026-08-15)
 
 
