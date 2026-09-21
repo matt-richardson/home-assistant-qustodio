@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import is_profile_available
 from .const import ATTRIBUTION, DOMAIN, MANUFACTURER, get_platform_name
+from .coordinator import QustodioDataUpdateCoordinator
 from .models import CoordinatorData, DeviceData, ProfileData, UserStatus
 
 
@@ -90,12 +91,12 @@ class QustodioBaseEntity(CoordinatorEntity):
         }
 
 
-class QustodioDeviceEntity(CoordinatorEntity):
+class QustodioDeviceEntity(CoordinatorEntity[QustodioDataUpdateCoordinator]):
     """Base class for Qustodio device-specific entities."""
 
     def __init__(
         self,
-        coordinator: Any,
+        coordinator: QustodioDataUpdateCoordinator,
         profile_data: dict[str, Any],
         device_data: dict[str, Any],
     ) -> None:
@@ -147,13 +148,22 @@ class QustodioDeviceEntity(CoordinatorEntity):
 
         # Link to the parent profile device. `via_device` is deprecated from HA
         # Core 2026.8, and its replacement takes the parent's registry id rather
-        # than an identifier tuple. An id that is not registered raises
-        # DeviceInfoError and aborts the entity, so omit the link if the profile
-        # device is missing. async_setup_entry pre-registers profile devices, so
-        # this fallback should not trigger in practice.
-        profile_device = dr.async_get(self.coordinator.hass).async_get_device(identifiers={(DOMAIN, self._profile_id)})
-        if profile_device is not None:
-            device_info["via_device_id"] = profile_device.id
+        # than an identifier tuple. `DeviceRegistry.async_get_device` is itself
+        # deprecated (removed in 2027.8) because identifiers are no longer unique
+        # across config entries, so look the id up scoped to our config entry
+        # instead. It raises ValueError if the profile device isn't registered
+        # yet, so omit the link in that case. async_setup_entry pre-registers
+        # profile devices, so this fallback should not trigger in practice.
+        try:
+            via_device_id = dr.async_get_device_id_by_identifier(
+                self.coordinator.hass,
+                (DOMAIN, self._profile_id),
+                config_entry_id=self.coordinator.entry.entry_id,
+            )
+        except ValueError:
+            pass
+        else:
+            device_info["via_device_id"] = via_device_id
 
         return device_info
 
