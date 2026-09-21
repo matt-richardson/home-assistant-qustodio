@@ -157,14 +157,13 @@ class TestQustodioDeviceEntityViaDeviceId:
         device_data = {"id": "device_1", "name": "iPhone"}
         entity = QustodioDeviceEntity(mock_coordinator, profile_data, device_data)
 
-        registry = Mock()
-        registry.async_get_device.return_value = Mock(id="profile_device_entry_id")
-
-        with patch("custom_components.qustodio.entity.dr.async_get", return_value=registry) as async_get:
+        with patch(
+            "custom_components.qustodio.entity.dr.async_get_device_id_by_identifier",
+            return_value="profile_device_entry_id",
+        ) as lookup:
             device_info = entity.device_info
 
-        async_get.assert_called_once_with(mock_coordinator.hass)
-        registry.async_get_device.assert_called_once_with(identifiers={(DOMAIN, "profile_1")})
+        lookup.assert_called_once_with(mock_coordinator.hass, (DOMAIN, "profile_1"), config_entry_id="test_entry_id")
         assert device_info["via_device_id"] == "profile_device_entry_id"
         assert "via_device" not in device_info
 
@@ -178,10 +177,10 @@ class TestQustodioDeviceEntityViaDeviceId:
         device_data = {"id": "device_1", "name": "iPhone"}
         entity = QustodioDeviceEntity(mock_coordinator, profile_data, device_data)
 
-        registry = Mock()
-        registry.async_get_device.return_value = None
-
-        with patch("custom_components.qustodio.entity.dr.async_get", return_value=registry):
+        with patch(
+            "custom_components.qustodio.entity.dr.async_get_device_id_by_identifier",
+            side_effect=ValueError,
+        ):
             device_info = entity.device_info
 
         assert "via_device_id" not in device_info

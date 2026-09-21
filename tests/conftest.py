@@ -286,6 +286,7 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
     coordinator = Mock()
     coordinator.hass = hass
     coordinator.api = mock_qustodio_api
+    coordinator.entry = Mock(entry_id="test_entry_id")
 
     # Create ProfileData objects
     profile1_raw = {
@@ -448,13 +449,10 @@ def hass() -> HomeAssistant:
         hass_instance = Mock(spec=HomeAssistant)
         hass_instance.data = {}
 
-        # Device entities resolve their parent profile device through the device
-        # registry to populate `via_device_id`, so `dr.async_get(hass)` must
-        # return something. Individual tests patch this when they assert on the
-        # resulting link.
-        device_registry = Mock()
-        device_registry.async_get_device.return_value = Mock(id="mock_profile_device_id")
-        hass_instance.data[dr.DATA_REGISTRY] = device_registry
+        # Device entities resolve their parent profile device through
+        # dr.async_get_device_id_by_identifier() to populate `via_device_id`.
+        # Individual tests patch this when they assert on the resulting link.
+        hass_instance.data[dr.DATA_REGISTRY] = Mock()
 
         hass_instance.config_entries = Mock()
         hass_instance.config_entries.async_forward_entry_setups = AsyncMock()
