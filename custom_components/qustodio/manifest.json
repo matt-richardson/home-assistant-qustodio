@@ -10,8 +10,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/matt-richardson/home-assistant-qustodio/issues",
   "quality_scale": "internal",
-  "requirements": [
-    "aiohttp>=3.8.0"
-  ],
+  "requirements": [],
   "version": "3.0.1"
 }
