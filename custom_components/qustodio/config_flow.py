@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Any
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant

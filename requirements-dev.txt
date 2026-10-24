@@ -1,15 +1,16 @@
 # Development requirements for Qustodio Home Assistant integration
-# Requires Python >=3.14.2 (the floor set by Home Assistant 2026.8).
+# Requires Python >=3.14.2 (the floor set by Home Assistant 2026.8+).
 
-# Home Assistant core — 2026.8 is the floor because `DeviceInfo["via_device_id"]`
-# (which replaced the deprecated `via_device`) only exists from that release on.
-# Passing it to an older core raises TypeError in `async_get_or_create`, so the
-# integration cannot straddle the boundary.
-homeassistant>=2026.8.0
+# Home Assistant core — 2026.9 is the floor because it replaced voluptuous with
+# probatio, which the config and service schemas now import directly. 2026.8
+# also introduced `DeviceInfo["via_device_id"]` (which replaced the deprecated
+# `via_device`); passing it to an older core raises TypeError in
+# `async_get_or_create`.
+homeassistant>=2026.9.0
 
 # Core dependencies with compatibility fixes
 aiohttp>=3.8.0
-voluptuous
+probatio
 async-timeout
 
 # Development tools

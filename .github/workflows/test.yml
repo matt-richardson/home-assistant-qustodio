@@ -45,8 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Home Assistant 2026.8 (the floor for DeviceInfo["via_device_id"])
-        # requires Python >=3.14.2, so earlier interpreters cannot install it.
+        # Home Assistant 2026.9 (the floor for probatio schemas) requires
+        # Python >=3.14.2, so earlier interpreters cannot install it.
         python-version: ["3.14"]
 
     steps:

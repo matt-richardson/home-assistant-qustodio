@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from functools import partial
 from typing import Any
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
