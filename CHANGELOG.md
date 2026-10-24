@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v3.0.1...v4.0.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* requires Home Assistant 2026.9.0 or later. HA 2026.8 does not ship probatio, so the integration would fail to import on it.
+
+### Features
+
+* add local brand assets ([#44](https://github.com/matt-richardson/home-assistant-qustodio/issues/44)) ([3f06e5b](https://github.com/matt-richardson/home-assistant-qustodio/commit/3f06e5b9c3b72af6863d6370f7c7a3bdc04baf1e))
+
+
+### Bug Fixes
+
+* import probatio for config and service schemas ([#47](https://github.com/matt-richardson/home-assistant-qustodio/issues/47)) ([db03b62](https://github.com/matt-richardson/home-assistant-qustodio/commit/db03b62f14a29d288af9c6c192d301d9c2af7fd7))
+* remove aiohttp from manifest requirements ([#45](https://github.com/matt-richardson/home-assistant-qustodio/issues/45)) ([36d5738](https://github.com/matt-richardson/home-assistant-qustodio/commit/36d573891c4a524f1333277ab3f2bc827e99423d))
+
 ## [3.0.1](https://github.com/matt-richardson/home-assistant-qustodio/compare/v3.0.0...v3.0.1) (2026-09-21)
 
 
