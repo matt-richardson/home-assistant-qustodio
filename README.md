@@ -18,8 +18,8 @@ Fork of [benmac7/qustodio](https://github.com/benmac7/qustodio), which is a fork
 
 ## Supported versions
 
-Tested in CI on **Python 3.11–3.14** against **Home Assistant 2024.3 through 2026.6+**
-(HA 2024.3.x on Python 3.11/3.12; current HA on Python 3.13/3.14).
+Requires **Home Assistant 2026.9 or newer**. Tested in CI on **Python 3.14** against the
+latest Home Assistant release.
 
 ## Installation
 
