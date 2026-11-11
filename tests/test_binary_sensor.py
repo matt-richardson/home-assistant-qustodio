@@ -29,19 +29,19 @@ class TestQustodioBinarySensorSetup:
 
     async def test_async_setup_entry(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_coordinator: Mock,
     ) -> None:
         """Test binary sensor platform setup from config entry."""
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
 
         entities_added = []
 
         def mock_add_entities(entities):
             entities_added.extend(entities)
 
-        await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+        await async_setup_entry(mock_hass, mock_config_entry, mock_add_entities)
 
         # Should create 10 profile binary sensors (10 × 2 profiles = 20)
         # + 7 device binary sensors (7 × 2 devices = 14) = 34 total

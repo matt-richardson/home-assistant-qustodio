@@ -31,10 +31,10 @@ from custom_components.qustodio.exceptions import (
 class TestConfigFlow:
     """Tests for Qustodio config flow."""
 
-    async def test_reconfigure_step(self, hass: HomeAssistant) -> None:
+    async def test_reconfigure_step(self, mock_hass: HomeAssistant) -> None:
         """Test reconfigure step delegates to user step."""
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         # Call async_step_reconfigure with None
         result = await flow.async_step_reconfigure(None)
@@ -43,13 +43,13 @@ class TestConfigFlow:
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "user"
 
-    async def test_is_matching(self, hass: HomeAssistant) -> None:
+    async def test_is_matching(self, mock_hass: HomeAssistant) -> None:
         """Test is_matching always returns False."""
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         other_flow = ConfigFlow()
-        other_flow.hass = hass
+        other_flow.hass = mock_hass
 
         assert flow.is_matching(other_flow) is False
 
@@ -59,7 +59,7 @@ class TestValidateInput:
 
     async def test_validate_input_success(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
     ) -> None:
@@ -70,7 +70,7 @@ class TestValidateInput:
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
             result = await validate_input(
-                hass,
+                mock_hass,
                 {
                     CONF_USERNAME: "test@example.com",
                     CONF_PASSWORD: "password",
@@ -82,7 +82,7 @@ class TestValidateInput:
 
     async def test_validate_input_no_profiles(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with no profiles raises NoProfiles."""
@@ -93,7 +93,7 @@ class TestValidateInput:
 
             with pytest.raises(NoProfiles):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "password123",
@@ -102,7 +102,7 @@ class TestValidateInput:
 
     async def test_validate_input_invalid_auth(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with invalid auth."""
@@ -113,7 +113,7 @@ class TestValidateInput:
 
             with pytest.raises(InvalidAuth):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "wrong_password",
@@ -122,7 +122,7 @@ class TestValidateInput:
 
     async def test_validate_input_cannot_connect(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test input validation with connection error."""
@@ -133,7 +133,7 @@ class TestValidateInput:
 
             with pytest.raises(CannotConnect):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "password",
@@ -146,7 +146,7 @@ class TestUserFlow:
 
     async def test_user_step_success(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
     ) -> None:
@@ -157,7 +157,7 @@ class TestUserFlow:
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
             flow = ConfigFlow()
-            flow.hass = hass
+            flow.hass = mock_hass
             flow.context = {}  # Initialize context as mutable dict
             # Patch async_set_unique_id to bypass duplicate checking
             with patch.object(flow, "async_set_unique_id", return_value=None):
@@ -173,12 +173,12 @@ class TestUserFlow:
                 assert result["data"][CONF_USERNAME] == "test@example.com"
                 assert result["data"]["profiles"] == mock_profile_data
 
-    async def test_user_step_form(self, hass: HomeAssistant) -> None:
+    async def test_user_step_form(self, mock_hass: HomeAssistant) -> None:
         """Test showing form when no user input."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         result = await flow.async_step_user(None)
 
@@ -188,7 +188,7 @@ class TestUserFlow:
 
     async def test_user_step_cannot_connect(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with connection error."""
@@ -198,7 +198,7 @@ class TestUserFlow:
             mock_qustodio_api.login.side_effect = QustodioConnectionError("Connection failed")
 
             flow = ConfigFlow()
-            flow.hass = hass
+            flow.hass = mock_hass
 
             result = await flow.async_step_user(
                 {
@@ -212,7 +212,7 @@ class TestUserFlow:
 
     async def test_user_step_invalid_auth(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with invalid credentials."""
@@ -222,7 +222,7 @@ class TestUserFlow:
             mock_qustodio_api.login.side_effect = QustodioAuthenticationError("Invalid credentials")
 
             flow = ConfigFlow()
-            flow.hass = hass
+            flow.hass = mock_hass
 
             result = await flow.async_step_user(
                 {
@@ -236,7 +236,7 @@ class TestUserFlow:
 
     async def test_user_step_unknown_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test user step with unexpected error."""
@@ -246,7 +246,7 @@ class TestUserFlow:
             mock_qustodio_api.login.side_effect = Exception("Unexpected error")
 
             flow = ConfigFlow()
-            flow.hass = hass
+            flow.hass = mock_hass
 
             result = await flow.async_step_user(
                 {
@@ -260,7 +260,7 @@ class TestUserFlow:
 
     async def test_validate_input_generic_exception(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input with generic QustodioException."""
@@ -271,7 +271,7 @@ class TestUserFlow:
 
             with pytest.raises(CannotConnect):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "password",
@@ -295,17 +295,17 @@ class TestReauthFlow:
 
     async def test_reauth_step_initiates_flow(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test reauth step initiates the reauthentication flow."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
 
-        with patch.object(hass.config_entries, "async_get_entry", return_value=mock_config_entry):
+        with patch.object(mock_hass.config_entries, "async_get_entry", return_value=mock_config_entry):
             result = await flow.async_step_reauth(entry_data={})
 
             assert result["type"] == FlowResultType.FORM
@@ -314,7 +314,7 @@ class TestReauthFlow:
 
     async def test_reauth_confirm_success(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
@@ -323,7 +323,7 @@ class TestReauthFlow:
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -341,14 +341,14 @@ class TestReauthFlow:
 
     async def test_reauth_confirm_shows_form(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test reauth confirm shows form with pre-filled username."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -360,7 +360,7 @@ class TestReauthFlow:
 
     async def test_reauth_confirm_invalid_auth(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
     ) -> None:
@@ -368,7 +368,7 @@ class TestReauthFlow:
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -386,7 +386,7 @@ class TestReauthFlow:
 
     async def test_reauth_confirm_cannot_connect(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
     ) -> None:
@@ -394,7 +394,7 @@ class TestReauthFlow:
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -412,7 +412,7 @@ class TestReauthFlow:
 
     async def test_reauth_confirm_unknown_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
     ) -> None:
@@ -420,7 +420,7 @@ class TestReauthFlow:
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -442,7 +442,7 @@ class TestQustodioOptionsFlow:
 
     async def test_options_flow_init(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test options flow initialization."""
@@ -462,7 +462,7 @@ class TestQustodioOptionsFlow:
 
     async def test_options_flow_with_existing_options(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test options flow with existing options."""
@@ -484,7 +484,7 @@ class TestQustodioOptionsFlow:
 
     async def test_options_flow_save(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test saving options."""
@@ -508,7 +508,7 @@ class TestQustodioOptionsFlow:
 
     async def test_options_flow_with_cache_interval(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test options flow includes cache interval configuration."""
@@ -538,7 +538,7 @@ class TestQustodioOptionsFlow:
 
     async def test_options_flow_save_with_cache_interval(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
     ) -> None:
         """Test saving options with cache interval."""
@@ -572,7 +572,7 @@ class TestValidateInputCoordinatorDataExtraction:
 
     async def test_validate_input_extracts_profiles_from_coordinator_data(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input properly extracts profiles dict from CoordinatorData."""
@@ -605,7 +605,7 @@ class TestValidateInputCoordinatorDataExtraction:
             mock_qustodio_api.get_data.return_value = coordinator_data
 
             result = await validate_input(
-                hass,
+                mock_hass,
                 {
                     CONF_USERNAME: "test@example.com",
                     CONF_PASSWORD: "password",
@@ -625,7 +625,7 @@ class TestValidateInputCoordinatorDataExtraction:
 
     async def test_validate_input_empty_profiles(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input with CoordinatorData but empty profiles raises NoProfiles."""
@@ -643,7 +643,7 @@ class TestValidateInputCoordinatorDataExtraction:
 
             with pytest.raises(NoProfiles):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "password123",
@@ -652,7 +652,7 @@ class TestValidateInputCoordinatorDataExtraction:
 
     async def test_validate_input_none_data(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input when get_data returns None raises NoProfiles."""
@@ -663,7 +663,7 @@ class TestValidateInputCoordinatorDataExtraction:
 
             with pytest.raises(NoProfiles):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "test@example.com",
                         CONF_PASSWORD: "password123",
@@ -733,14 +733,14 @@ class TestValidationErrors:
 
     async def test_empty_username_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test empty username validation error."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         result = await flow.async_step_user(
             {
@@ -754,14 +754,14 @@ class TestValidationErrors:
 
     async def test_empty_password_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test empty password validation error."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         result = await flow.async_step_user(
             {
@@ -775,14 +775,14 @@ class TestValidationErrors:
 
     async def test_invalid_email_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test invalid email format validation error."""
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
 
         result = await flow.async_step_user(
             {
@@ -796,7 +796,7 @@ class TestValidationErrors:
 
     async def test_no_profiles_error(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test no profiles found validation error."""
@@ -808,7 +808,7 @@ class TestValidationErrors:
             mock_qustodio_api.get_data.return_value = CoordinatorData(profiles={}, devices={})
 
             flow = ConfigFlow()
-            flow.hass = hass
+            flow.hass = mock_hass
 
             result = await flow.async_step_user(
                 {
@@ -822,14 +822,14 @@ class TestValidationErrors:
 
     async def test_validate_input_empty_username(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
     ) -> None:
         """Test validate_input raises EmptyUsername for empty username."""
         from custom_components.qustodio.config_flow import validate_input
 
         with pytest.raises(EmptyUsername):
             await validate_input(
-                hass,
+                mock_hass,
                 {
                     CONF_USERNAME: "",
                     CONF_PASSWORD: "password123",
@@ -838,14 +838,14 @@ class TestValidationErrors:
 
     async def test_validate_input_empty_password(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
     ) -> None:
         """Test validate_input raises EmptyPassword for empty password."""
         from custom_components.qustodio.config_flow import validate_input
 
         with pytest.raises(EmptyPassword):
             await validate_input(
-                hass,
+                mock_hass,
                 {
                     CONF_USERNAME: "user@example.com",
                     CONF_PASSWORD: "",
@@ -854,14 +854,14 @@ class TestValidationErrors:
 
     async def test_validate_input_invalid_email(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
     ) -> None:
         """Test validate_input raises InvalidEmail for invalid email."""
         from custom_components.qustodio.config_flow import validate_input
 
         with pytest.raises(InvalidEmail):
             await validate_input(
-                hass,
+                mock_hass,
                 {
                     CONF_USERNAME: "notanemail",
                     CONF_PASSWORD: "password123",
@@ -870,7 +870,7 @@ class TestValidationErrors:
 
     async def test_validate_input_no_profiles(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_qustodio_api: AsyncMock,
     ) -> None:
         """Test validate_input raises NoProfiles when account has no profiles."""
@@ -882,7 +882,7 @@ class TestValidationErrors:
 
             with pytest.raises(NoProfiles):
                 await validate_input(
-                    hass,
+                    mock_hass,
                     {
                         CONF_USERNAME: "user@example.com",
                         CONF_PASSWORD: "password123",
@@ -902,7 +902,7 @@ class TestReauthValidation:
 
     async def test_reauth_empty_password(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
     ) -> None:
@@ -910,7 +910,7 @@ class TestReauthValidation:
         from custom_components.qustodio.config_flow import ConfigFlow
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 
@@ -925,7 +925,7 @@ class TestReauthValidation:
 
     async def test_reauth_no_profiles(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_qustodio_api: AsyncMock,
     ) -> None:
@@ -934,7 +934,7 @@ class TestReauthValidation:
         from custom_components.qustodio.models import CoordinatorData
 
         flow = ConfigFlow()
-        flow.hass = hass
+        flow.hass = mock_hass
         flow.context = {"entry_id": mock_config_entry.entry_id}
         flow._reauth_entry = mock_config_entry
 

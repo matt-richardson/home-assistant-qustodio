@@ -51,17 +51,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_basic_structure(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test basic diagnostics structure."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert "config_entry" in diagnostics
@@ -72,17 +72,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_config_entry_data(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test config entry data in diagnostics."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert config entry
         assert diagnostics["config_entry"]["title"] == "Qustodio (test@example.com)"
@@ -96,17 +96,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_coordinator_data(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test coordinator data in diagnostics."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert coordinator
         assert diagnostics["coordinator"]["last_update_success"] is True
@@ -116,17 +116,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_profile_data(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test profile data in diagnostics."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert profiles
         assert diagnostics["profile_count"] == 2
@@ -152,17 +152,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_with_error(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_error: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test diagnostics when coordinator has an error."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_error}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_error}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert diagnostics["coordinator"]["last_update_success"] is False
@@ -175,14 +175,14 @@ class TestDiagnostics:
 
     async def test_diagnostics_entities(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test entity information in diagnostics."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Mock entity registry
         mock_entity = Mock()
@@ -210,7 +210,7 @@ class TestDiagnostics:
             ),
         ):
             # Execute
-            diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+            diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert len(diagnostics["entities"]) == 1
@@ -223,7 +223,7 @@ class TestDiagnostics:
 
     async def test_diagnostics_no_data(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator: Mock,
         mock_entity_registry_patches: Any,
@@ -232,10 +232,10 @@ class TestDiagnostics:
         # Setup
         mock_coordinator.last_update_success = True
         mock_coordinator.data = None
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert diagnostics["profile_count"] == 0
@@ -244,17 +244,17 @@ class TestDiagnostics:
 
     async def test_diagnostics_redacts_sensitive_fields(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
     ) -> None:
         """Test that sensitive fields are properly redacted."""
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Check that sensitive fields are redacted in profile data
         for profile_id, profile_data in diagnostics["profile_data_full"].items():
@@ -276,7 +276,7 @@ class TestDiagnostics:
 
     async def test_diagnostics_app_usage_summary(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
@@ -302,10 +302,10 @@ class TestDiagnostics:
         mock_coordinator_with_data._last_app_fetch_date = datetime(2025, 12, 2, 10, 0, 0)
 
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert app usage is present
         assert "app_usage" in diagnostics
@@ -336,7 +336,7 @@ class TestDiagnostics:
 
     async def test_diagnostics_app_usage_no_data(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
@@ -347,10 +347,10 @@ class TestDiagnostics:
         mock_coordinator_with_data._last_app_fetch_date = None
 
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert "app_usage" in diagnostics
@@ -359,7 +359,7 @@ class TestDiagnostics:
 
     async def test_diagnostics_app_usage_empty(
         self,
-        hass: Any,
+        mock_hass: Any,
         mock_config_entry: Mock,
         mock_coordinator_with_data: Mock,
         mock_entity_registry_patches: Any,
@@ -370,10 +370,10 @@ class TestDiagnostics:
         mock_coordinator_with_data._last_app_fetch_date = datetime(2025, 12, 2, 10, 0, 0)
 
         # Setup
-        hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+        mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
 
         # Execute
-        diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
 
         # Assert
         assert "app_usage" in diagnostics
