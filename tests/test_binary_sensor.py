@@ -5,9 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import Mock, patch
 
+import pytest
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import HomeAssistant
 
+from custom_components.qustodio import binary_sensor as binary_sensor_module
 from custom_components.qustodio.binary_sensor import (
     QustodioBinarySensorComputerLocked,
     QustodioBinarySensorHasQuestionableEvents,
@@ -548,3 +550,44 @@ def test_has_quota_remaining_uses_counted_time(mock_coordinator: Mock) -> None:
     sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, {"id": "profile_1", "name": "Child One"})
 
     assert sensor.is_on is True
+
+
+PROFILE_BINARY_SENSOR_NAMES = [
+    ("QustodioBinarySensorIsOnline", "Online"),
+    ("QustodioBinarySensorHasQuotaRemaining", "Has Quota Remaining"),
+    ("QustodioBinarySensorInternetPaused", "Internet Paused"),
+    ("QustodioBinarySensorPanicButtonEnabled", "Panic Button Enabled"),
+    ("QustodioBinarySensorNavigationLocked", "Navigation Locked"),
+    ("QustodioBinarySensorUnauthorizedRemove", "Tampering Detected"),
+    ("QustodioBinarySensorHasQuestionableEvents", "Questionable Events"),
+    ("QustodioBinarySensorLocationTrackingEnabled", "Location Tracking"),
+    ("QustodioBinarySensorComputerLocked", "Computer Locked"),
+    ("QustodioBinarySensorTimeRestricted", "Time Restricted"),
+]
+DEVICE_BINARY_SENSOR_NAMES = [
+    ("QustodioDeviceBinarySensorOnline", "Online"),
+    ("QustodioDeviceBinarySensorTampered", "Tampered"),
+    ("QustodioDeviceBinarySensorProtectionDisabled", "Protection Disabled"),
+    ("QustodioDeviceBinarySensorVpnEnabled", "VPN Enabled"),
+    ("QustodioDeviceBinarySensorBrowserLocked", "Browser Locked"),
+    ("QustodioDeviceBinarySensorPanicButton", "Panic Button"),
+    ("QustodioDeviceBinarySensorSafeNetwork", "On Safe Network"),
+]
+
+
+@pytest.mark.parametrize(("class_name", "expected"), PROFILE_BINARY_SENSOR_NAMES)
+def test_profile_binary_sensor_names_are_suffix_only(mock_coordinator: Mock, class_name: str, expected: str) -> None:
+    """Profile binary sensor names carry only their own part; HA adds the device name."""
+    cls = getattr(binary_sensor_module, class_name)
+    sensor = cls(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+    assert sensor.name == expected
+    assert sensor.has_entity_name is True
+
+
+@pytest.mark.parametrize(("class_name", "expected"), DEVICE_BINARY_SENSOR_NAMES)
+def test_device_binary_sensor_names_are_suffix_only(mock_coordinator: Mock, class_name: str, expected: str) -> None:
+    """Device binary sensor names carry only their own part; HA adds the device name."""
+    cls = getattr(binary_sensor_module, class_name)
+    sensor = cls(mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"})
+    assert sensor.name == expected
+    assert sensor.has_entity_name is True

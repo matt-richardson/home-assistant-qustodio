@@ -385,3 +385,17 @@ class TestQustodioDeviceEntityDeviceInfoPlatforms:
         assert device_info["model"] == "Unknown Device"
         assert device_info["model_id"] == "device"
         assert "Cached Device" in device_info["name"]
+
+
+def test_profile_entity_has_entity_name(mock_coordinator: Mock) -> None:
+    """Profile entities use HA's device-name + entity-name composition."""
+    entity = QustodioBaseEntity(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+    assert entity.has_entity_name is True
+
+
+def test_device_entity_has_entity_name(mock_coordinator: Mock) -> None:
+    """Device entities use HA's device-name + entity-name composition."""
+    entity = QustodioDeviceEntity(
+        mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"}
+    )
+    assert entity.has_entity_name is True

@@ -77,7 +77,7 @@ class TestQustodioDeviceTracker:
         assert tracker._profile_name == "Child One"
         assert tracker._device_id == "device_1"
         assert tracker._device_name == "iPhone 12"
-        assert tracker.name == "Child One iPhone 12"
+        assert tracker.name is None
         assert tracker.unique_id == f"{DOMAIN}_tracker_profile_1_device_1"
 
     def test_latitude_with_data(self, mock_coordinator: Mock) -> None:

@@ -17,6 +17,9 @@ from .models import CoordinatorData, DeviceData, ProfileData, UserStatus
 class QustodioBaseEntity(CoordinatorEntity):
     """Base class for Qustodio entities."""
 
+    # HA composes the friendly name as device name + entity name
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the base entity.
 
@@ -93,6 +96,9 @@ class QustodioBaseEntity(CoordinatorEntity):
 
 class QustodioDeviceEntity(CoordinatorEntity[QustodioDataUpdateCoordinator]):
     """Base class for Qustodio device-specific entities."""
+
+    # HA composes the friendly name as device name + entity name
+    _attr_has_entity_name = True
 
     def __init__(
         self,

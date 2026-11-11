@@ -41,7 +41,7 @@ class QustodioDeviceTracker(QustodioDeviceEntity, TrackerEntity):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the device tracker."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name}"
+        self._attr_name = None  # named after its device
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._profile_id}_{self._device_id}"
 
     @property
