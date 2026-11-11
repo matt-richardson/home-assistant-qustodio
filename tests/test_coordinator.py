@@ -19,6 +19,17 @@ from custom_components.qustodio.exceptions import (
 from custom_components.qustodio.models import CoordinatorData
 
 
+@pytest.fixture(autouse=True)
+def _no_device_name_sync():
+    """Skip the device-registry name sync in these mocked-hass coordinator tests.
+
+    The sync is tested against a real registry in test_device_names.py; tests here
+    that check it's called patch it themselves.
+    """
+    with patch("custom_components.qustodio.coordinator.async_sync_device_names"):
+        yield
+
+
 class TestQustodioDataUpdateCoordinator:
     """Tests for QustodioDataUpdateCoordinator."""
 
@@ -915,30 +926,30 @@ class TestQustodioDataUpdateCoordinator:
 async def test_update_syncs_device_names(
     _mock_delete_issue: Mock,
     mock_sync: Mock,
-    hass: HomeAssistant,
+    mock_hass: HomeAssistant,
     mock_qustodio_api: AsyncMock,
     mock_config_entry: Any,
 ) -> None:
     """A successful update syncs device names from the fetched data."""
     data = CoordinatorData(profiles={}, devices={})
     mock_qustodio_api.get_data.return_value = data
-    coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+    coordinator = QustodioDataUpdateCoordinator(mock_hass, mock_qustodio_api, mock_config_entry)
 
     await coordinator._async_update_data()
 
-    mock_sync.assert_called_once_with(hass, mock_config_entry.entry_id, data)
+    mock_sync.assert_called_once_with(mock_hass, mock_config_entry.entry_id, data)
 
 
 @patch("custom_components.qustodio.coordinator.async_sync_device_names")
 async def test_failed_update_does_not_sync_device_names(
     mock_sync: Mock,
-    hass: HomeAssistant,
+    mock_hass: HomeAssistant,
     mock_qustodio_api: AsyncMock,
     mock_config_entry: Any,
 ) -> None:
     """A failed update leaves device names alone."""
     mock_qustodio_api.get_data.side_effect = QustodioConnectionError("Connection timeout")
-    coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+    coordinator = QustodioDataUpdateCoordinator(mock_hass, mock_qustodio_api, mock_config_entry)
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()

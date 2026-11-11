@@ -1,9 +1,10 @@
-"""Tests for syncing device registry names from Qustodio data."""
+"""Tests for syncing device registry names from Qustodio data (real HA device registry)."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.qustodio.const import DOMAIN
 from custom_components.qustodio.device_names import async_sync_device_names, expected_device_name
@@ -16,22 +17,14 @@ def _data(profile_name: str = "Jacob", device_name: str = "Jacob's School Mac") 
     return CoordinatorData(profiles={"11": profile}, devices={"22": device})
 
 
-def _entry(device_id: str, ident: str, name: str, name_by_user: str | None = None) -> SimpleNamespace:
-    return SimpleNamespace(id=device_id, identifiers={(DOMAIN, ident)}, name=name, name_by_user=name_by_user)
+def _entry(hass: HomeAssistant, entry_id: str = "entry_1") -> MockConfigEntry:
+    entry = MockConfigEntry(domain=DOMAIN, entry_id=entry_id)
+    entry.add_to_hass(hass)
+    return entry
 
 
-def _sync(entries: list[SimpleNamespace], data: CoordinatorData) -> Mock:
-    """Run the sync against a mocked registry holding ``entries``; return the registry."""
-    registry = Mock()
-    with (
-        patch("custom_components.qustodio.device_names.dr.async_get", return_value=registry),
-        patch(
-            "custom_components.qustodio.device_names.dr.async_entries_for_config_entry", return_value=entries
-        ) as entries_for,
-    ):
-        async_sync_device_names(Mock(), "entry_1", data)
-    entries_for.assert_called_once_with(registry, "entry_1")
-    return registry
+def _register(device_registry: dr.DeviceRegistry, entry: MockConfigEntry, ident: str, name: str) -> dr.DeviceEntry:
+    return device_registry.async_get_or_create(config_entry_id=entry.entry_id, identifiers={(DOMAIN, ident)}, name=name)
 
 
 class TestExpectedDeviceName:
@@ -56,30 +49,72 @@ class TestExpectedDeviceName:
 
 
 class TestSyncDeviceNames:
-    """Tests for async_sync_device_names()."""
+    """Tests for async_sync_device_names() against a real device registry."""
 
-    def test_sync_renames_profile_device(self) -> None:
+    async def test_sync_renames_profile_device(self, hass: HomeAssistant, device_registry: dr.DeviceRegistry) -> None:
         """A profile renamed in Qustodio renames its HA device."""
-        registry = _sync([_entry("d1", "11", "Old")], _data(profile_name="New"))
-        registry.async_update_device.assert_called_once_with("d1", name="New")
+        entry = _entry(hass)
+        device = _register(device_registry, entry, "11", "Old")
 
-    def test_sync_renames_child_device(self) -> None:
+        async_sync_device_names(hass, entry.entry_id, _data(profile_name="New"))
+
+        assert device_registry.async_get(device.id).name == "New"
+
+    async def test_sync_renames_child_device(self, hass: HomeAssistant, device_registry: dr.DeviceRegistry) -> None:
         """A device renamed in Qustodio renames its HA device."""
-        registry = _sync([_entry("d2", "11_22", "Jacob Old Mac")], _data())
-        registry.async_update_device.assert_called_once_with("d2", name="Jacob Jacob's School Mac")
+        entry = _entry(hass)
+        device = _register(device_registry, entry, "11_22", "Jacob Old Mac")
 
-    def test_sync_keeps_name_by_user(self) -> None:
-        """Only the integration's name changes; a name the user set in HA is never touched."""
-        registry = _sync([_entry("d2", "11_22", "Jacob Old Mac", name_by_user="Jacob's School Mac")], _data())
-        registry.async_update_device.assert_called_once_with("d2", name="Jacob Jacob's School Mac")
+        async_sync_device_names(hass, entry.entry_id, _data())
 
-    def test_sync_no_change_makes_no_update(self) -> None:
+        assert device_registry.async_get(device.id).name == "Jacob Jacob's School Mac"
+
+    async def test_sync_keeps_name_by_user(self, hass: HomeAssistant, device_registry: dr.DeviceRegistry) -> None:
+        """Only the integration's name changes; a name the user set in HA is kept."""
+        entry = _entry(hass)
+        device = _register(device_registry, entry, "11_22", "Jacob Old Mac")
+        device_registry.async_update_device(device.id, name_by_user="Jacob's School Mac")
+
+        async_sync_device_names(hass, entry.entry_id, _data(device_name="MacBook"))
+
+        updated = device_registry.async_get(device.id)
+        assert updated.name == "Jacob MacBook"
+        assert updated.name_by_user == "Jacob's School Mac"
+
+    async def test_sync_no_change_keeps_device_unmodified(
+        self, hass: HomeAssistant, device_registry: dr.DeviceRegistry
+    ) -> None:
         """Names that already match aren't rewritten."""
-        registry = _sync([_entry("d1", "11", "Jacob"), _entry("d2", "11_22", "Jacob Jacob's School Mac")], _data())
-        registry.async_update_device.assert_not_called()
+        entry = _entry(hass)
+        device = _register(device_registry, entry, "11", "Jacob")
+        before = device_registry.async_get(device.id).modified_at
 
-    def test_sync_ignores_unknown_and_foreign_identifiers(self) -> None:
+        async_sync_device_names(hass, entry.entry_id, _data())
+
+        assert device_registry.async_get(device.id).modified_at == before
+
+    async def test_sync_ignores_other_config_entries(
+        self, hass: HomeAssistant, device_registry: dr.DeviceRegistry
+    ) -> None:
+        """Devices belonging to another config entry are left alone."""
+        ours, other = _entry(hass, "entry_1"), _entry(hass, "entry_2")
+        foreign = _register(device_registry, other, "11", "Old")
+
+        async_sync_device_names(hass, ours.entry_id, _data(profile_name="New"))
+
+        assert device_registry.async_get(foreign.id).name == "Old"
+
+    async def test_sync_ignores_unknown_and_foreign_identifiers(
+        self, hass: HomeAssistant, device_registry: dr.DeviceRegistry
+    ) -> None:
         """Devices with unknown ids or other domains' identifiers are left alone."""
-        foreign = SimpleNamespace(id="d9", identifiers={("other", "11")}, name="Old", name_by_user=None)
-        registry = _sync([foreign, _entry("d8", "99", "Old")], _data())
-        registry.async_update_device.assert_not_called()
+        entry = _entry(hass)
+        unknown = _register(device_registry, entry, "99", "Old")
+        foreign = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id, identifiers={("other", "11")}, name="Old"
+        )
+
+        async_sync_device_names(hass, entry.entry_id, _data(profile_name="New"))
+
+        assert device_registry.async_get(unknown.id).name == "Old"
+        assert device_registry.async_get(foreign.id).name == "Old"

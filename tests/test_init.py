@@ -347,7 +347,7 @@ class TestAsyncUpdateOptions:
 
 
 async def test_profile_devices_registered_with_current_names(
-    hass: HomeAssistant,
+    mock_hass: HomeAssistant,
     mock_config_entry: Mock,
     mock_qustodio_api: AsyncMock,
     mock_coordinator: Mock,
@@ -361,7 +361,7 @@ async def test_profile_devices_registered_with_current_names(
         patch("custom_components.qustodio.QustodioDataUpdateCoordinator", return_value=mock_coordinator),
         patch("custom_components.qustodio.dr.async_get", return_value=registry),
     ):
-        await async_setup_entry(hass, mock_config_entry)
+        await async_setup_entry(mock_hass, mock_config_entry)
 
     names = {
         next(iter(call.kwargs["identifiers"]))[1]: call.kwargs["name"]

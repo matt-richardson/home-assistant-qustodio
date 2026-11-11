@@ -58,3 +58,43 @@ async def test_setup_registers_devices_and_entities(
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+def _device_name(hass: HomeAssistant, device_registry: dr.DeviceRegistry, entry: MockConfigEntry, ident: str) -> str:
+    device_id = dr.async_get_device_id_by_identifier(hass, (DOMAIN, ident), config_entry_id=entry.entry_id)
+    return device_registry.async_get(device_id).name
+
+
+async def test_restart_after_qustodio_rename_uses_current_names(
+    hass: HomeAssistant,
+    enable_custom_integrations: None,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """After a profile is renamed in Qustodio, a restart registers devices under the new name immediately.
+
+    The config entry still holds the setup-time profile name, so this guards against setup
+    re-registering devices with the stale name until the next poll.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, data=ENTRY_DATA, entry_id="entry_1")
+    entry.add_to_hass(hass)
+    api = _api()
+
+    with patch("custom_components.qustodio.QustodioApi", return_value=api):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert _device_name(hass, device_registry, entry, "profile_1_device_1") == "Child One iPhone 12"
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+        renamed = build_coordinator_data()
+        renamed.profiles["profile_1"].name = "Renamed Child"
+        api.get_data.return_value = renamed
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert _device_name(hass, device_registry, entry, "profile_1") == "Renamed Child"
+    assert _device_name(hass, device_registry, entry, "profile_1_device_1") == "Renamed Child iPhone 12"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
