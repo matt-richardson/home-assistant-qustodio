@@ -89,6 +89,13 @@ comprehensive error handling.
 **Important**: No "Qustodio" prefix in entity names (removed for cleaner
 UI)
 
+**Names are composed by HA**: entities set `has_entity_name = True` and name
+only their own part (`"Online"`, `"Time Remaining"`; `None` for the main
+screen time sensor and device trackers). HA prefixes the device name, so names
+stay right when a device is renamed. The coordinator keeps device names in step
+with Qustodio after each update (`device_names.py`). Existing entity IDs are
+kept by the entity registry.
+
 ## Testing Standards
 
 **Coverage Target**: >95% maintained
