@@ -16,6 +16,7 @@ from custom_components.qustodio.exceptions import (
     QustodioConnectionError,
     QustodioException,
 )
+from custom_components.qustodio.models import CoordinatorData
 
 
 class TestQustodioDataUpdateCoordinator:
@@ -907,3 +908,39 @@ class TestQustodioDataUpdateCoordinator:
         mock_qustodio_api.get_active_restriction.side_effect = Exception("Network blip")
         second_result = await coordinator._async_update_data()
         assert second_result.extra_time_minutes == {"profile_1": 30}
+
+
+@patch("custom_components.qustodio.coordinator.async_sync_device_names")
+@patch("custom_components.qustodio.coordinator.ir.async_delete_issue")
+async def test_update_syncs_device_names(
+    _mock_delete_issue: Mock,
+    mock_sync: Mock,
+    hass: HomeAssistant,
+    mock_qustodio_api: AsyncMock,
+    mock_config_entry: Any,
+) -> None:
+    """A successful update syncs device names from the fetched data."""
+    data = CoordinatorData(profiles={}, devices={})
+    mock_qustodio_api.get_data.return_value = data
+    coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+    await coordinator._async_update_data()
+
+    mock_sync.assert_called_once_with(hass, mock_config_entry.entry_id, data)
+
+
+@patch("custom_components.qustodio.coordinator.async_sync_device_names")
+async def test_failed_update_does_not_sync_device_names(
+    mock_sync: Mock,
+    hass: HomeAssistant,
+    mock_qustodio_api: AsyncMock,
+    mock_config_entry: Any,
+) -> None:
+    """A failed update leaves device names alone."""
+    mock_qustodio_api.get_data.side_effect = QustodioConnectionError("Connection timeout")
+    coordinator = QustodioDataUpdateCoordinator(hass, mock_qustodio_api, mock_config_entry)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    mock_sync.assert_not_called()

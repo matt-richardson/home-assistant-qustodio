@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
+from .device_names import async_sync_device_names
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -82,6 +83,8 @@ class QustodioDataUpdateCoordinator(DataUpdateCoordinator):
             await self._fetch_extra_time(data)
 
             self._handle_update_success(update_time, data)
+            if isinstance(data, CoordinatorData):
+                async_sync_device_names(self.hass, self.entry.entry_id, data)
             return data
         except QustodioAuthenticationError as err:
             self._handle_authentication_error(err)
