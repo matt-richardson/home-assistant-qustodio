@@ -125,7 +125,12 @@ class QustodioDeviceEntity(CoordinatorEntity[QustodioDataUpdateCoordinator]):
 
         Device entities are linked to both the profile and the specific device.
         """
-        # Try to get current device name and platform from coordinator data
+        # Try to get current profile/device names and platform from coordinator data
+        profile_name = self._profile_name
+        if isinstance(self.coordinator.data, CoordinatorData) and (
+            profile := self.coordinator.data.profiles.get(self._profile_id)
+        ):
+            profile_name = profile.name
         device_name = self._device_name
         device_data = self._get_device_data()
         platform_name = "Unknown"
@@ -146,7 +151,7 @@ class QustodioDeviceEntity(CoordinatorEntity[QustodioDataUpdateCoordinator]):
 
         device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{self._profile_id}_{self._device_id}")},
-            name=f"{self._profile_name} {device_name}",
+            name=f"{profile_name} {device_name}",
             manufacturer=MANUFACTURER,
             model=f"{platform_name} Device",
             model_id=model_id,

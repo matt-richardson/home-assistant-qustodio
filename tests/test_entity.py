@@ -399,3 +399,14 @@ def test_device_entity_has_entity_name(mock_coordinator: Mock) -> None:
         mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"}
     )
     assert entity.has_entity_name is True
+
+
+def test_device_info_uses_current_profile_name(mock_coordinator: Mock) -> None:
+    """A profile renamed in Qustodio is reflected in the device name, not the setup-time name."""
+    entity = QustodioDeviceEntity(
+        mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"}
+    )
+    mock_coordinator.data.profiles["profile_1"].name = "Renamed Child"
+    device_name = mock_coordinator.data.devices["device_1"].name
+
+    assert entity.device_info["name"] == f"Renamed Child {device_name}"
