@@ -338,6 +338,8 @@ def mock_hass() -> HomeAssistant:
         # dr.async_get_device_id_by_identifier() to populate `via_device_id`.
         # Individual tests patch this when they assert on the resulting link.
         hass_instance.data[dr.DATA_REGISTRY] = Mock()
+        # The coordinator syncs device names after each update; start with no devices.
+        hass_instance.data[dr.DATA_REGISTRY]._devices.get_devices_for_config_entry_id.return_value = []
 
         hass_instance.config_entries = Mock()
         hass_instance.config_entries.async_forward_entry_setups = AsyncMock()
