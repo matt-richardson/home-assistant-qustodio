@@ -2155,14 +2155,14 @@ class TestQustodioApiCountedScreenTime:
     ):
         """Return a factory that routes session.get by URL to canned responses."""
 
-        def build(hourly: list, routines: Mock | None = None) -> Mock:
+        def build(hourly: list | Mock, routines: Mock | None = None) -> Mock:
             def route(url: str, **_kwargs: object) -> Mock:
                 if "/routines" in url:
                     if routines is None:
                         raise AssertionError(f"unexpected routines request: {url}")
                     return routines
                 if "summary_hourly" in url:
-                    return _json_resp(hourly)
+                    return hourly if isinstance(hourly, Mock) else _json_resp(hourly)
                 if "/rules" in url:
                     return _json_resp(mock_api_rules_response)
                 if "/devices" in url:
@@ -2210,3 +2210,16 @@ class TestQustodioApiCountedScreenTime:
         failing.__aexit__ = AsyncMock(return_value=None)
         raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, failing))
         assert raw["time"] == raw["total_screen_time"] == 50.0
+
+    async def test_screen_time_hourly_unavailable_is_zero(self, routed_session) -> None:
+        """A non-200 hourly response gives zero screen time, without a routines request."""
+        raw = await self._get_profile1_raw(routed_session(_json_resp([], status=404)))
+        assert raw["time"] == raw["total_screen_time"] == 0
+
+    async def test_screen_time_hourly_connection_error_is_zero(self, routed_session) -> None:
+        """A connection error on the hourly request gives zero screen time."""
+        failing = Mock()
+        failing.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("boom"))
+        failing.__aexit__ = AsyncMock(return_value=None)
+        raw = await self._get_profile1_raw(routed_session(failing))
+        assert raw["time"] == raw["total_screen_time"] == 0

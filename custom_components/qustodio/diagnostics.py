@@ -148,6 +148,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
                     "has_location": bool(raw.get("latitude")),
                     "has_quota": bool(raw.get("quota")),
                     "time_used_minutes": raw.get("time", 0),
+                    "total_screen_time_minutes": raw.get("total_screen_time", raw.get("time", 0)),
                     "quota_minutes": raw.get("quota", 0),
                     "current_device": raw.get("current_device"),
                     "unauthorized_remove": raw.get("unauthorized_remove", False),
