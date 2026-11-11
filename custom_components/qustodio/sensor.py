@@ -47,18 +47,12 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator, profile_data)
         self._attr_unique_id = f"{DOMAIN}_{self._profile_id}"
+        # Named after its (profile) device; set explicitly so HA doesn't fall back to the device class name
+        self._attr_name = None
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_suggested_display_precision = 1
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        data = self._get_profile_data()
-        if data:
-            return data.name
-        return self._profile_id
 
     @property
     def attribution(self) -> str:
@@ -215,17 +209,11 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator, profile_data)
         self._attr_unique_id = f"{DOMAIN}_time_remaining_{self._profile_id}"
+        self._attr_name = "Time Remaining"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_suggested_display_precision = 1
         self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        data = self._get_profile_data()
-        profile_name = data.name if data else self._profile_name
-        return f"{profile_name} Time Remaining"
 
     def _get_extra_time_minutes(self) -> int:
         """Return today's granted extra time in minutes."""
@@ -281,7 +269,7 @@ class QustodioDeviceMdmTypeSensor(QustodioDeviceEntity, SensorEntity):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} MDM Type"
+        self._attr_name = "MDM Type"
         self._attr_unique_id = f"{DOMAIN}_device_mdm_type_{self._profile_id}_{self._device_id}"
         self._attr_icon = "mdi:shield-account"
 

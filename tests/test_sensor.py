@@ -62,7 +62,7 @@ class TestQustodioSensor:
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        assert sensor.name == "Child One"
+        assert sensor.name is None
 
     def test_name_without_data(self, mock_coordinator: Mock) -> None:
         """Test sensor name when coordinator has no data."""
@@ -72,14 +72,14 @@ class TestQustodioSensor:
         # Clear coordinator data
         mock_coordinator.data = None
 
-        assert sensor.name == "profile_1"
+        assert sensor.name is None
 
     def test_name_profile_not_in_data(self, mock_coordinator: Mock) -> None:
         """Test sensor name when profile not in coordinator data."""
         profile_data = {"id": "profile_999", "name": "Unknown Profile"}
         sensor = QustodioSensor(mock_coordinator, profile_data)
 
-        assert sensor.name == "profile_999"
+        assert sensor.name is None
 
     def test_attribution(self, mock_coordinator: Mock) -> None:
         """Test sensor attribution."""
@@ -532,7 +532,7 @@ class TestQustodioTimeRemainingSensor:
 
         sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
 
-        assert sensor.name == "Child One Time Remaining"
+        assert sensor.name == "Time Remaining"
         assert sensor._attr_unique_id == f"{DOMAIN}_time_remaining_profile_1"
         assert sensor.device_class == SensorDeviceClass.DURATION
         assert sensor.native_unit_of_measurement == UnitOfTime.MINUTES
@@ -546,7 +546,7 @@ class TestQustodioTimeRemainingSensor:
 
         mock_coordinator.data.profiles["profile_1"].name = "Renamed Child"
 
-        assert sensor.name == "Renamed Child Time Remaining"
+        assert sensor.name == "Time Remaining"
 
     def test_name_without_data(self, mock_coordinator: Mock) -> None:
         """Test name falls back to the init-time profile name when coordinator has no data."""
@@ -555,7 +555,7 @@ class TestQustodioTimeRemainingSensor:
 
         mock_coordinator.data = None
 
-        assert sensor.name == "Child One Time Remaining"
+        assert sensor.name == "Time Remaining"
 
     def test_native_value_no_extra_time(self, mock_coordinator: Mock) -> None:
         """Test native value with no extra time granted."""
@@ -652,7 +652,7 @@ class TestQustodioDeviceMdmTypeSensor:
 
         sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
 
-        assert sensor._attr_name == "Child One iPhone MDM Type"
+        assert sensor.name == "MDM Type"
         assert sensor._attr_unique_id == "qustodio_device_mdm_type_profile_1_device_1"
         assert sensor._attr_icon == "mdi:shield-account"
 
@@ -769,3 +769,20 @@ class TestQustodioDeviceMdmTypeSensor:
 
         sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
         assert sensor.native_value is None
+
+
+def test_screen_time_sensor_name_explicitly_none(mock_coordinator: Mock) -> None:
+    """The name is set to None explicitly, so HA names it after the device, not the device class."""
+    sensor = QustodioSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+    # HA would otherwise name it after its device class ("Duration")
+    assert sensor._name_internal("Duration", {}) is None
+
+
+def test_device_tracker_name_explicitly_none(mock_coordinator: Mock) -> None:
+    """The tracker's name is set to None explicitly, so HA names it after its device."""
+    from custom_components.qustodio.device_tracker import QustodioDeviceTracker
+
+    tracker = QustodioDeviceTracker(
+        mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"}
+    )
+    assert tracker._name_internal("Device tracker", {}) is None
