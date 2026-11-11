@@ -69,6 +69,8 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
         self._password = password
         self._retry_config = retry_config or RetryConfig()
         self._session: aiohttp.ClientSession | None = None
+        # Last good routine uid -> counts-toward-limit map per profile uid, reused when a fetch fails
+        self._routine_counts_cache: dict[str, dict[str, bool]] = {}
         self._access_token: str | None = None
         self._refresh_token: str | None = None
         self._expires_in: datetime | None = None
@@ -562,24 +564,34 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
     ) -> dict[str, bool] | None:
         """Fetch whether each of a profile's routines counts toward the daily limit.
 
+        Successful results are cached per profile and reused when a later fetch
+        fails, so counted time doesn't jump to the total for a single bad poll.
+
         Returns:
-            Routine uid -> counts flag, or None if the routines could not be fetched
-            (callers then count all routine time, as before).
+            Routine uid -> counts flag; the last good result if this fetch fails;
+            or None if there has never been a good result (callers then count all
+            routine time, as before).
         """
+        profile_uid = profile_data["uid"]
         profile_name = profile_data["name"]
         try:
             async with session.get(
-                URL_ROUTINES.format(self._account_uid, profile_data["uid"]),
+                URL_ROUTINES.format(self._account_uid, profile_uid),
                 headers=headers,
             ) as response:
                 if response.status == 200:
                     routines = await response.json()
                     self._log_api_response(f"routines/{profile_name}", response.status, routines)
-                    return routine_counting_map(routines.get("items_list", []))
-                self._log_api_response(f"routines/{profile_name}", response.status, error=f"HTTP {response.status}")
-        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+                    if isinstance(routines, dict):
+                        counts = routine_counting_map(routines.get("items_list", []))
+                        self._routine_counts_cache[profile_uid] = counts
+                        return counts
+                    _LOGGER.debug("Unexpected routines response for profile %s: %s", profile_name, routines)
+                else:
+                    self._log_api_response(f"routines/{profile_name}", response.status, error=f"HTTP {response.status}")
+        except (asyncio.TimeoutError, aiohttp.ClientError, ValueError) as err:
             _LOGGER.debug("Failed to get routines for profile %s: %s", profile_name, err)
-        return None
+        return self._routine_counts_cache.get(profile_uid)
 
     async def _process_profile(self, ctx: ProfileContext) -> dict[str, Any]:
         """Process a single profile and gather all its data."""

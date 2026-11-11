@@ -2223,3 +2223,27 @@ class TestQustodioApiCountedScreenTime:
         failing.__aexit__ = AsyncMock(return_value=None)
         raw = await self._get_profile1_raw(routed_session(failing))
         assert raw["time"] == raw["total_screen_time"] == 0
+
+    async def test_screen_time_routines_failure_reuses_last_good_counts(self, routed_session) -> None:
+        """After a good routines fetch, a failed one reuses it so counted time doesn't jump to the total."""
+        session = routed_session(SCHOOL_HOURLY, _json_resp(SCHOOL_ROUTINES))
+        with patch("aiohttp.ClientSession", return_value=session):
+            api = QustodioApi("test@example.com", "password")
+            first = await api.get_data()
+            routed_session(SCHOOL_HOURLY, _json_resp({}, status=500))
+            second = await api.get_data()
+        assert first.profiles["profile_1"].raw_data["time"] == 20.0
+        assert second.profiles["profile_1"].raw_data["time"] == 20.0
+        assert second.profiles["profile_1"].raw_data["total_screen_time"] == 50.0
+
+    async def test_screen_time_routines_non_dict_body_falls_back(self, routed_session) -> None:
+        """A 200 routines response that isn't an object doesn't fail the poll."""
+        raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, _json_resp([])))
+        assert raw["time"] == raw["total_screen_time"] == 50.0
+
+    async def test_screen_time_routines_invalid_json_falls_back(self, routed_session) -> None:
+        """A 200 routines response with an unparseable body doesn't fail the poll."""
+        bad = _json_resp(None)
+        bad.json = AsyncMock(side_effect=ValueError("not json"))
+        raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, bad))
+        assert raw["time"] == raw["total_screen_time"] == 50.0
