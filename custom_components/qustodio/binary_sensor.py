@@ -72,7 +72,7 @@ class QustodioBinarySensorIsOnline(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Online"
+        self._attr_name = "Online"
         self._attr_unique_id = f"{DOMAIN}_is_online_{self._profile_id}"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
         self._attr_icon = "mdi:wifi"
@@ -94,7 +94,7 @@ class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Has Quota Remaining"
+        self._attr_name = "Has Quota Remaining"
         self._attr_unique_id = f"{DOMAIN}_has_quota_remaining_{self._profile_id}"
         self._attr_icon = "mdi:timer-check"
 
@@ -118,7 +118,7 @@ class QustodioBinarySensorInternetPaused(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Internet Paused"
+        self._attr_name = "Internet Paused"
         self._attr_unique_id = f"{DOMAIN}_internet_paused_{self._profile_id}"
         self._attr_icon = "mdi:pause-circle"
 
@@ -143,7 +143,7 @@ class QustodioBinarySensorPanicButtonEnabled(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Panic Button Enabled"
+        self._attr_name = "Panic Button Enabled"
         self._attr_unique_id = f"{DOMAIN}_panic_button_enabled_{self._profile_id}"
         self._attr_icon = "mdi:alert-circle-outline"
 
@@ -164,7 +164,7 @@ class QustodioBinarySensorNavigationLocked(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Navigation Locked"
+        self._attr_name = "Navigation Locked"
         self._attr_unique_id = f"{DOMAIN}_navigation_locked_{self._profile_id}"
         self._attr_icon = "mdi:web-cancel"
 
@@ -185,7 +185,7 @@ class QustodioBinarySensorUnauthorizedRemove(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Tampering Detected"
+        self._attr_name = "Tampering Detected"
         self._attr_unique_id = f"{DOMAIN}_unauthorized_remove_{self._profile_id}"
         self._attr_device_class = BinarySensorDeviceClass.PROBLEM
         self._attr_icon = "mdi:shield-alert"
@@ -207,7 +207,7 @@ class QustodioBinarySensorHasQuestionableEvents(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Questionable Events"
+        self._attr_name = "Questionable Events"
         self._attr_unique_id = f"{DOMAIN}_has_questionable_events_{self._profile_id}"
         self._attr_device_class = BinarySensorDeviceClass.PROBLEM
         self._attr_icon = "mdi:alert"
@@ -233,7 +233,7 @@ class QustodioBinarySensorLocationTrackingEnabled(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Location Tracking"
+        self._attr_name = "Location Tracking"
         self._attr_unique_id = f"{DOMAIN}_location_tracking_enabled_{self._profile_id}"
         self._attr_icon = "mdi:map-marker-check"
 
@@ -254,7 +254,7 @@ class QustodioBinarySensorComputerLocked(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Computer Locked"
+        self._attr_name = "Computer Locked"
         self._attr_unique_id = f"{DOMAIN}_computer_locked_{self._profile_id}"
         self._attr_icon = "mdi:laptop-off"
 
@@ -291,7 +291,7 @@ class QustodioBinarySensorTimeRestricted(QustodioBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data)
-        self._attr_name = f"{self._profile_name} Time Restricted"
+        self._attr_name = "Time Restricted"
         self._attr_unique_id = f"{DOMAIN}_time_restricted_{self._profile_id}"
         self._attr_icon = "mdi:clock-alert-outline"
 
@@ -332,7 +332,7 @@ class QustodioDeviceBinarySensorOnline(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} Online"
+        self._attr_name = "Online"
         self._attr_unique_id = f"{DOMAIN}_device_online_{self._profile_id}_{self._device_id}"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
         self._attr_icon = "mdi:wifi"
@@ -354,7 +354,7 @@ class QustodioDeviceBinarySensorTampered(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} Tampered"
+        self._attr_name = "Tampered"
         self._attr_unique_id = f"{DOMAIN}_device_tampered_{self._profile_id}_{self._device_id}"
         self._attr_device_class = BinarySensorDeviceClass.PROBLEM
         self._attr_icon = "mdi:shield-alert"
@@ -379,7 +379,7 @@ class QustodioDeviceBinarySensorProtectionDisabled(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} Protection Disabled"
+        self._attr_name = "Protection Disabled"
         self._attr_unique_id = f"{DOMAIN}_device_protection_disabled_{self._profile_id}_{self._device_id}"
         self._attr_device_class = BinarySensorDeviceClass.PROBLEM
         self._attr_icon = "mdi:shield-off"
@@ -402,7 +402,7 @@ class QustodioDeviceBinarySensorVpnEnabled(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} VPN Enabled"
+        self._attr_name = "VPN Enabled"
         self._attr_unique_id = f"{DOMAIN}_device_vpn_enabled_{self._profile_id}_{self._device_id}"
         self._attr_icon = "mdi:vpn"
 
@@ -425,7 +425,7 @@ class QustodioDeviceBinarySensorBrowserLocked(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} Browser Locked"
+        self._attr_name = "Browser Locked"
         self._attr_unique_id = f"{DOMAIN}_device_browser_locked_{self._profile_id}_{self._device_id}"
         self._attr_icon = "mdi:web-box"
 
@@ -447,7 +447,7 @@ class QustodioDeviceBinarySensorPanicButton(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} Panic Button"
+        self._attr_name = "Panic Button"
         self._attr_unique_id = f"{DOMAIN}_device_panic_button_{self._profile_id}_{self._device_id}"
         self._attr_device_class = BinarySensorDeviceClass.SAFETY
         self._attr_icon = "mdi:alert-circle"
@@ -470,7 +470,7 @@ class QustodioDeviceBinarySensorSafeNetwork(QustodioDeviceBinarySensor):
     def __init__(self, coordinator: Any, profile_data: dict[str, Any], device_data: dict[str, Any]) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, profile_data, device_data)
-        self._attr_name = f"{self._profile_name} {self._device_name} On Safe Network"
+        self._attr_name = "On Safe Network"
         self._attr_unique_id = f"{DOMAIN}_device_safe_network_{self._profile_id}_{self._device_id}"
         self._attr_icon = "mdi:wifi-check"
 
