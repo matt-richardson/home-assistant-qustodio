@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -39,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async_setup_services(hass)
 
-    _register_profile_devices(hass, entry)
+    _register_profile_devices(hass, entry, coordinator.data)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -49,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _register_profile_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def _register_profile_devices(hass: HomeAssistant, entry: ConfigEntry, data: Any = None) -> None:
     """Register a device for each profile before platforms are set up.
 
     Device entities link to their profile device via ``via_device_id``, which
@@ -61,15 +62,21 @@ def _register_profile_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
     Args:
         hass: The Home Assistant instance
         entry: The config entry holding the configured profiles
+        data: The first refresh's coordinator data; its profile names win over
+            the setup-time names in the config entry, so a rename in Qustodio
+            isn't reverted on every restart.
     """
     device_registry = dr.async_get(hass)
 
     for profile_data in entry.data.get("profiles", {}).values():
         profile_id = str(profile_data["id"])
+        name = profile_data.get("name", profile_id)
+        if isinstance(data, CoordinatorData) and (profile := data.profiles.get(profile_id)):
+            name = profile.name
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, profile_id)},
-            name=profile_data.get("name", profile_id),
+            name=name,
             manufacturer=MANUFACTURER,
             model="Profile",
             model_id="profile",

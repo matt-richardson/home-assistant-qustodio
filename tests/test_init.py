@@ -344,3 +344,27 @@ class TestAsyncUpdateOptions:
 
         # Verify refresh was not called
         mock_coordinator.async_request_refresh.assert_not_called()
+
+
+async def test_profile_devices_registered_with_current_names(
+    hass: HomeAssistant,
+    mock_config_entry: Mock,
+    mock_qustodio_api: AsyncMock,
+    mock_coordinator: Mock,
+) -> None:
+    """Profile devices are registered under the latest Qustodio name, not the setup-time one."""
+    mock_coordinator.async_config_entry_first_refresh = AsyncMock()
+    mock_coordinator.data.profiles["profile_1"].name = "Renamed Child"
+    registry = Mock()
+    with (
+        patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
+        patch("custom_components.qustodio.QustodioDataUpdateCoordinator", return_value=mock_coordinator),
+        patch("custom_components.qustodio.dr.async_get", return_value=registry),
+    ):
+        await async_setup_entry(hass, mock_config_entry)
+
+    names = {
+        next(iter(call.kwargs["identifiers"]))[1]: call.kwargs["name"]
+        for call in registry.async_get_or_create.call_args_list
+    }
+    assert names["profile_1"] == "Renamed Child"
