@@ -2118,3 +2118,95 @@ class TestCalendarRestrictionAndRoutines:
         method, url = session.request.call_args.args
         assert method == "DELETE"
         assert url.endswith("/routines/rou-7/schedules/s1")
+
+
+SCHOOL_HOURLY = [
+    {
+        "screen_time_seconds": 3000,
+        "default_rules_screen_time": 1200,
+        "routines_screen_time": [{"uid": "school", "seconds": 1800}],
+    }
+]
+SCHOOL_ROUTINES = {"items_list": [{"uid": "school", "policy": {"counts_towards_daily_time_quota": False}}]}
+
+
+def _json_resp(payload: object, status: int = 200) -> Mock:
+    """Build a mock aiohttp response usable as an async context manager."""
+    resp = Mock()
+    resp.__aenter__ = AsyncMock(return_value=resp)
+    resp.__aexit__ = AsyncMock(return_value=None)
+    resp.status = status
+    resp.json = AsyncMock(return_value=payload)
+    return resp
+
+
+class TestQustodioApiCountedScreenTime:
+    """Screen time counts only routines that count toward the daily limit."""
+
+    @pytest.fixture
+    def routed_session(
+        self,
+        mock_aiohttp_session: Mock,
+        mock_api_login_response: dict,
+        mock_api_account_response: dict,
+        mock_api_profiles_response: list,
+        mock_api_devices_response: list,
+        mock_api_rules_response: dict,
+    ):
+        """Return a factory that routes session.get by URL to canned responses."""
+
+        def build(hourly: list, routines: Mock | None = None) -> Mock:
+            def route(url: str, **_kwargs: object) -> Mock:
+                if "/routines" in url:
+                    if routines is None:
+                        raise AssertionError(f"unexpected routines request: {url}")
+                    return routines
+                if "summary_hourly" in url:
+                    return _json_resp(hourly)
+                if "/rules" in url:
+                    return _json_resp(mock_api_rules_response)
+                if "/devices" in url:
+                    return _json_resp(mock_api_devices_response)
+                if "/profiles" in url:
+                    return _json_resp(mock_api_profiles_response)
+                return _json_resp(mock_api_account_response)
+
+            mock_aiohttp_session.post = Mock(return_value=_json_resp(mock_api_login_response))
+            mock_aiohttp_session.get = Mock(side_effect=route)
+            return mock_aiohttp_session
+
+        return build
+
+    async def _get_profile1_raw(self, session: Mock) -> dict:
+        with patch("aiohttp.ClientSession", return_value=session):
+            api = QustodioApi("test@example.com", "password")
+            data = await api.get_data()
+        return data.profiles["profile_1"].raw_data
+
+    async def test_screen_time_without_routines_makes_no_routines_request(
+        self, routed_session, mock_api_hourly_summary_response: list
+    ) -> None:
+        """No routine time in the hourly data means no routines request and counted == total."""
+        session = routed_session(mock_api_hourly_summary_response)
+        raw = await self._get_profile1_raw(session)
+        assert raw["time"] == raw["total_screen_time"] == 45.0
+        assert session.get.call_count == 7
+
+    async def test_screen_time_excludes_non_counting_routine(self, routed_session) -> None:
+        """Time in a routine set not to count is excluded from time but kept in the total."""
+        raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, _json_resp(SCHOOL_ROUTINES)))
+        assert raw["time"] == 20.0
+        assert raw["total_screen_time"] == 50.0
+
+    async def test_screen_time_routines_failure_falls_back_to_total(self, routed_session) -> None:
+        """A failed routines request falls back to counting everything."""
+        raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, _json_resp({}, status=500)))
+        assert raw["time"] == raw["total_screen_time"] == 50.0
+
+    async def test_screen_time_routines_connection_error_falls_back(self, routed_session) -> None:
+        """A connection error on the routines request falls back to counting everything."""
+        failing = Mock()
+        failing.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("boom"))
+        failing.__aexit__ = AsyncMock(return_value=None)
+        raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, failing))
+        assert raw["time"] == raw["total_screen_time"] == 50.0

@@ -10,7 +10,7 @@ from typing import Any
 
 import aiohttp
 
-from .const import LOGIN_RESULT_OK, RULES_WEEKDAY_CODES, URL_RULES
+from .const import LOGIN_RESULT_OK, RULES_WEEKDAY_CODES, URL_ROUTINES, URL_RULES
 from .exceptions import (
     QustodioAPIError,
     QustodioAuthenticationError,
@@ -20,6 +20,7 @@ from .exceptions import (
 )
 from .models import CoordinatorData, DeviceData, ProfileContext, ProfileData, RetryConfig
 from .qustodioapi_routines import QustodioRoutinesMixin
+from .screen_time import ScreenTimeSplit, has_routine_time, routine_counting_map, split_screen_time
 
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
@@ -520,10 +521,17 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
         session: aiohttp.ClientSession,
         headers: dict[str, str],
         profile_data: dict[str, Any],
-    ) -> float:
-        """Fetch screen time for a profile."""
+    ) -> ScreenTimeSplit:
+        """Fetch today's screen time for a profile, split into total and counted minutes.
+
+        Routines are only requested when the hourly data contains routine time.
+
+        Returns:
+            The total and counted minutes; zeros if the hourly data is unavailable.
+        """
         profile_uid = profile_data["uid"]
         profile_name = profile_data["name"]
+        hourly_data: list[dict[str, Any]] | None = None
         try:
             async with session.get(
                 URL_HOURLY_SUMMARY.format(self._account_uid, profile_uid, date.today()),
@@ -532,13 +540,46 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
                 if response.status == 200:
                     hourly_data = await response.json()
                     self._log_api_response(f"screen_time/{profile_name}", response.status, hourly_data)
-                    total_time = sum(entry.get("screen_time_seconds", 0) for entry in hourly_data)
-                    return round(total_time / 60, 1)  # Convert to minutes
-                self._log_api_response(f"screen_time/{profile_name}", response.status, error=f"HTTP {response.status}")
-                _LOGGER.debug("Hourly summary not available for profile %s", profile_name)
+                else:
+                    self._log_api_response(
+                        f"screen_time/{profile_name}", response.status, error=f"HTTP {response.status}"
+                    )
+                    _LOGGER.debug("Hourly summary not available for profile %s", profile_name)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.warning("Failed to get screen time for profile %s: %s", profile_name, err)
-        return 0
+        if hourly_data is None:
+            return ScreenTimeSplit(0, 0)
+        counts: dict[str, bool] = {}
+        if has_routine_time(hourly_data):
+            counts = await self._fetch_routine_counts(session, headers, profile_data) or {}
+        return split_screen_time(hourly_data, counts)
+
+    async def _fetch_routine_counts(
+        self,
+        session: aiohttp.ClientSession,
+        headers: dict[str, str],
+        profile_data: dict[str, Any],
+    ) -> dict[str, bool] | None:
+        """Fetch whether each of a profile's routines counts toward the daily limit.
+
+        Returns:
+            Routine uid -> counts flag, or None if the routines could not be fetched
+            (callers then count all routine time, as before).
+        """
+        profile_name = profile_data["name"]
+        try:
+            async with session.get(
+                URL_ROUTINES.format(self._account_uid, profile_data["uid"]),
+                headers=headers,
+            ) as response:
+                if response.status == 200:
+                    routines = await response.json()
+                    self._log_api_response(f"routines/{profile_name}", response.status, routines)
+                    return routine_counting_map(routines.get("items_list", []))
+                self._log_api_response(f"routines/{profile_name}", response.status, error=f"HTTP {response.status}")
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.debug("Failed to get routines for profile %s: %s", profile_name, err)
+        return None
 
     async def _process_profile(self, ctx: ProfileContext) -> dict[str, Any]:
         """Process a single profile and gather all its data."""
@@ -558,7 +599,9 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
         self._set_location_data(profile_data, ctx.profile, ctx.devices)
 
         await self._fetch_rules_data(ctx.session, ctx.headers, profile_data, ctx.dow)
-        profile_data["time"] = await self._fetch_screen_time(ctx.session, ctx.headers, profile_data)
+        split = await self._fetch_screen_time(ctx.session, ctx.headers, profile_data)
+        profile_data["time"] = split.counted_minutes
+        profile_data["total_screen_time"] = split.total_minutes
 
         return profile_data
 
