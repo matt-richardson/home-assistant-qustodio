@@ -4,6 +4,12 @@ line-length = 120
 # rewrite `except (A, B):` into PEP 758's `except A, B:` across the codebase,
 # which is valid but unrelated churn.
 
+[tool.isort]
+# Same settings as the pre-commit hook, so a bare `isort` (e.g. `./dev.sh format`)
+# produces black-compatible imports instead of rewrapping them.
+profile = "black"
+line_length = 120
+
 [tool.pylint.format]
 max-line-length = 120
 
