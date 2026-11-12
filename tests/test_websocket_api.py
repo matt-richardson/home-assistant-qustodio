@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -208,3 +208,49 @@ async def test_register_websocket_api_once(hass: HomeAssistant) -> None:
         async_register_websocket_api(hass)
         async_register_websocket_api(hass)
     register.assert_called_once()
+
+
+async def test_day_report_recent_past_day_refetched_after_ttl(
+    hass: HomeAssistant, api: AsyncMock, hass_ws_client, freezer
+) -> None:
+    """Yesterday can still change as devices sync late, so it's cached briefly; older days stay cached."""
+    await _call(hass_ws_client, hass, date=_day(1))
+    await _call(hass_ws_client, hass, date=_day(5))
+    freezer.tick(timedelta(seconds=301))
+    await _call(hass_ws_client, hass, date=_day(1))
+    await _call(hass_ws_client, hass, date=_day(5))
+    days = [call.args[1] for call in api.get_hourly_summary.await_args_list]
+    assert days.count(dt_util.now().date() - timedelta(days=1)) == 2
+    assert days.count(dt_util.now().date() - timedelta(days=5)) == 1
+
+
+async def test_day_report_midnight_rollover_refetches(
+    hass: HomeAssistant, api: AsyncMock, hass_ws_client, freezer
+) -> None:
+    """A report fetched as 'today' just before midnight isn't served as today's after midnight."""
+    client = await hass_ws_client(hass)
+    tz = dt_util.get_time_zone(hass.config.time_zone)
+    today = dt_util.now(tz).date()
+    request = {"type": "qustodio/day_report", "profile_id": "profile_1", "date": today.isoformat()}
+
+    freezer.move_to(datetime.combine(today, time(23, 58), tzinfo=tz))
+    await client.send_json_auto_id(request)
+    first = await client.receive_json()
+    freezer.move_to(datetime.combine(today + timedelta(days=1), time(0, 1), tzinfo=tz))
+    await client.send_json_auto_id(request)
+    second = await client.receive_json()
+
+    assert first["result"]["is_today"] is True
+    assert second["result"]["is_today"] is False
+    assert api.get_hourly_summary.await_count == 2
+
+
+async def test_day_report_error_message_has_no_api_details(hass: HomeAssistant, api: AsyncMock, hass_ws_client) -> None:
+    """Error messages sent to the browser don't include Qustodio URLs, account ids or response bodies."""
+    api.get_hourly_summary.side_effect = QustodioConnectionError(
+        "Connection error for GET https://api.qustodio.com/v2/accounts/acc_uid/profiles/uid_1/summary_hourly: boom"
+    )
+    msg = await _call(hass_ws_client, hass)
+    assert msg["error"]["code"] == "connection_error"
+    assert "acc_uid" not in msg["error"]["message"]
+    assert "api.qustodio.com" not in msg["error"]["message"]

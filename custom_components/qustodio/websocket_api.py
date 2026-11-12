@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -20,9 +21,13 @@ from .day_report import DayContext, DayInputs, build_day_report
 from .exceptions import QustodioAuthenticationError, QustodioConnectionError, QustodioException, QustodioRateLimitError
 from .models import CoordinatorData, ProfileData
 
+_LOGGER = logging.getLogger(__name__)
+
 DATA_REGISTERED = f"{DOMAIN}_websocket_registered"
 DATA_CACHES = f"{DOMAIN}_day_report_caches"
 CACHE_TTL = timedelta(seconds=300)
+# Days this close to today can still change as devices sync late, so they're only cached for CACHE_TTL
+RECENT_DAYS = 2
 MAX_CACHED_REPORTS = 64
 
 ERROR_UNAUTHORIZED = "unauthorized"
@@ -32,6 +37,14 @@ ERROR_AUTH_FAILED = "auth_failed"
 ERROR_RATE_LIMITED = "rate_limited"
 ERROR_CONNECTION = "connection_error"
 ERROR_API = "api_error"
+
+# Fixed messages for the browser; the underlying error (with URLs and ids) is only logged
+ERROR_MESSAGES = {
+    ERROR_AUTH_FAILED: "Qustodio rejected the saved credentials",
+    ERROR_RATE_LIMITED: "Qustodio is rate limiting requests; try again shortly",
+    ERROR_CONNECTION: "Couldn't reach Qustodio",
+    ERROR_API: "Qustodio returned an unexpected error",
+}
 
 
 @dataclass(frozen=True)
@@ -64,10 +77,11 @@ class DayReportCache:
         """
         key = (profile.uid, day)
         now = dt_util.utcnow()
-        if (cached := self._reports.get(key)) and (cached[0] is None or cached[0] > now):
+        if (cached := self._reports.get(key)) and _still_valid(cached, now, day == today):
             return cached[1]
         report = await self._fetch(DayContext(profile.id, profile.name, day, today, tz), profile.uid, now)
-        expires = now + CACHE_TTL if day == today or "partial" in report else None
+        recent = (today - day).days <= RECENT_DAYS
+        expires = now + CACHE_TTL if recent or "partial" in report else None
         self._store(key, expires, report)
         return report
 
@@ -106,6 +120,12 @@ class DayReportCache:
         shared = SharedInputs(routines, dict(zip(uids, schedule_lists, strict=True)), rules)
         self._shared[profile_uid] = (now + CACHE_TTL, shared)
         return shared
+
+
+def _still_valid(cached: tuple[datetime | None, dict[str, Any]], now: datetime, is_today: bool) -> bool:
+    """Return whether a cached report can be served: not expired, and still on the same side of midnight."""
+    expires, report = cached
+    return (expires is None or expires > now) and report["is_today"] == is_today
 
 
 def _find_profile(hass: HomeAssistant, profile_id: str) -> tuple[ConfigEntry, Any, ProfileData] | None:
@@ -179,7 +199,9 @@ async def ws_day_report(hass: HomeAssistant, connection: websocket_api.ActiveCon
     try:
         report = await _cache_for(hass, entry, coordinator).async_get(profile, day, today, tz)
     except QustodioException as err:
-        connection.send_error(msg["id"], _error_code(err), str(err))
+        code = _error_code(err)
+        _LOGGER.warning("Day report for profile %s on %s failed: %s", profile.id, day, err)
+        connection.send_error(msg["id"], code, ERROR_MESSAGES[code])
         return
     connection.send_result(msg["id"], report)
 

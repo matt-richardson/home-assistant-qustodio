@@ -245,3 +245,11 @@ def test_routine_without_uid_ignored() -> None:
     """A malformed routine entry without a uid is skipped."""
     routines = [{"name": "No uid"}, _routine("after", "Term Time - After school", True)]
     assert [r["name"] for r in _report(routines=routines)["routines"]][:1] == ["Term Time - After school"]
+
+
+def test_report_hours_in_time_order_on_dst_fall_back() -> None:
+    """On the day clocks go back, the repeated hour is listed in real time order."""
+    hourly = [_hour("2026-04-04T16:00:00Z", 600), _hour("2026-04-04T15:00:00Z", 300)]
+    report = build_day_report(DayContext("1", "C", date(2026, 4, 5), date(2026, 4, 6), TZ), _inputs(hourly=hourly), [])
+    assert [h["start"] for h in report["hours"]] == ["2026-04-05T02:00:00+11:00", "2026-04-05T02:00:00+10:00"]
+    assert [h["default_minutes"] for h in report["hours"]] == [5.0, 10.0]

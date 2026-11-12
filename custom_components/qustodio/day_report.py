@@ -117,24 +117,28 @@ def _routine_seconds(hourly: list[dict[str, Any]]) -> dict[str, float]:
 
 
 def _hours(hourly: list[dict[str, Any]], tz: ZoneInfo) -> list[dict[str, Any]]:
-    """Non-empty hours in local time, split into default and per-routine minutes."""
+    """Non-empty hours in local time, in real time order, split into default and per-routine minutes."""
     hours = []
     for hour in hourly:
         if not hour.get("screen_time_seconds"):
             continue
-        start = datetime.fromisoformat(hour["datetime"].replace("Z", "+00:00")).astimezone(tz)
+        start = datetime.fromisoformat(hour["datetime"].replace("Z", "+00:00"))
         hours.append(
-            {
-                "start": start.isoformat(),
-                "default_minutes": _minutes(hour.get("default_rules_screen_time") or 0),
-                "routines": {
-                    entry["uid"]: _minutes(entry.get("seconds") or 0)
-                    for entry in hour.get("routines_screen_time") or []
-                    if entry.get("seconds")
+            (
+                start,
+                {
+                    "start": start.astimezone(tz).isoformat(),
+                    "default_minutes": _minutes(hour.get("default_rules_screen_time") or 0),
+                    "routines": {
+                        entry["uid"]: _minutes(entry.get("seconds") or 0)
+                        for entry in hour.get("routines_screen_time") or []
+                        if entry.get("seconds")
+                    },
                 },
-            }
+            )
         )
-    return sorted(hours, key=lambda item: item["start"])
+    # Sort by the instant, not the local label: on the day clocks go back the same label repeats
+    return [item for _, item in sorted(hours, key=lambda pair: pair[0])]
 
 
 def _routines(inputs: DayInputs, day: date, tz: ZoneInfo) -> list[dict[str, Any]]:
