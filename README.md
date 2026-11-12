@@ -69,7 +69,7 @@ The integration provides a websocket command that returns a child's full day. It
 The result includes:
 - `total_minutes`: all screen time.
 - `counted_minutes`: time that counts toward the daily limit.
-- `quota_minutes` and, for today only, `extra_time_minutes`.
+- `quota_minutes`: the daily limit, or `null` when there's no limit that day (`0` means no screen time is allowed). For today only, also `extra_time_minutes`.
 - `hours`: each hour with screen time, in Home Assistant's time zone, split into normal time and time per routine.
 - `routines`: every routine with time or a scheduled window that day. Each has its minutes, whether it counts toward the limit, and its windows. Routines deleted since show as "Removed routine".
 - `apps` and `websites`: sorted by minutes. If they can't be fetched, the report still comes back with `"partial": ["apps"]`.

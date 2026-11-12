@@ -226,7 +226,26 @@ class TestBuildDayReport:
         """The quota is the rules' quota for that weekday."""
         assert _report()["quota_minutes"] == 120
         assert _report(day=date(2026, 11, 9))["quota_minutes"] == 90
-        assert _report(rules={})["quota_minutes"] == 0
+
+    def test_report_quota_none_when_no_limit(self) -> None:
+        """No quota set for the day means no limit (None), never 0."""
+        assert _report(rules={})["quota_minutes"] is None
+        assert _report(day=date(2026, 11, 11))["quota_minutes"] is None
+
+    def test_report_quota_none_when_switched_off(self) -> None:
+        """A weekday or weekend quota that's switched off means no limit on those days."""
+        quotas = {"tue": 120, "sat": 60}
+        weekdays_off = {"time_restrictions": {"quotas": quotas, "is_weekdays_quota": False, "is_weekend_quota": True}}
+        weekend_off = {"time_restrictions": {"quotas": quotas, "is_weekdays_quota": True, "is_weekend_quota": False}}
+        assert _report(rules=weekdays_off)["quota_minutes"] is None
+        assert _report(rules=weekdays_off, day=date(2026, 11, 7))["quota_minutes"] == 60
+        assert _report(rules=weekend_off)["quota_minutes"] == 120
+        assert _report(rules=weekend_off, day=date(2026, 11, 7))["quota_minutes"] is None
+
+    def test_report_quota_zero_means_none_allowed(self) -> None:
+        """A quota of 0 that's switched on is kept as 0: no screen time allowed."""
+        rules = {"time_restrictions": {"quotas": {"tue": 0}, "is_weekdays_quota": True}}
+        assert _report(rules=rules)["quota_minutes"] == 0
 
     def test_report_extra_time_today_only(self) -> None:
         """Extra time is only reported for today."""
