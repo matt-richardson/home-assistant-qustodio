@@ -978,7 +978,7 @@ class TestQustodioApiHelperMethods:
 
         await api._fetch_rules_data(mock_aiohttp_session, {"Authorization": "Bearer token"}, profile_data, "mon")
 
-        assert profile_data["quota"] == 0
+        assert profile_data["quota"] is None
         assert profile_data["is_lock_computer"] is False
         assert profile_data["is_lock_navigation"] is False
         assert profile_data["pause_internet_ends_at"] is None
@@ -2247,3 +2247,31 @@ class TestQustodioApiCountedScreenTime:
         bad.json = AsyncMock(side_effect=ValueError("not json"))
         raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, bad))
         assert raw["time"] == raw["total_screen_time"] == 50.0
+
+
+async def test_fetch_rules_quota_switched_off_is_no_limit(mock_aiohttp_session: Mock) -> None:
+    """A weekend quota that's switched off gives no limit (None) on a weekend day."""
+    rules_response = Mock()
+    rules_response.__aenter__ = AsyncMock(return_value=rules_response)
+    rules_response.__aexit__ = AsyncMock(return_value=None)
+    rules_response.status = 200
+    rules_response.json = AsyncMock(
+        return_value={
+            "time_restrictions": {
+                "quotas": {"sat": 60, "mon": 120},
+                "is_weekdays_quota": True,
+                "is_weekend_quota": False,
+            }
+        }
+    )
+    mock_aiohttp_session.get = Mock(return_value=rules_response)
+    api = QustodioApi("test@example.com", "password")
+    api._account_id = "account_123"
+
+    weekend = {"id": "profile_1", "name": "Child One"}
+    await api._fetch_rules_data(mock_aiohttp_session, {}, weekend, "sat")
+    weekday = {"id": "profile_1", "name": "Child One"}
+    await api._fetch_rules_data(mock_aiohttp_session, {}, weekday, "mon")
+
+    assert weekend["quota"] is None
+    assert weekday["quota"] == 120

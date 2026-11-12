@@ -115,14 +115,13 @@ class TestQustodioBinarySensorHasQuotaRemaining:
         mock_coordinator.data.profiles["profile_1"].raw_data["time"] = 350
         assert sensor.is_on is False
 
-    def test_is_on_none_when_no_quota(self, mock_coordinator: Mock) -> None:
-        """Test sensor when quota is not set."""
+    def test_is_on_when_no_quota(self, mock_coordinator: Mock) -> None:
+        """No quota set means no limit, so there's time remaining."""
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, profile_data)
 
-        # Mock data with no quota
         mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = None
-        assert sensor.is_on is None
+        assert sensor.is_on is True
 
     def test_is_on_unavailable(self, mock_coordinator: Mock) -> None:
         """Test sensor when coordinator update failed."""
@@ -591,3 +590,17 @@ def test_device_binary_sensor_names_are_suffix_only(mock_coordinator: Mock, clas
     sensor = cls(mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"})
     assert sensor.name == expected
     assert sensor.has_entity_name is True
+
+
+def test_has_quota_remaining_on_when_no_limit(mock_coordinator: Mock) -> None:
+    """With no limit there's always time remaining."""
+    mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": None, "time": 500})
+    sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+    assert sensor.is_on is True
+
+
+def test_has_quota_remaining_off_when_zero_quota(mock_coordinator: Mock) -> None:
+    """With a quota of 0 no screen time is allowed."""
+    mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": 0, "time": 0})
+    sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+    assert sensor.is_on is False

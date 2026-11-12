@@ -20,7 +20,7 @@ from .exceptions import (
 )
 from .models import CoordinatorData, DeviceData, ProfileContext, ProfileData, RetryConfig
 from .qustodioapi_routines import QustodioRoutinesMixin
-from .screen_time import ScreenTimeSplit, has_routine_time, routine_counting_map, split_screen_time
+from .screen_time import ScreenTimeSplit, daily_quota, has_routine_time, routine_counting_map, split_screen_time
 
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = 15
@@ -490,7 +490,7 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
         """
         profile_id = profile_data["id"]
         profile_name = profile_data["name"]
-        profile_data["quota"] = 0
+        profile_data["quota"] = None  # unknown until the rules are read; None also means no limit
         profile_data["is_lock_computer"] = False
         profile_data["is_lock_navigation"] = False
         profile_data["pause_internet_ends_at"] = None
@@ -506,7 +506,7 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
                     self._log_api_response(f"rules/{profile_name}", response.status, rules_data)
                     time_restrictions = rules_data.get("time_restrictions", {})
                     profile_data["time_ranges"] = time_restrictions.get("time_ranges", {})
-                    profile_data["quota"] = time_restrictions.get("quotas", {}).get(dow, 0)
+                    profile_data["quota"] = daily_quota(time_restrictions, dow)
                     profile_data["is_lock_computer"] = time_restrictions.get("is_lock_computer", False)
                     profile_data["is_lock_navigation"] = time_restrictions.get("is_lock_navigation", False)
                     profile_data["pause_internet_ends_at"] = time_restrictions.get("pause_internet", {}).get("ends_at")
