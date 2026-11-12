@@ -49,13 +49,15 @@
           "update_interval": "Update interval (minutes)",
           "enable_gps_tracking": "Enable GPS location tracking",
           "app_usage_cache_interval": "App usage cache interval (minutes)",
-          "allow_writes": "Enable write actions (read-write mode)"
+          "allow_writes": "Enable write actions (read-write mode)",
+          "report_admin_only": "Only admins can view the screen time report"
         },
         "data_description": {
           "update_interval": "How often to check for updates (1-60 minutes)",
           "enable_gps_tracking": "Track device locations using GPS coordinates",
           "app_usage_cache_interval": "How often to refresh per-app usage data (5-1440 minutes)",
-          "allow_writes": "Allow services to change Qustodio settings. Leave off for read-only."
+          "allow_writes": "Allow services to change Qustodio settings. Leave off for read-only.",
+          "report_admin_only": "Turn off to let non-admin Home Assistant users see children's app, website and device history in the screen time card."
         }
       }
     }

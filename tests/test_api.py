@@ -2247,3 +2247,28 @@ class TestQustodioApiCountedScreenTime:
         bad.json = AsyncMock(side_effect=ValueError("not json"))
         raw = await self._get_profile1_raw(routed_session(SCHOOL_HOURLY, bad))
         assert raw["time"] == raw["total_screen_time"] == 50.0
+
+
+class TestGetHourlySummary:
+    """Tests for QustodioApi.get_hourly_summary()."""
+
+    async def test_get_hourly_summary_passes_date(self) -> None:
+        """The day is sent as the date param and the hourly list is returned."""
+        api = _ready_api()
+        hourly = [{"datetime": "2026-11-09T13:00:00Z", "screen_time_seconds": 0}]
+        session = _mock_session(200, json_data=hourly)
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            result = await api.get_hourly_summary("puid", datetime(2026, 11, 10).date())
+        assert result == hourly
+        assert session.request.call_args.kwargs["params"] == {"date": "2026-11-10"}
+        assert session.request.call_args.args[1].endswith("/v2/accounts/acc_uid/profiles/puid/summary_hourly")
+
+    async def test_get_hourly_summary_rejects_non_list(self) -> None:
+        """A non-list response is a data error."""
+        api = _ready_api()
+        session = _mock_session(200, json_data={"detail": "nope"})
+        with (
+            patch.object(api, "_get_session", AsyncMock(return_value=session)),
+            pytest.raises(QustodioDataError),
+        ):
+            await api.get_hourly_summary("puid", datetime(2026, 11, 10).date())
