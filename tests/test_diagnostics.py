@@ -379,3 +379,18 @@ class TestDiagnostics:
         assert "app_usage" in diagnostics
         assert diagnostics["app_usage"] is None  # Empty dict becomes None
         assert diagnostics["app_usage_cache_date"] == "2025-12-02T10:00:00"
+
+
+async def test_diagnostics_includes_total_screen_time(
+    mock_hass: Any,
+    mock_config_entry: Mock,
+    mock_coordinator_with_data: Mock,
+    mock_entity_registry_patches: Any,
+) -> None:
+    """Diagnostics profile summary includes the full screen time total."""
+    mock_coordinator_with_data.data.profiles["profile_1"].raw_data["total_screen_time"] = 150.0
+    mock_hass.data = {"qustodio": {mock_config_entry.entry_id: mock_coordinator_with_data}}
+
+    diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
+
+    assert diagnostics["profiles"][0]["total_screen_time_minutes"] == 150.0

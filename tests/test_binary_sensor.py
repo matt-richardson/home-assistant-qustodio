@@ -539,3 +539,12 @@ class TestQustodioBinarySensorDeviceInfo:
         assert device_info["identifiers"] == {(DOMAIN, "profile_1")}
         assert device_info["name"] == "Child One"
         assert device_info["manufacturer"] == MANUFACTURER
+
+
+def test_has_quota_remaining_uses_counted_time(mock_coordinator: Mock) -> None:
+    """Has Quota Remaining compares counted time, not the full total, to the quota."""
+    raw = mock_coordinator.data.profiles["profile_1"].raw_data
+    raw.update({"time": 100.0, "total_screen_time": 130.0, "quota": 120})
+    sensor = QustodioBinarySensorHasQuotaRemaining(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+
+    assert sensor.is_on is True

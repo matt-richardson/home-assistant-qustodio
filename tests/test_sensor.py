@@ -769,3 +769,34 @@ class TestQustodioDeviceMdmTypeSensor:
 
         sensor = QustodioDeviceMdmTypeSensor(mock_coordinator, profile_data, device_data)
         assert sensor.native_value is None
+
+
+class TestCountedScreenTime:
+    """Screen time sensors use counted time; the full total is an attribute."""
+
+    def test_total_screen_time_attribute(self, mock_coordinator: Mock) -> None:
+        """State is counted time; total_screen_time_minutes carries the full total."""
+        raw = mock_coordinator.data.profiles["profile_1"].raw_data
+        raw.update({"time": 20.0, "total_screen_time": 50.0, "quota": 120})
+        sensor = QustodioSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+
+        assert sensor.native_value == 20.0
+        attributes = sensor.extra_state_attributes
+        assert attributes["total_screen_time_minutes"] == 50.0
+        assert attributes["time_used_minutes"] == 20.0
+
+    def test_total_screen_time_attribute_defaults_to_time(self, mock_coordinator: Mock) -> None:
+        """Without total_screen_time in the data, the attribute falls back to time."""
+        raw = mock_coordinator.data.profiles["profile_1"].raw_data
+        raw.pop("total_screen_time", None)
+        sensor = QustodioSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+
+        assert sensor.extra_state_attributes["total_screen_time_minutes"] == raw["time"]
+
+    def test_time_remaining_uses_counted_time(self, mock_coordinator: Mock) -> None:
+        """Time Remaining is quota minus counted time, not the full total."""
+        raw = mock_coordinator.data.profiles["profile_1"].raw_data
+        raw.update({"time": 100.0, "total_screen_time": 130.0, "quota": 120})
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+
+        assert sensor.native_value == 20

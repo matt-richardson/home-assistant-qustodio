@@ -108,6 +108,7 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         attributes.update(
             {
                 "time_used_minutes": time_used,
+                "total_screen_time_minutes": raw.get("total_screen_time", time_used),
                 "quota_minutes": quota,
                 "quota_remaining_minutes": quota_remaining,
                 "percentage_used": percentage_used,
