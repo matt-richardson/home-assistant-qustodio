@@ -74,7 +74,7 @@ The result includes:
 - `routines`: every routine with time or a scheduled window that day. Each has its minutes, whether it counts toward the limit, and its windows. Routines deleted since show as "Removed routine".
 - `apps` and `websites`: sorted by minutes. If they can't be fetched, the report still comes back with `"partial": ["apps"]`.
 
-Past days are cached once fetched. Today, and each profile's routine settings, are refreshed at most every 5 minutes. Past days use the profile's **current** routine settings and quota, because Qustodio only reports the current ones.
+Today and the two days before it are refreshed at most every 5 minutes, because devices can sync their usage late. Older days are cached once fetched. Each profile's routine settings are refreshed at most every 5 minutes. Past days use the profile's **current** routine settings and quota, because Qustodio only reports the current ones.
 
 Errors: `unauthorized` (admin-only is on and the user isn't an admin), `not_found`, `invalid_date`, `auth_failed`, `rate_limited`, `connection_error`, `api_error`.
 
