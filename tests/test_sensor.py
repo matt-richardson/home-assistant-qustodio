@@ -17,19 +17,19 @@ class TestQustodioSensorSetup:
 
     async def test_async_setup_entry(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_coordinator: Mock,
     ) -> None:
         """Test sensor platform setup from config entry."""
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
 
         entities_added = []
 
         def mock_add_entities(entities):
             entities_added.extend(entities)
 
-        await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+        await async_setup_entry(mock_hass, mock_config_entry, mock_add_entities)
 
         # Screen time sensor per profile (2) + time remaining sensor per profile (2)
         # + one MDM type sensor per device (2) = 6

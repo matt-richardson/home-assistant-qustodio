@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import inspect
-import tempfile
 from contextlib import ExitStack
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-from homeassistant.config_entries import HANDLERS, ConfigEntries, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 from custom_components.qustodio.const import DOMAIN
-from custom_components.qustodio.models import CoordinatorData, DeviceData, ProfileData, UserStatus
+
+from .sample_data import build_coordinator_data
 
 
 def create_config_entry_with_version_compat(**kwargs):
@@ -281,129 +281,14 @@ def mock_qustodio_api() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
+def mock_coordinator(mock_qustodio_api: AsyncMock, mock_hass: HomeAssistant) -> Mock:
     """Create a mock DataUpdateCoordinator."""
     coordinator = Mock()
-    coordinator.hass = hass
+    coordinator.hass = mock_hass
     coordinator.api = mock_qustodio_api
     coordinator.entry = Mock(entry_id="test_entry_id")
 
-    # Create ProfileData objects
-    profile1_raw = {
-        "id": "profile_1",
-        "uid": "uid_1",
-        "name": "Child One",
-        "device_count": 1,
-        "device_ids": ["device_1"],
-        "is_online": True,
-        "unauthorized_remove": True,
-        "device_tampered": None,
-        "current_device": "iPhone 12",
-        "latitude": 37.7749,
-        "longitude": -122.4194,
-        "accuracy": 10,
-        "lastseen": "2025-11-23T10:30:00Z",
-        "quota": 300,
-        "time": 120,
-        "pause_internet_ends_at": "2025-11-23T12:00:00Z",
-        "panic_button_enabled": True,
-        "is_lock_navigation": True,
-        "questionable_events_count": 3,
-        "location_tracking_enabled": True,
-        "is_lock_computer": True,
-    }
-
-    profile2_raw = {
-        "id": "profile_2",
-        "uid": "uid_2",
-        "name": "Child Two",
-        "device_count": 1,
-        "device_ids": ["device_2"],
-        "is_online": False,
-        "unauthorized_remove": False,
-        "device_tampered": None,
-        "current_device": None,
-        "latitude": None,
-        "longitude": None,
-        "accuracy": 0,
-        "lastseen": "2025-11-23T09:15:00Z",
-        "quota": 60,
-        "time": 70.2,
-        "pause_internet_ends_at": None,
-        "panic_button_enabled": False,
-        "is_lock_navigation": False,
-        "questionable_events_count": 0,
-        "location_tracking_enabled": False,
-        "is_lock_computer": False,
-    }
-
-    # Create DeviceData objects
-    device1 = DeviceData(
-        id="device_1",
-        uid="uid_device_1",
-        name="iPhone 12",
-        type="MOBILE",
-        platform=4,  # iOS
-        version="182.14.0",
-        enabled=1,
-        location_latitude=37.7749,
-        location_longitude=-122.4194,
-        location_time="2025-11-23T10:30:00Z",
-        location_accuracy=10.0,
-        users=[
-            UserStatus(
-                profile_id=int("profile_1".split("_")[1]),
-                is_online=True,
-                lastseen="2025-11-23T10:30:00Z",
-                status={
-                    "vpn_disable": {"status": False},
-                    "browser_lock": {"status": False},
-                    "panic_button": {"status": False},
-                    "disable_protection": {"status": False, "time": None},
-                },
-            )
-        ],
-        mdm={"unauthorized_remove": False},
-        alerts={"unauthorized_remove": False},
-        lastseen="2025-11-23T10:30:00Z",
-    )
-
-    device2 = DeviceData(
-        id="device_2",
-        uid="uid_device_2",
-        name="Android Phone",
-        type="MOBILE",
-        platform=3,  # Android
-        version="182.14.0",
-        enabled=1,
-        location_latitude=None,
-        location_longitude=None,
-        location_time=None,
-        location_accuracy=None,
-        users=[
-            UserStatus(
-                profile_id=int("profile_2".split("_")[1]),
-                is_online=False,
-                lastseen="2025-11-23T09:15:00Z",
-                status={},
-            )
-        ],
-        mdm={},
-        alerts={},
-        lastseen="2025-11-23T09:15:00Z",
-    )
-
-    # Create CoordinatorData
-    coordinator.data = CoordinatorData(
-        profiles={
-            "profile_1": ProfileData.from_api_response(profile1_raw),
-            "profile_2": ProfileData.from_api_response(profile2_raw),
-        },
-        devices={
-            "device_1": device1,
-            "device_2": device2,
-        },
-    )
+    coordinator.data = build_coordinator_data()
 
     coordinator.last_update_success = True
     coordinator.async_request_refresh = AsyncMock()
@@ -424,7 +309,7 @@ def mock_coordinator(mock_qustodio_api: AsyncMock, hass: HomeAssistant) -> Mock:
 
 
 @pytest.fixture
-def hass() -> HomeAssistant:
+def mock_hass() -> HomeAssistant:
     """Create a Home Assistant instance for testing.
 
     Note: This returns a Mock for fast unit tests.
@@ -461,91 +346,6 @@ def hass() -> HomeAssistant:
         hass_instance.config_entries.flow.async_init = AsyncMock()
         hass_instance.services = MagicMock()
         yield hass_instance
-
-
-def _setup_ha_instance_data(ha_instance: HomeAssistant) -> None:
-    """Set up required data structures for HA instance.
-
-    Args:
-        ha_instance: The Home Assistant instance to initialize
-    """
-    ha_instance.data["components"] = set()
-    ha_instance.data["setup_started"] = set()
-    ha_instance.data["preload_platforms"] = set()
-    ha_instance.data["registries_loaded"] = set()
-    ha_instance.data["missing_platforms"] = {}
-    ha_instance.data["integrations"] = {}
-
-    # Mock network component to prevent KeyError
-    network_adapter = MagicMock()
-    network_adapter.adapters = []
-    ha_instance.data["network"] = network_adapter
-
-    # Add issue registry
-    ha_instance.data["issue_registry"] = MagicMock()
-
-
-def _create_mock_integration(temp_dir: str) -> MagicMock:
-    """Create a mock integration for testing.
-
-    Args:
-        temp_dir: Temporary directory path for the integration
-
-    Returns:
-        Mock integration object
-    """
-    mock_integration = MagicMock()
-    mock_integration.domain = DOMAIN
-    mock_integration.name = "Qustodio"
-    mock_integration.dependencies = set()
-    mock_integration.requirements = []
-    mock_integration.config_flow = True
-    mock_integration.file_path = f"{temp_dir}/custom_components/{DOMAIN}"
-    return mock_integration
-
-
-@pytest.fixture
-async def hass_instance():
-    """Return a fully initialized Home Assistant instance for integration testing.
-
-    This fixture creates a real HomeAssistant instance with proper initialization,
-    suitable for integration tests that need actual HA components and lifecycle.
-
-    Use the 'hass' fixture for unit tests (faster, mocked).
-    Use this 'hass_instance' fixture for integration tests (comprehensive, real HA).
-    """
-    with tempfile.TemporaryDirectory() as temp_dir:
-        ha_inst = HomeAssistant(temp_dir)
-        ha_inst.config_entries = ConfigEntries(ha_inst, {})
-
-        _setup_ha_instance_data(ha_inst)
-        mock_integration = _create_mock_integration(temp_dir)
-
-        # Setup with required patches
-        import homeassistant.helpers.frame as frame_module  # pylint: disable=import-outside-toplevel
-
-        frame_patches = []
-        if hasattr(frame_module, "report_usage"):
-            frame_patches.append(patch("homeassistant.helpers.frame.report_usage"))
-
-        with patch("homeassistant.loader.async_get_integration", return_value=mock_integration):
-            with patch("homeassistant.helpers.integration_platform.async_process_integration_platforms"):
-                with ExitStack() as stack:
-                    for frame_patch in frame_patches:
-                        stack.enter_context(frame_patch)
-
-                    # Register config flow
-                    # Import here to avoid circular imports
-                    # pylint: disable=import-outside-toplevel
-                    from custom_components.qustodio.config_flow import ConfigFlow as QustodioConfigFlow
-
-                    HANDLERS[DOMAIN] = QustodioConfigFlow
-
-                    await ha_inst.async_start()
-                    try:
-                        yield ha_inst
-                    finally:
-                        await ha_inst.async_stop()
 
 
 @pytest.fixture

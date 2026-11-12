@@ -24,7 +24,7 @@ class TestAsyncSetupEntry:
 
     async def test_setup_entry_success(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
@@ -39,24 +39,24 @@ class TestAsyncSetupEntry:
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
-            result = await async_setup_entry(hass, mock_config_entry)
+            result = await async_setup_entry(mock_hass, mock_config_entry)
 
             assert result is True
-            assert DOMAIN in hass.data
-            assert mock_config_entry.entry_id in hass.data[DOMAIN]
-            assert isinstance(hass.data[DOMAIN][mock_config_entry.entry_id], QustodioDataUpdateCoordinator)
-            hass.config_entries.async_forward_entry_setups.assert_called_once()
+            assert DOMAIN in mock_hass.data
+            assert mock_config_entry.entry_id in mock_hass.data[DOMAIN]
+            assert isinstance(mock_hass.data[DOMAIN][mock_config_entry.entry_id], QustodioDataUpdateCoordinator)
+            mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
 
     async def test_setup_entry_with_existing_domain_data(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
     ) -> None:
         """Test setup when DOMAIN data already exists."""
-        # Pre-populate hass.data with DOMAIN
-        hass.data[DOMAIN] = {"other_entry": "some_data"}
+        # Pre-populate mock_hass.data with DOMAIN
+        mock_hass.data[DOMAIN] = {"other_entry": "some_data"}
 
         with (
             patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
@@ -67,12 +67,12 @@ class TestAsyncSetupEntry:
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
-            result = await async_setup_entry(hass, mock_config_entry)
+            result = await async_setup_entry(mock_hass, mock_config_entry)
 
             assert result is True
-            assert DOMAIN in hass.data
-            assert mock_config_entry.entry_id in hass.data[DOMAIN]
-            assert "other_entry" in hass.data[DOMAIN]
+            assert DOMAIN in mock_hass.data
+            assert mock_config_entry.entry_id in mock_hass.data[DOMAIN]
+            assert "other_entry" in mock_hass.data[DOMAIN]
 
 
 class TestProfileDevicePreRegistration:
@@ -86,7 +86,7 @@ class TestProfileDevicePreRegistration:
 
     async def test_setup_entry_registers_a_device_per_profile(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
@@ -103,7 +103,7 @@ class TestProfileDevicePreRegistration:
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
-            await async_setup_entry(hass, mock_config_entry)
+            await async_setup_entry(mock_hass, mock_config_entry)
 
         calls = registry.async_get_or_create.call_args_list
         assert [call.kwargs["identifiers"] for call in calls] == [
@@ -116,7 +116,7 @@ class TestProfileDevicePreRegistration:
 
     async def test_profiles_registered_before_platforms_are_forwarded(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_qustodio_api: AsyncMock,
         mock_profile_data: dict[str, Any],
@@ -125,7 +125,9 @@ class TestProfileDevicePreRegistration:
         calls: list[str] = []
         registry = Mock()
         registry.async_get_or_create.side_effect = lambda **_: calls.append("register")
-        hass.config_entries.async_forward_entry_setups = AsyncMock(side_effect=lambda *_, **__: calls.append("forward"))
+        mock_hass.config_entries.async_forward_entry_setups = AsyncMock(
+            side_effect=lambda *_, **__: calls.append("forward")
+        )
 
         with (
             patch("custom_components.qustodio.QustodioApi", return_value=mock_qustodio_api),
@@ -137,7 +139,7 @@ class TestProfileDevicePreRegistration:
         ):
             mock_qustodio_api.get_data.return_value = mock_profile_data
 
-            await async_setup_entry(hass, mock_config_entry)
+            await async_setup_entry(mock_hass, mock_config_entry)
 
         assert calls == ["register", "register", "forward"]
 
@@ -147,7 +149,7 @@ class TestAsyncUnloadEntry:
 
     async def test_unload_entry_success(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
     ) -> None:
         """Test successful unload of config entry."""
@@ -157,35 +159,35 @@ class TestAsyncUnloadEntry:
         mock_coordinator = Mock()
         mock_coordinator.api = mock_api
 
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
-        hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
-        result = await async_unload_entry(hass, mock_config_entry)
+        result = await async_unload_entry(mock_hass, mock_config_entry)
 
         assert result is True
-        assert mock_config_entry.entry_id not in hass.data[DOMAIN]
-        hass.config_entries.async_unload_platforms.assert_called_once()
+        assert mock_config_entry.entry_id not in mock_hass.data[DOMAIN]
+        mock_hass.config_entries.async_unload_platforms.assert_called_once()
         mock_api.close.assert_called_once()
 
     async def test_unload_entry_failure(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
     ) -> None:
         """Test unload failure keeps data."""
-        # Setup existing coordinator in hass.data
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: Mock()}
-        hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
+        # Setup existing coordinator in mock_hass.data
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: Mock()}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
 
-        result = await async_unload_entry(hass, mock_config_entry)
+        result = await async_unload_entry(mock_hass, mock_config_entry)
 
         assert result is False
-        assert mock_config_entry.entry_id in hass.data[DOMAIN]
-        hass.config_entries.async_unload_platforms.assert_called_once()
+        assert mock_config_entry.entry_id in mock_hass.data[DOMAIN]
+        mock_hass.config_entries.async_unload_platforms.assert_called_once()
 
     async def test_unload_entry_closes_api_session(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
     ) -> None:
         """Test unload closes API session."""
@@ -195,13 +197,13 @@ class TestAsyncUnloadEntry:
         mock_coordinator = Mock()
         mock_coordinator.api = mock_api
 
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
-        hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
-        result = await async_unload_entry(hass, mock_config_entry)
+        result = await async_unload_entry(mock_hass, mock_config_entry)
 
         assert result is True
-        assert mock_config_entry.entry_id not in hass.data[DOMAIN]
+        assert mock_config_entry.entry_id not in mock_hass.data[DOMAIN]
         mock_api.close.assert_called_once()
 
 
@@ -288,7 +290,7 @@ class TestAsyncUpdateOptions:
 
     async def test_update_interval_changed(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_coordinator: Mock,
     ) -> None:
@@ -298,9 +300,9 @@ class TestAsyncUpdateOptions:
         from custom_components.qustodio import async_update_options
         from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
 
-        # Set up hass data with coordinator
-        hass.data.setdefault(DOMAIN, {})
-        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+        # Set up mock_hass data with coordinator
+        mock_hass.data.setdefault(DOMAIN, {})
+        mock_hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
 
         # Set current interval
         mock_coordinator.update_interval = timedelta(minutes=5)
@@ -309,7 +311,7 @@ class TestAsyncUpdateOptions:
         # Update options with new interval
         mock_config_entry.options = {CONF_UPDATE_INTERVAL: 10}
 
-        await async_update_options(hass, mock_config_entry)
+        await async_update_options(mock_hass, mock_config_entry)
 
         # Verify interval was updated
         assert mock_coordinator.update_interval == timedelta(minutes=10)
@@ -317,7 +319,7 @@ class TestAsyncUpdateOptions:
 
     async def test_update_interval_unchanged(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Any,
         mock_coordinator: Mock,
     ) -> None:
@@ -327,9 +329,9 @@ class TestAsyncUpdateOptions:
         from custom_components.qustodio import async_update_options
         from custom_components.qustodio.const import CONF_UPDATE_INTERVAL, DOMAIN
 
-        # Set up hass data with coordinator
-        hass.data.setdefault(DOMAIN, {})
-        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+        # Set up mock_hass data with coordinator
+        mock_hass.data.setdefault(DOMAIN, {})
+        mock_hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
 
         # Set current interval
         mock_coordinator.update_interval = timedelta(minutes=10)
@@ -338,7 +340,7 @@ class TestAsyncUpdateOptions:
         # Update options with same interval
         mock_config_entry.options = {CONF_UPDATE_INTERVAL: 10}
 
-        await async_update_options(hass, mock_config_entry)
+        await async_update_options(mock_hass, mock_config_entry)
 
         # Verify refresh was not called
         mock_coordinator.async_request_refresh.assert_not_called()

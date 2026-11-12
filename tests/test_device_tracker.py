@@ -16,19 +16,19 @@ class TestQustodioDeviceTrackerSetup:
 
     async def test_async_setup_entry(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_coordinator: Mock,
     ) -> None:
         """Test device tracker platform setup from config entry."""
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
 
         entities_added = []
 
         def mock_add_entities(entities):
             entities_added.extend(entities)
 
-        await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+        await async_setup_entry(mock_hass, mock_config_entry, mock_add_entities)
 
         # Should create one device tracker per device (2 devices)
         assert len(entities_added) == 2
@@ -36,21 +36,21 @@ class TestQustodioDeviceTrackerSetup:
 
     async def test_async_setup_entry_gps_disabled(
         self,
-        hass: HomeAssistant,
+        mock_hass: HomeAssistant,
         mock_config_entry: Mock,
         mock_coordinator: Mock,
     ) -> None:
         """Test device tracker setup with GPS tracking disabled."""
         # Configure entry with GPS disabled
         mock_config_entry.options = {"enable_gps_tracking": False}
-        hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
+        mock_hass.data[DOMAIN] = {mock_config_entry.entry_id: mock_coordinator}
 
         entities_added = []
 
         def mock_add_entities(entities):
             entities_added.extend(entities)
 
-        result = await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+        result = await async_setup_entry(mock_hass, mock_config_entry, mock_add_entities)
 
         # Should not create any entities and return None
         assert result is None

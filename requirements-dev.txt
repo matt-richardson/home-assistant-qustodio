@@ -29,6 +29,9 @@ pytest-asyncio
 pytest-cov
 pytest-xdist
 pytest-mock
+# Real Home Assistant test harness (hass, MockConfigEntry, registries). Each release pins
+# one exact homeassistant version, so bump it together with the HA version under test.
+pytest-homeassistant-custom-component==0.13.375
 
 # Additional testing utilities
 freezegun  # For date/time mocking
