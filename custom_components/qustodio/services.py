@@ -279,7 +279,9 @@ async def _async_add_extra_time(hass: HomeAssistant, call: ServiceCall) -> None:
         # or expired - a fresh grant must not let it eat into the new minutes.
         profile = target.coordinator.data.profiles[target.profile_id]
         raw = profile.raw_data
-        overage_seconds = max(0, ((raw.get("time") or 0) - (raw.get("quota") or 0)) * 60)
+        quota = raw.get("quota")
+        # With no daily limit, time already used isn't overage
+        overage_seconds = 0 if quota is None else max(0, ((raw.get("time") or 0) - quota) * 60)
 
         base_seconds = max(active_seconds, overage_seconds)
         duration = minutes * 60 + base_seconds

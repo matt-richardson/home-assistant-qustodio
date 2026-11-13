@@ -107,9 +107,11 @@ class QustodioBinarySensorHasQuotaRemaining(QustodioBinarySensor):
         # available=True guarantees profile exists
         assert profile is not None
         raw = profile.raw_data
-        quota = raw.get("quota", 0)
+        quota = raw.get("quota")
         time_used = raw.get("time", 0)
-        return time_used < quota if quota and time_used is not None else None
+        if quota is None:
+            return True  # no limit, so there's always time remaining
+        return time_used < quota if time_used is not None else None
 
 
 class QustodioBinarySensorInternetPaused(QustodioBinarySensor):

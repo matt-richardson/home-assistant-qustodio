@@ -543,3 +543,14 @@ async def test_block_hours_end_before_start_raises_without_writing():
             await services._async_block_hours(MagicMock(), call)
     api.get_rules.assert_not_awaited()
     api.put_rules.assert_not_awaited()
+
+
+async def test_add_extra_time_no_overage_when_no_limit():
+    """With no daily limit, time already used isn't overage, so only the new minutes are granted."""
+    target = _resolved(quota=None, time_used=300)
+    target.api.get_active_restriction.return_value = None
+    call = MagicMock()
+    call.data = {"device_id": ["device-1"], "minutes": 15}
+    with patch("custom_components.qustodio.services._resolve_target", return_value=target):
+        await services._async_add_extra_time(MagicMock(), call)
+    assert target.api.create_calendar_restriction.await_args.args[2] == 15 * 60
