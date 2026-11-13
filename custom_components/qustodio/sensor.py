@@ -74,9 +74,10 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
         if data:
             raw = data.raw_data
             time_used = raw.get("time", 0)
-            quota = raw.get("quota", 0)
+            quota = raw.get("quota")
 
-            if time_used < quota:
+            # No quota means no limit, so there's always time
+            if quota is None or time_used < quota:
                 return ICON_IN_TIME
         return ICON_NO_TIME
 
@@ -89,10 +90,10 @@ class QustodioSensor(QustodioBaseEntity, SensorEntity):
 
         raw = data.raw_data
         time_used = raw.get("time", 0)
-        quota = raw.get("quota", 0)
+        quota = raw.get("quota")
 
-        # Calculate derived metrics
-        quota_remaining = max(0, quota - time_used) if quota and time_used is not None else None
+        # Calculate derived metrics (None when there's no limit)
+        quota_remaining = max(0, quota - time_used) if quota is not None and time_used is not None else None
         percentage_used = round((time_used / quota) * 100, 1) if quota and time_used is not None and quota > 0 else None
 
         # Start with base attributes
@@ -230,7 +231,9 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
             return None
 
         raw = data.raw_data
-        quota = raw.get("quota") or 0
+        quota = raw.get("quota")
+        if quota is None:
+            return None  # no limit, so nothing to count down
         time_used = raw.get("time") or 0
         extra_time = self._get_extra_time_minutes()
 
@@ -254,7 +257,7 @@ class QustodioTimeRemainingSensor(QustodioBaseEntity, SensorEntity):
         attributes = self._build_base_attributes(data)
         attributes.update(
             {
-                "quota_minutes": raw.get("quota") or 0,
+                "quota_minutes": raw.get("quota"),
                 "time_used_minutes": raw.get("time") or 0,
                 "extra_time_minutes": self._get_extra_time_minutes(),
             }

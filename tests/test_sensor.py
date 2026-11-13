@@ -274,12 +274,12 @@ class TestQustodioSensor:
 
         # Should handle missing fields gracefully
         assert sensor.native_value is None
-        assert sensor.icon == ICON_NO_TIME
+        assert sensor.icon == ICON_IN_TIME  # no quota means no limit
 
         attributes = sensor.extra_state_attributes
         assert attributes is not None
         assert attributes["time_used_minutes"] == 0
-        assert attributes["quota_minutes"] == 0
+        assert attributes["quota_minutes"] is None
         assert attributes["quota_remaining_minutes"] is None
         assert attributes["percentage_used"] is None
         assert attributes["current_device"] is None
@@ -593,14 +593,24 @@ class TestQustodioTimeRemainingSensor:
         assert sensor.native_value is None
 
     def test_native_value_handles_null_quota_and_time(self, mock_coordinator: Mock) -> None:
-        """Test native value treats explicit None quota/time as 0, not a crash."""
+        """No quota (no limit) and no time give an unknown value, not a crash."""
         mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = None
         mock_coordinator.data.profiles["profile_1"].raw_data["time"] = None
 
         profile_data = {"id": "profile_1", "name": "Child One"}
         sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
 
-        assert sensor.native_value == 0
+        assert sensor.native_value is None
+
+    def test_native_value_handles_null_time_with_quota(self, mock_coordinator: Mock) -> None:
+        """A quota with no recorded time yet gives the full quota."""
+        mock_coordinator.data.profiles["profile_1"].raw_data["quota"] = 120
+        mock_coordinator.data.profiles["profile_1"].raw_data["time"] = None
+
+        profile_data = {"id": "profile_1", "name": "Child One"}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, profile_data)
+
+        assert sensor.native_value == 120
 
     def test_icon_with_time_remaining(self, mock_coordinator: Mock) -> None:
         """Test icon when time remains."""
@@ -817,3 +827,41 @@ def test_device_tracker_name_explicitly_none(mock_coordinator: Mock) -> None:
         mock_coordinator, {"id": "profile_1", "name": "Child One"}, {"id": "device_1", "name": "iPhone 12"}
     )
     assert tracker._name_internal("Device tracker", {}) is None
+
+
+class TestNoLimitAndZeroQuota:
+    """No limit (quota None) and a quota of 0 (none allowed) are treated differently."""
+
+    def test_time_remaining_unknown_when_no_limit(self, mock_coordinator: Mock) -> None:
+        """With no limit there's nothing to count down, so Time Remaining is unknown."""
+        mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": None, "time": 50})
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+        assert sensor.native_value is None
+        assert sensor.extra_state_attributes["quota_minutes"] is None
+
+    def test_time_remaining_zero_quota_counts_extra_time_only(self, mock_coordinator: Mock) -> None:
+        """With a quota of 0, only granted extra time remains."""
+        mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": 0, "time": 10})
+        mock_coordinator.data.extra_time_minutes = {"profile_1": 30}
+        sensor = QustodioTimeRemainingSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+        assert sensor.native_value == 20
+        assert sensor.extra_state_attributes["quota_minutes"] == 0
+
+    def test_screen_time_sensor_no_limit(self, mock_coordinator: Mock) -> None:
+        """No limit: in-time icon, and no remaining/percentage figures."""
+        mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": None, "time": 500})
+        sensor = QustodioSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+        assert sensor.icon == ICON_IN_TIME
+        attributes = sensor.extra_state_attributes
+        assert (attributes["quota_minutes"], attributes["quota_remaining_minutes"], attributes["percentage_used"]) == (
+            None,
+            None,
+            None,
+        )
+
+    def test_screen_time_sensor_zero_quota(self, mock_coordinator: Mock) -> None:
+        """A quota of 0: no-time icon and nothing remaining."""
+        mock_coordinator.data.profiles["profile_1"].raw_data.update({"quota": 0, "time": 0})
+        sensor = QustodioSensor(mock_coordinator, {"id": "profile_1", "name": "Child One"})
+        assert sensor.icon == ICON_NO_TIME
+        assert sensor.extra_state_attributes["quota_remaining_minutes"] == 0

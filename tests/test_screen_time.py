@@ -6,6 +6,7 @@ from typing import Any
 
 from custom_components.qustodio.screen_time import (
     ScreenTimeSplit,
+    daily_quota,
     has_routine_time,
     routine_counting_map,
     split_screen_time,
@@ -78,3 +79,31 @@ class TestHasRoutineTime:
         assert has_routine_time([{"screen_time_seconds": 60, "routines_screen_time": []}]) is False
         assert has_routine_time([{"routines_screen_time": [{"uid": "a", "seconds": 0}]}]) is False
         assert has_routine_time([{"routines_screen_time": [{"uid": "a", "seconds": 60}]}]) is True
+
+
+class TestDailyQuota:
+    """Tests for daily_quota()."""
+
+    def test_quota_for_the_day(self) -> None:
+        """The quota for that weekday code is returned when quotas are switched on."""
+        restrictions = {"quotas": {"tue": 120, "sat": 60}, "is_weekdays_quota": True, "is_weekend_quota": True}
+        assert daily_quota(restrictions, "tue") == 120
+        assert daily_quota(restrictions, "sat") == 60
+
+    def test_no_quota_set_is_no_limit(self) -> None:
+        """No quota for the day, or no restrictions at all, means no limit."""
+        assert daily_quota({"quotas": {"tue": 120}}, "wed") is None
+        assert daily_quota({}, "tue") is None
+
+    def test_switched_off_is_no_limit(self) -> None:
+        """A weekday or weekend quota that's switched off means no limit on those days."""
+        restrictions = {"quotas": {"tue": 120, "sun": 60}, "is_weekdays_quota": False, "is_weekend_quota": True}
+        assert daily_quota(restrictions, "tue") is None
+        assert daily_quota(restrictions, "sun") == 60
+        restrictions = {"quotas": {"tue": 120, "sun": 60}, "is_weekdays_quota": True, "is_weekend_quota": False}
+        assert daily_quota(restrictions, "tue") == 120
+        assert daily_quota(restrictions, "sun") is None
+
+    def test_zero_quota_is_none_allowed(self) -> None:
+        """A quota of 0 is kept: no screen time allowed, which isn't the same as no limit."""
+        assert daily_quota({"quotas": {"tue": 0}}, "tue") == 0

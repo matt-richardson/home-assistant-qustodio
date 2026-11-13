@@ -74,3 +74,27 @@ def split_screen_time(hourly: list[dict[str, Any]], counts: dict[str, bool]) -> 
         total_minutes=round(total_seconds / 60, 1),
         counted_minutes=round((total_seconds - non_counting_seconds) / 60, 1),
     )
+
+
+WEEKEND_DAY_CODES = {"sat", "sun"}
+
+
+def daily_quota(time_restrictions: dict[str, Any], day_code: str) -> int | None:
+    """Return the daily screen time quota for a weekday, or None when there's no limit.
+
+    A quota applies when one is set for that weekday and the weekday (Mon-Fri) or
+    weekend (Sat-Sun) quota is switched on (``is_weekdays_quota`` /
+    ``is_weekend_quota``); missing switches count as on. A quota of 0 means no
+    screen time is allowed, which is different from no limit.
+
+    Args:
+        time_restrictions: The ``time_restrictions`` section of the profile rules.
+        day_code: The rules' weekday code (``mon`` ... ``sun``; Thursday is ``thr``).
+
+    Returns:
+        The quota in minutes, or None for no limit.
+    """
+    switch = "is_weekend_quota" if day_code in WEEKEND_DAY_CODES else "is_weekdays_quota"
+    if not time_restrictions.get(switch, True):
+        return None
+    return (time_restrictions.get("quotas") or {}).get(day_code)
