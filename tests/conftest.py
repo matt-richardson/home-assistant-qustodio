@@ -345,6 +345,11 @@ def mock_hass() -> HomeAssistant:
         hass_instance.config_entries.flow = Mock()
         hass_instance.config_entries.flow.async_init = AsyncMock()
         hass_instance.services = MagicMock()
+        # The integration serves its card from a static path during setup
+        hass_instance.http = Mock()
+        hass_instance.http.async_register_static_paths = AsyncMock()
+        hass_instance.config = Mock()
+        hass_instance.config.components = set()
         yield hass_instance
 
 

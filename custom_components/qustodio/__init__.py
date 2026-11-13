@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN, MANUFACTURER
 from .coordinator import QustodioDataUpdateCoordinator
+from .frontend import async_register_frontend
 from .models import CoordinatorData
 from .qustodioapi import QustodioApi
 from .services import async_setup_services, async_unload_services
@@ -41,6 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async_setup_services(hass)
     async_register_websocket_api(hass)
+    await async_register_frontend(hass)
 
     _register_profile_devices(hass, entry, coordinator.data)
 

@@ -5,7 +5,8 @@
     "@matt-richardson"
   ],
   "config_flow": true,
-  "dependencies": ["websocket_api"],
+  "dependencies": ["http", "websocket_api"],
+  "after_dependencies": ["frontend"],
   "documentation": "https://github.com/matt-richardson/home-assistant-qustodio",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/matt-richardson/home-assistant-qustodio/issues",
