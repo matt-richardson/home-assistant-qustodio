@@ -21,8 +21,10 @@ const STYLE = `
   .note { color: var(--secondary-text-color); font-size: 12px; }
   .strip { position: relative; height: 28px; border-radius: 4px; background: var(--secondary-background-color); overflow: hidden; }
   .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
-  .bar { position: absolute; bottom: 0; top: 0; display: flex; flex-direction: column-reverse; gap: 1px; padding: 0 1px; box-sizing: border-box; }
-  .seg { width: 100%; border-radius: 1px; }
+  .use { position: absolute; left: 0; right: 0; top: 25%; bottom: 25%; }
+  .block { position: absolute; top: 0; bottom: 0; display: flex; }
+  .seg { min-width: 1px; }
+  .chip.idle { opacity: 0.6; }
   .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
   .ticks span { position: absolute; transform: translateX(-50%); }
   .ticks span:first-child { transform: none; }

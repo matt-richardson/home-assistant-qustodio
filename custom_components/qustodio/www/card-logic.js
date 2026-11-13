@@ -14,6 +14,7 @@ export const NORMAL_COLOR = (dark) => PALETTE[dark ? "dark" : "light"][0];
 export const OTHER_COLOR = (dark) => OTHER[dark ? "dark" : "light"];
 
 const round1 = (n) => Math.round(n * 10) / 10;
+const round2 = (n) => Math.round(n * 100) / 100;
 
 /** Escape text for safe insertion into HTML. */
 export function escapeHtml(text) {
@@ -132,7 +133,16 @@ export function stripLayout(report, tz) {
     const local = localTime(hour.start, tz).hour;
     const segments = [{ uid: null, minutes: hour.default_minutes ?? 0 }];
     for (const [uid, minutes] of Object.entries(hour.routines ?? {})) segments.push({ uid, minutes });
-    return { hour: local, leftPct: pct(local), widthPct: 100 / span, segments: segments.filter((s) => s.minutes > 0) };
+    const used = segments.reduce((a, s) => a + s.minutes, 0);
+    const widthPct = 100 / span;
+    return {
+      hour: local,
+      leftPct: pct(local),
+      widthPct,
+      // The share of the hour that was used, as a width: 30 minutes fills half the hour
+      usedWidthPct: widthPct * Math.min(1, used / 60),
+      segments: segments.filter((s) => s.minutes > 0),
+    };
   });
   return { startHour, endHour, windows, bars };
 }
@@ -171,11 +181,13 @@ function chips(report, colors, dark) {
       `<span class="chip"><span class="swatch" style="background:${fill(colors, null, dark)}"></span>Normal time · ${round1(normal)} min</span>`,
     );
   }
+  // Every routine with time or a scheduled window today, so each shaded band on the strip has a label
   for (const routine of report.routines ?? []) {
-    if (!routine.minutes) continue;
+    if (!routine.minutes && !(routine.windows ?? []).length) continue;
     const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
+    const cls = routine.minutes ? "chip" : "chip idle";
     items.push(
-      `<span class="chip"><span class="swatch" style="background:${fill(colors, routine.uid, dark)}"></span>${escapeHtml(routine.name)} · ${routine.minutes} min${note}</span>`,
+      `<span class="${cls}"><span class="swatch" style="background:${fill(colors, routine.uid, dark)}"></span>${escapeHtml(routine.name)} · ${routine.minutes} min${note}</span>`,
     );
   }
   return `<div class="chips">${items.join("")}</div>`;
@@ -189,12 +201,13 @@ function strip(report, colors, tz, dark) {
         `<div class="window" style="left:${w.leftPct}%;width:${w.widthPct}%;background:${(colors[w.uid] ?? {}).color ?? OTHER_COLOR(dark)}"></div>`,
     )
     .join("");
-  const bars = layout.bars
+  // Usage overlaid on the routine windows: each hour fills the share of it that was used, split by routine
+  const blocks = layout.bars
     .map((bar) => {
       const segments = bar.segments
-        .map((s) => `<div class="seg" style="height:${(s.minutes / 60) * 100}%;background:${fill(colors, s.uid, dark)}"></div>`)
+        .map((s) => `<div class="seg" style="flex:${s.minutes} 1 0;background:${fill(colors, s.uid, dark)}"></div>`)
         .join("");
-      return `<div class="bar" style="left:${bar.leftPct}%;width:${bar.widthPct}%">${segments}</div>`;
+      return `<div class="block" style="left:${bar.leftPct}%;width:${round2(bar.usedWidthPct)}%">${segments}</div>`;
     })
     .join("");
   const ticks = [];
@@ -202,7 +215,7 @@ function strip(report, colors, tz, dark) {
     const label = `${h % 12 || 12}${h < 12 || h === 24 ? "am" : "pm"}`;
     ticks.push(`<span style="left:${((h - layout.startHour) / (layout.endHour - layout.startHour)) * 100}%">${label}</span>`);
   }
-  return `<div class="strip">${windows}${bars}</div><div class="ticks">${ticks.join("")}</div>`;
+  return `<div class="strip">${windows}<div class="use">${blocks}</div></div><div class="ticks">${ticks.join("")}</div>`;
 }
 
 /** Inner HTML of the card face for one day's report. */

@@ -96,10 +96,13 @@ test("stripLayout defaults to 6am-10pm and places windows", () => {
   ]);
   const bar = layout.bars.find((b) => b.hour === 15);
   assert.equal(bar.leftPct, (9 / 16) * 100);
+  assert.equal(bar.widthPct, 100 / 16);
   assert.deepEqual(bar.segments, [
     { uid: null, minutes: 25 },
     { uid: "school", minutes: 14.2 },
   ]);
+  // The filled width is the share of the hour used: 39.2 of 60 minutes of a 1/16-wide hour
+  assert.equal(round2(bar.usedWidthPct), round2((100 / 16) * (39.2 / 60)));
 });
 
 test("stripLayout widens to cover usage outside 6am-10pm", () => {
@@ -188,4 +191,28 @@ test("renderCard uses the report's full routine list for colours", () => {
   const html = renderCard(fewer, { name: "Child One", tz: TZ, dark: false });
   const schoolColor = (markup) => markup.match(/background:([^"]+)"><\/span>School/)[1];
   assert.equal(schoolColor(html), schoolColor(full));
+});
+
+test("renderCard overlays usage horizontally: each hour fills the share used, split by routine, solid colour", () => {
+  const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
+  assert.match(html, /class="use"/);
+  assert.doesNotMatch(html, /height:/);
+  assert.doesNotMatch(html, /opacity:/);
+  const used = round2((100 / 16) * (39.2 / 60));
+  assert.ok(html.includes(`left:${(9 / 16) * 100}%;width:${used}%`), "3pm block width is the share of the hour used");
+  // The 3pm hour splits 25 normal : 14.2 school, as widths in a row
+  assert.match(html, /flex:25 1 0[^"]*background:#2a78d6/);
+  assert.match(html, /flex:14\.2 1 0/);
+});
+
+test("renderCard labels every routine scheduled today, dimming those with no minutes", () => {
+  const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
+  assert.match(html, /class="chip idle"[^>]*>.*?Night · 0 min/s);
+  assert.doesNotMatch(html, /class="chip idle"[^>]*>.*?School/s);
+});
+
+test("an hour's filled width is capped at the whole hour", () => {
+  const r = report({ hours: [{ start: "2026-11-10T09:00:00+11:00", default_minutes: 75, routines: {} }] });
+  const [bar] = stripLayout(r, TZ).bars;
+  assert.equal(bar.usedWidthPct, bar.widthPct);
 });
