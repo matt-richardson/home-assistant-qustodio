@@ -286,3 +286,12 @@ test("headline percentage: over the limit, no limit, and a limit of 0", () => {
   assert.match(zero, /<span class="big">114 \/ 0 min<\/span>/);
   assert.doesNotMatch(zero, /class="unit">\d+%/);
 });
+
+test("renderCard order: screen time used above the bar, the rules swatches below it", () => {
+  const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
+  const used = html.indexOf('class="chips used"');
+  const bar = html.indexOf('class="strip"');
+  const ticks = html.indexOf('class="ticks"');
+  const rules = html.indexOf('class="chips rules"');
+  assert.ok(used < bar && bar < ticks && ticks < rules, `order was used ${used}, bar ${bar}, ticks ${ticks}, rules ${rules}`);
+});

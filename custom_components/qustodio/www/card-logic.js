@@ -193,8 +193,8 @@ const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;
 
 /**
- * Legend in two rows, mirroring the bar. Row 1: the total screen time used (solid, the colour of the blocks).
- * Row 2: the rules (tinted, the colour of the bands): the default rules and every routine with time or a scheduled
+ * Legend in two parts, mirroring the bar. Above the bar: the total screen time used (solid, the colour of the blocks).
+ * Below the bar: the rules (tinted, the colour of the bands): the default rules and every routine with time or a scheduled
  * window today, each with the minutes used under it, so the rows add up.
  */
 function chips(report, dark, layout, colors) {
@@ -214,7 +214,7 @@ function chips(report, dark, layout, colors) {
     const note = routine.minutes && routine.counts === false ? ` <span class="note">not counted</span>` : "";
     rules.push(`<span class="chip">${swatch(tint(color))}${escapeHtml(routine.name)}${minutes}${note}</span>`);
   }
-  return `<div class="chips used">${used}</div><div class="chips rules">${rules.join("")}</div>`;
+  return { used: `<div class="chips used">${used}</div>`, rules: `<div class="chips rules">${rules.join("")}</div>` };
 }
 
 function strip(report, colors, tz, dark) {
@@ -250,7 +250,9 @@ export function renderCard(report, { name, tz, dark }) {
     return `${title}<div class="empty">No screen time yet today</div>`;
   }
   const colors = routineColors(report.routines ?? [], dark, report.all_routines ?? report.routines ?? []);
-  return `${title}${headline(report, tz)}${chips(report, dark, stripLayout(report, tz), colors)}${strip(report, colors, tz, dark)}`;
+  const legend = chips(report, dark, stripLayout(report, tz), colors);
+  // Screen time used above the bar, the rules (each routine's swatch) below it
+  return `${title}${headline(report, tz)}${legend.used}${strip(report, colors, tz, dark)}${legend.rules}`;
 }
 
 /** Message for a day_report error code. */
