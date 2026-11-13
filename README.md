@@ -59,6 +59,8 @@ Access via: Devices & Services > Qustodio > Configure
 
 The integration includes a dashboard card that shows where a child's screen time went today. Nothing extra needs installing: once the integration is set up, the card is available in **Add card → Screen time**. Choose the child's screen time sensor.
 
+![Screen time card](docs/images/screen-time-card.png)
+
 The card shows:
 - **Counted time against the daily limit**, e.g. `114 / 120 min` (whole minutes, rounded up), or "no limit". Time in routines set not to count toward the limit (for example a School routine) is left out.
 - **Total screen time used**, and the minutes used under each set of rules (the default rules and each routine), marked "not counted" where a routine's time doesn't count toward the limit. These add up to the total.
