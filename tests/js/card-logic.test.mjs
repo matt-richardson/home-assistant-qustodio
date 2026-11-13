@@ -250,8 +250,8 @@ test("renderCard legend: screen time used on one row (solid), the rules on the n
   assert.equal(used[0], "used");
   assert.equal(rules[0], "rules");
   // Row 1: time used, solid swatches. Default-rules time first, then each routine with time.
-  assert.match(used[1], /^<span class="label">Screen time used<\/span>/);
-  assert.match(used[1], /background:#2a78d6"><\/span>66 min<\/span>/);
+  assert.match(used[1], /^<span class="chip"><span class="swatch" style="background:#2a78d6"><\/span>Screen time used · 66 min<\/span>/);
+  assert.doesNotMatch(used[1], /class="label"/);
   assert.match(used[1], /School · 32 min <span class="note">not counted<\/span>/);
   assert.doesNotMatch(used[1], /color-mix/);
   assert.doesNotMatch(used[1], /Night/); // no time used under Night

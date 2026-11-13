@@ -25,7 +25,6 @@ const STYLE = `
   .block { position: absolute; top: 0; bottom: 0; display: flex; }
   .seg { min-width: 1px; }
   .chips.rules { margin-top: -4px; color: var(--secondary-text-color); }
-  .chips .label { color: var(--secondary-text-color); }
   .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
   .ticks span { position: absolute; transform: translateX(-50%); }
   .ticks span:first-child { transform: none; }
