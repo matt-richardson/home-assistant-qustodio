@@ -8,7 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .const import RULES_WEEKDAY_CODES, get_platform_name
-from .screen_time import routine_counting_map, split_screen_time
+from .screen_time import daily_quota, routine_counting_map, split_screen_time
 
 WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 USAGE_TYPE_APP = 301
@@ -214,20 +214,6 @@ def _usage_items(usage: dict[str, Any] | None) -> tuple[list[dict[str, Any]], li
     )
 
 
-def _quota_minutes(rules: dict[str, Any], day: date) -> int | None:
-    """Return the daily screen time quota for a day, or None when there's no limit.
-
-    A quota applies when one is set for that weekday and the weekday (Mon-Fri) or
-    weekend (Sat-Sun) quota is switched on; missing switches count as on. A quota
-    of 0 means no screen time is allowed, which is different from no limit.
-    """
-    restrictions = rules.get("time_restrictions") or {}
-    switch = "is_weekend_quota" if day.weekday() >= 5 else "is_weekdays_quota"
-    if not restrictions.get(switch, True):
-        return None
-    return (restrictions.get("quotas") or {}).get(RULES_WEEKDAY_CODES[day.weekday()])
-
-
 def build_day_report(ctx: DayContext, inputs: DayInputs, partial: list[str]) -> dict[str, Any]:
     """Build a child's report for one local day.
 
@@ -246,7 +232,9 @@ def build_day_report(ctx: DayContext, inputs: DayInputs, partial: list[str]) -> 
         "profile_name": ctx.profile_name,
         "date": ctx.day.isoformat(),
         "is_today": ctx.day == ctx.today,
-        "quota_minutes": _quota_minutes(inputs.rules, ctx.day),
+        "quota_minutes": daily_quota(
+            inputs.rules.get("time_restrictions") or {}, RULES_WEEKDAY_CODES[ctx.day.weekday()]
+        ),
         "extra_time_minutes": inputs.extra_time_minutes if ctx.day == ctx.today else None,
         "total_minutes": split.total_minutes,
         "counted_minutes": split.counted_minutes,
