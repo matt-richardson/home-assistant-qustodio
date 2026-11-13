@@ -1,7 +1,7 @@
 // Pure logic and HTML rendering for the screen time card. No DOM access, so it's unit-tested with node --test.
 // Everything from Qustodio (routine and profile names) goes through escapeHtml before reaching markup.
 
-// Categorical palette (validated light/dark steps). Slot 1 is normal time; routines take slots 2-8.
+// Categorical palette (validated light/dark steps). Slot 1 is default-rules time; routines take slots 2-8.
 const PALETTE = {
   light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
   dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
@@ -112,7 +112,22 @@ function localHour(iso, tz, isEnd = false) {
   return isEnd && value === 0 ? 24 : value;
 }
 
-/** Positions (as % of the strip) of routine windows and hourly bars between startHour and endHour. */
+/** The parts of the strip (0-100%) not covered by any routine window: when the default rules apply. */
+function gaps(windows) {
+  const covered = windows
+    .map((w) => [w.leftPct, w.leftPct + w.widthPct])
+    .sort((a, b) => a[0] - b[0]);
+  const result = [];
+  let cursor = 0;
+  for (const [from, to] of covered) {
+    if (from - cursor > 1e-9) result.push({ leftPct: cursor, widthPct: from - cursor });
+    cursor = Math.max(cursor, to);
+  }
+  if (100 - cursor > 1e-9) result.push({ leftPct: cursor, widthPct: 100 - cursor });
+  return result;
+}
+
+/** Positions (as % of the strip) of routine windows, default-rules time and hourly usage between startHour and endHour. */
 export function stripLayout(report, tz) {
   const hours = report.hours ?? [];
   const usageHours = hours.map((h) => localTime(h.start, tz).hour);
@@ -144,7 +159,7 @@ export function stripLayout(report, tz) {
       segments: segments.filter((s) => s.minutes > 0),
     };
   });
-  return { startHour, endHour, windows, bars };
+  return { startHour, endHour, windows, defaultWindows: gaps(windows), bars };
 }
 
 /** Short local hour label, e.g. "4pm". */
@@ -178,7 +193,7 @@ function chips(report, colors, dark) {
   const items = [];
   if (normal > 0) {
     items.push(
-      `<span class="chip"><span class="swatch" style="background:${fill(colors, null, dark)}"></span>Normal time · ${round1(normal)} min</span>`,
+      `<span class="chip"><span class="swatch" style="background:${fill(colors, null, dark)}"></span>Default rules · ${round1(normal)} min</span>`,
     );
   }
   // Every routine with time or a scheduled window today, so each shaded band on the strip has a label
@@ -195,6 +210,9 @@ function chips(report, colors, dark) {
 
 function strip(report, colors, tz, dark) {
   const layout = stripLayout(report, tz);
+  const defaults = layout.defaultWindows
+    .map((w) => `<div class="window default" style="left:${w.leftPct}%;width:${w.widthPct}%;background:${NORMAL_COLOR(dark)}"></div>`)
+    .join("");
   const windows = layout.windows
     .map(
       (w) =>
@@ -215,7 +233,7 @@ function strip(report, colors, tz, dark) {
     const label = `${h % 12 || 12}${h < 12 || h === 24 ? "am" : "pm"}`;
     ticks.push(`<span style="left:${((h - layout.startHour) / (layout.endHour - layout.startHour)) * 100}%">${label}</span>`);
   }
-  return `<div class="strip">${windows}<div class="use">${blocks}</div></div><div class="ticks">${ticks.join("")}</div>`;
+  return `<div class="strip">${defaults}${windows}<div class="use">${blocks}</div></div><div class="ticks">${ticks.join("")}</div>`;
 }
 
 /** Inner HTML of the card face for one day's report. */

@@ -63,7 +63,7 @@ The card shows:
 - **Counted time against the daily limit**, e.g. `113.5 / 120 min`, or "no limit". Time in routines set not to count toward the limit (for example a School routine) is left out.
 - **Minutes per routine**, marked "doesn't count" where the routine doesn't count toward the limit.
 - **Minutes over and roughly when the limit was hit**, if it was.
-- **A strip of the day** with each routine's scheduled windows shaded and the time used in each hour.
+- **A bar for the day.** The background shows which rules applied when: each routine's scheduled windows in its colour, and the default rules (no routine) in blue. Over it, solid blocks show the screen time used, each hour filled by the share of it that was used.
 
 It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card opens the sensor's details.
 
@@ -82,7 +82,7 @@ The result includes:
 - `total_minutes`: all screen time.
 - `counted_minutes`: time that counts toward the daily limit.
 - `quota_minutes`: the daily limit, or `null` when there's no limit that day (`0` means no screen time is allowed). For today only, also `extra_time_minutes`.
-- `hours`: each hour with screen time, in Home Assistant's time zone, split into normal time and time per routine.
+- `hours`: each hour with screen time, in Home Assistant's time zone, split into time under the default rules (no routine active) and time per routine.
 - `routines`: every routine with time or a scheduled window that day. Each has its minutes, whether it counts toward the limit, and its windows. Routines deleted since show as "Removed routine".
 - `apps` and `websites`: sorted by minutes. If they can't be fetched, the report still comes back with `"partial": ["apps"]`.
 

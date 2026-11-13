@@ -216,3 +216,28 @@ test("an hour's filled width is capped at the whole hour", () => {
   const [bar] = stripLayout(r, TZ).bars;
   assert.equal(bar.usedWidthPct, bar.widthPct);
 });
+
+test("stripLayout marks where the default rules apply: the gaps between routine windows", () => {
+  const { defaultWindows } = stripLayout(report(), TZ);
+  const hours = (pct) => round2(6 + (pct / 100) * 16);
+  assert.deepEqual(
+    defaultWindows.map((w) => [hours(w.leftPct), hours(w.leftPct + w.widthPct)]),
+    [
+      [8, 8.67],
+      [15.25, 16],
+      [19, 20],
+    ],
+  );
+});
+
+test("stripLayout with no routine windows is default rules all day", () => {
+  const r = report({ routines: [] });
+  assert.deepEqual(stripLayout(r, TZ).defaultWindows, [{ leftPct: 0, widthPct: 100 }]);
+});
+
+test("renderCard tints default-rules time and labels its usage 'Default rules'", () => {
+  const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
+  assert.match(html, /Default rules · 65\.5 min/);
+  assert.doesNotMatch(html, /Normal time/);
+  assert.match(html, /class="window default"[^>]*background:#2a78d6/);
+});
