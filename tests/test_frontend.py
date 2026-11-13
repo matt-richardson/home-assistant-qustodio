@@ -49,7 +49,10 @@ async def test_card_served(
     client = await hass_client()
     response = await client.get(CARD_URL)
     assert response.status == 200
-    assert 'customElements.define("qustodio-screen-time-card"' in await response.text()
+    assert 'const CARD_TYPE = "qustodio-screen-time-card"' in await response.text()
+    logic = await client.get(f"{FRONTEND_URL_BASE}/card-logic.js")
+    assert logic.status == 200
+    assert "export function renderCard" in await logic.text()
 
 
 async def test_card_registered_as_module(
