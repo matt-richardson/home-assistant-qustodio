@@ -24,7 +24,7 @@ const STYLE = `
   .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
   .use { position: absolute; inset: 0; }
   .block { position: absolute; top: 0; bottom: 0; display: flex; }
-  .chips.rules { margin: 6px 0 0; color: var(--secondary-text-color); }
+  .chips.rules { margin: 14px 0 0; color: var(--secondary-text-color); }
   .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
   .ticks span { position: absolute; transform: translateX(-50%); }
   .ticks span:first-child { transform: none; }

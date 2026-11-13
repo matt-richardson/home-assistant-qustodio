@@ -200,3 +200,8 @@ test("usage is drawn full height over the routine windows", () => {
   const source = readFileSync(new URL("../../custom_components/qustodio/www/qustodio-screen-time-card.js", import.meta.url), "utf8");
   assert.match(source, /\.use \{ position: absolute; inset: 0; \}/);
 });
+
+test("leaves room between the bar's time labels and the routine swatches", () => {
+  const source = readFileSync(new URL("../../custom_components/qustodio/www/qustodio-screen-time-card.js", import.meta.url), "utf8");
+  assert.match(source, /\.chips\.rules \{ margin: 14px 0 0;/);
+});
