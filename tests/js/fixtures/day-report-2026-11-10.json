@@ -125,5 +125,23 @@
       "pages": 3,
       "blocked_pages": 0
     }
+  ],
+  "all_routines": [
+    {
+      "uid": "school",
+      "name": "School"
+    },
+    {
+      "uid": "homework",
+      "name": "Homework"
+    },
+    {
+      "uid": "after",
+      "name": "After school"
+    },
+    {
+      "uid": "night",
+      "name": "Night"
+    }
   ]
 }

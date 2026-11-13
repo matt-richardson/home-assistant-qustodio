@@ -37,7 +37,9 @@ globalThis.customElements = {
 
 await import("../../custom_components/qustodio/www/qustodio-screen-time-card.js");
 const Card = defined["qustodio-screen-time-card"];
-const REPORT = JSON.parse(readFileSync(new URL("./fixtures/day-report-2026-11-10.json", import.meta.url)));
+const TODAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+// The card asks for today's report, so the server would answer with today's date
+const REPORT = { ...JSON.parse(readFileSync(new URL("./fixtures/day-report-2026-11-10.json", import.meta.url))), date: TODAY };
 const ENTITY = "sensor.child_one";
 
 function makeHass(lastUpdated, callWS) {
@@ -145,4 +147,51 @@ test("shows a message when the configured sensor doesn't exist", () => {
   card.setConfig({ entity: "sensor.gone" });
   card.hass = makeHass("t1", async () => REPORT);
   assert.match(card.shadowRoot.innerHTML, /Sensor sensor\.gone not found/);
+});
+
+test("refetches once the server's cache has expired, even if the sensor hasn't changed", async () => {
+  const calls = [];
+  const card = new Card();
+  card.setConfig({ entity: ENTITY });
+  const callWS = async (msg) => {
+    calls.push(msg);
+    return REPORT;
+  };
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => now;
+  try {
+    card.hass = makeHass("t1", callWS);
+    await tick();
+    now += 2 * 60_000;
+    card.hass = makeHass("t1", callWS); // sensor unchanged, cache still fresh
+    assert.equal(calls.length, 1);
+    now += 4 * 60_000;
+    card.hass = makeHass("t1", callWS); // sensor unchanged, but over 5.5 minutes since the last fetch
+    await tick();
+    assert.equal(calls.length, 2);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test("refetches when the date has moved on since the shown report", async () => {
+  const calls = [];
+  const card = new Card();
+  card.setConfig({ entity: ENTITY });
+  const callWS = async (msg) => {
+    calls.push(msg);
+    return { ...REPORT, date: "2000-01-01" }; // a report for a day that isn't today
+  };
+  card.hass = makeHass("t1", callWS);
+  await tick();
+  card.hass = makeHass("t1", callWS); // same sensor update, within a minute, but the report is from another day
+  await tick();
+  assert.equal(calls.length, 2);
+});
+
+test("loads card-logic.js with the same version tag as the card", () => {
+  const source = readFileSync(new URL("../../custom_components/qustodio/www/qustodio-screen-time-card.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /^import .* from "\.\/card-logic\.js";?$/m);
+  assert.match(source, /import\(new URL\("\.\/card-logic\.js" \+ new URL\(import\.meta\.url\)\.search, import\.meta\.url\)/);
 });

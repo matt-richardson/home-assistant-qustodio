@@ -240,6 +240,10 @@ def build_day_report(ctx: DayContext, inputs: DayInputs, partial: list[str]) -> 
         "counted_minutes": split.counted_minutes,
         "hours": _hours(inputs.hourly, ctx.tz),
         "routines": _routines(inputs, ctx.day, ctx.tz),
+        # Every known routine, so the card can give each a colour that doesn't change from day to day
+        "all_routines": [
+            {"uid": routine["uid"], "name": routine.get("name", "")} for routine in inputs.routines if "uid" in routine
+        ],
         "apps": apps,
         "websites": websites,
     }

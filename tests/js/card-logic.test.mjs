@@ -160,3 +160,32 @@ test("errorText", () => {
   assert.equal(errorText("connection_error"), "Couldn't load today's screen time");
   assert.equal(errorText(undefined), "Couldn't load today's screen time");
 });
+
+test("routineColors stays the same when a routine is missing from the day", () => {
+  const all = [
+    { uid: "after", name: "After school" },
+    { uid: "homework", name: "Homework" },
+    { uid: "school", name: "School" },
+  ];
+  const weekday = routineColors(
+    [
+      { uid: "after", name: "After school", counts: true },
+      { uid: "homework", name: "Homework", counts: false },
+      { uid: "school", name: "School", counts: false },
+    ],
+    false,
+    all,
+  );
+  const weekend = routineColors([{ uid: "school", name: "School", counts: false }], false, all);
+  assert.equal(weekend.school.color, weekday.school.color);
+  assert.equal(weekend.school.hatched, true);
+});
+
+test("renderCard uses the report's full routine list for colours", () => {
+  const r = report();
+  const full = renderCard(r, { name: "Child One", tz: TZ, dark: false });
+  const fewer = report({ routines: r.routines.filter((x) => x.uid !== "homework") });
+  const html = renderCard(fewer, { name: "Child One", tz: TZ, dark: false });
+  const schoolColor = (markup) => markup.match(/background:([^"]+)"><\/span>School/)[1];
+  assert.equal(schoolColor(html), schoolColor(full));
+});

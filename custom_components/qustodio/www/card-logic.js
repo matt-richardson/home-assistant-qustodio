@@ -71,10 +71,14 @@ export function limitReachedAt(report) {
   return null;
 }
 
-/** Colour per routine uid: distinct slots by name (stable across days), then a shared "other" grey. */
-export function routineColors(routines, dark) {
+/**
+ * Colour per routine uid: distinct slots by name, then a shared "other" grey.
+ * Slots are assigned over allRoutines (every routine the profile has), so a routine keeps its colour on days
+ * when others are missing from the report.
+ */
+export function routineColors(routines, dark, allRoutines = routines) {
   const palette = PALETTE[dark ? "dark" : "light"];
-  const named = (routines ?? [])
+  const named = (allRoutines ?? [])
     .filter((r) => !r.removed)
     .map((r) => r.name ?? "")
     .filter((name, i, all) => all.indexOf(name) === i)
@@ -207,7 +211,7 @@ export function renderCard(report, { name, tz, dark }) {
   if (!(report.hours ?? []).length) {
     return `${title}<div class="empty">No screen time yet today</div>`;
   }
-  const colors = routineColors(report.routines ?? [], dark);
+  const colors = routineColors(report.routines ?? [], dark, report.all_routines ?? report.routines ?? []);
   return `${title}${headline(report, tz)}${chips(report, colors, dark)}${strip(report, colors, tz, dark)}`;
 }
 

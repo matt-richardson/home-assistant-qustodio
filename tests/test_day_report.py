@@ -272,3 +272,15 @@ def test_report_hours_in_time_order_on_dst_fall_back() -> None:
     report = build_day_report(DayContext("1", "C", date(2026, 4, 5), date(2026, 4, 6), TZ), _inputs(hourly=hourly), [])
     assert [h["start"] for h in report["hours"]] == ["2026-04-05T02:00:00+11:00", "2026-04-05T02:00:00+10:00"]
     assert [h["default_minutes"] for h in report["hours"]] == [5.0, 10.0]
+
+
+def test_report_lists_all_routines_for_stable_colours() -> None:
+    """Every known routine is listed (uid, name), even with no minutes or window that day, so colours stay put."""
+    routines = _report()["all_routines"]
+    assert routines == [
+        {"uid": "school", "name": "Term Time - School"},
+        {"uid": "homework", "name": "Homework"},
+        {"uid": "after", "name": "Term Time - After school"},
+        {"uid": "night", "name": "Night"},
+        {"uid": "holidays", "name": "Holidays"},
+    ]

@@ -1,10 +1,13 @@
 // Screen time card for the Qustodio integration: where a child's screen time went today, by routine.
 // Served and registered by the integration; logic and rendering live in card-logic.js (unit-tested).
-import { errorText, escapeHtml, renderCard } from "./card-logic.js";
+// Load the logic with this file's own ?v= version, so an upgraded card never pairs with a cached older logic file
+const { errorText, escapeHtml, renderCard } = await import(new URL("./card-logic.js" + new URL(import.meta.url).search, import.meta.url));
 
 const CARD_TYPE = "qustodio-screen-time-card";
 const ATTRIBUTION = "Data provided by Qustodio";
 const MIN_REFETCH_MS = 60_000;
+// Just over the server's 5-minute cache for today, so the card catches up even when its sensor stops changing
+const MAX_AGE_MS = 330_000;
 
 const STYLE = `
   ha-card { padding: 16px; cursor: pointer; }
@@ -82,13 +85,19 @@ class QustodioScreenTimeCard extends HTMLElement {
       this._render(`<div class="message">Sensor ${escapeHtml(this._config?.entity)} not found</div>`);
       return;
     }
-    const first = this._lastSeen === undefined;
-    const due = Date.now() - this._lastFetch >= MIN_REFETCH_MS;
-    if (!this._inFlight && state.last_updated !== this._lastSeen && (first || due)) {
+    if (!this._inFlight && this._shouldFetch(state)) {
       this._fetch(state);
     } else if (!this._report && !this._error) {
       this._render(`<div class="message">Loading…</div>`);
     }
+  }
+
+  _shouldFetch(state) {
+    if (this._lastSeen === undefined) return true;
+    const age = Date.now() - this._lastFetch;
+    if (age >= MAX_AGE_MS) return true;
+    if (this._report && this._report.date !== localDate(this._hass.config.time_zone)) return true;
+    return state.last_updated !== this._lastSeen && age >= MIN_REFETCH_MS;
   }
 
   async _fetch(state) {
