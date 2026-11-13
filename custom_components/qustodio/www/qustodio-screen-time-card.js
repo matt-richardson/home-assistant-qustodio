@@ -14,6 +14,7 @@ const STYLE = `
   .title { font-weight: 500; font-size: 16px; margin-bottom: 4px; }
   .headline .big { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .headline .unit { color: var(--secondary-text-color); }
+  .counted { font-size: 12px; color: var(--secondary-text-color); margin-top: -2px; }
   .over { color: var(--primary-text-color); font-size: 13px; margin-top: 2px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; font-size: 13px; }
   .chip { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); }
@@ -23,7 +24,6 @@ const STYLE = `
   .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
   .use { position: absolute; inset: 0; }
   .block { position: absolute; top: 0; bottom: 0; display: flex; }
-  .seg { min-width: 1px; }
   .chips.rules { margin-top: -4px; color: var(--secondary-text-color); }
   .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
   .ticks span { position: absolute; transform: translateX(-50%); }

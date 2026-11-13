@@ -61,7 +61,7 @@ The integration includes a dashboard card that shows where a child's screen time
 
 The card shows:
 - **Counted time against the daily limit**, e.g. `114 / 120 min` (whole minutes, rounded up), or "no limit". Time in routines set not to count toward the limit (for example a School routine) is left out.
-- **Minutes per routine**, marked "not counted" where the routine's time doesn't count toward the limit.
+- **Total screen time used**, and the minutes used under each set of rules (the default rules and each routine), marked "not counted" where a routine's time doesn't count toward the limit. These add up to the total.
 - **Minutes over and roughly when the limit was hit**, if it was.
 - **A bar for the day.** The background shows which rules applied when: each routine's scheduled windows in its colour, and the default rules (no routine) in blue. Over it, solid blocks show the screen time used, each hour filled by the share of it that was used.
 

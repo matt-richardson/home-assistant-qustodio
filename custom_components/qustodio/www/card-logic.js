@@ -170,13 +170,6 @@ function hourLabel(iso, tz) {
   return `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`;
 }
 
-function fill(colors, uid, dark) {
-  const entry = uid === null ? { color: NORMAL_COLOR(dark), hatched: false } : colors[uid] ?? { color: OTHER_COLOR(dark) };
-  return entry.hatched
-    ? `repeating-linear-gradient(45deg, ${entry.color} 0 3px, transparent 3px 6px)`
-    : entry.color;
-}
-
 function headline(report, tz) {
   const counted = report.counted_minutes ?? 0;
   const limit = limitMinutes(report);
@@ -191,7 +184,8 @@ function headline(report, tz) {
   const over = minutesOver(report);
   const reached = limitReachedAt(report);
   const tail = over ? `<div class="over">${wholeMinutes(over)} min over${reached ? ` · limit hit ~${hourLabel(reached, tz)}` : ""}</div>` : "";
-  return `<div class="headline">${main}</div>${tail}`;
+  const note = limit === null ? "" : `<div class="counted">counted toward limit</div>`;
+  return `<div class="headline">${main}</div>${note}${tail}`;
 }
 
 /** The faint version of a colour used for rules (routine windows, default rules) on the bar and in the legend. */
@@ -199,34 +193,28 @@ const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;
 
 /**
- * Legend in two rows, mirroring the bar. Row 1: the screen time used, with solid swatches ("Screen time used"
- * for default-rules time, then each routine with time). Row 2: the rules, with tinted swatches (the default rules and every routine with
- * time or a scheduled window today), so each shaded band on the bar has a label.
+ * Legend in two rows, mirroring the bar. Row 1: the total screen time used (solid, the colour of the blocks).
+ * Row 2: the rules (tinted, the colour of the bands): the default rules and every routine with time or a scheduled
+ * window today, each with the minutes used under it, so the rows add up.
  */
-function chips(report, colors, dark, layout) {
+function chips(report, dark, layout, colors) {
   const normal = round1(countedByHour(report).reduce((a, h) => a + h.normal, 0));
-  const scheduled = (report.routines ?? []).filter((r) => r.minutes || (r.windows ?? []).length);
-  const colorOf = (routine) => (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
-
-  const used = [];
-  if (normal > 0) {
-    used.push(`<span class="chip">${swatch(NORMAL_COLOR(dark))}Screen time used · ${wholeMinutes(normal)} min</span>`);
-  }
-  for (const routine of scheduled.filter((r) => r.minutes)) {
-    const note = routine.counts === false ? ` <span class="note">not counted</span>` : "";
-    used.push(
-      `<span class="chip">${swatch(fill(colors, routine.uid, dark))}${escapeHtml(routine.name)} · ${wholeMinutes(routine.minutes)} min${note}</span>`,
-    );
-  }
+  const total = report.total_minutes ?? 0;
+  const used = `<span class="chip">${swatch(NORMAL_COLOR(dark))}Screen time used · ${wholeMinutes(total)} min</span>`;
 
   const rules = [];
   if (normal > 0 || layout.defaultWindows.length) {
-    rules.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules</span>`);
+    const minutes = normal > 0 ? ` · ${wholeMinutes(normal)} min` : "";
+    rules.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules${minutes}</span>`);
   }
-  for (const routine of scheduled) {
-    rules.push(`<span class="chip">${swatch(tint(colorOf(routine)))}${escapeHtml(routine.name)}</span>`);
+  for (const routine of report.routines ?? []) {
+    if (!routine.minutes && !(routine.windows ?? []).length) continue;
+    const color = (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
+    const minutes = routine.minutes ? ` · ${wholeMinutes(routine.minutes)} min` : "";
+    const note = routine.minutes && routine.counts === false ? ` <span class="note">not counted</span>` : "";
+    rules.push(`<span class="chip">${swatch(tint(color))}${escapeHtml(routine.name)}${minutes}${note}</span>`);
   }
-  return `<div class="chips used">${used.join("")}</div><div class="chips rules">${rules.join("")}</div>`;
+  return `<div class="chips used">${used}</div><div class="chips rules">${rules.join("")}</div>`;
 }
 
 function strip(report, colors, tz, dark) {
@@ -240,14 +228,12 @@ function strip(report, colors, tz, dark) {
         `<div class="window" style="left:${w.leftPct}%;width:${w.widthPct}%;background:${(colors[w.uid] ?? {}).color ?? OTHER_COLOR(dark)}"></div>`,
     )
     .join("");
-  // Usage overlaid on the routine windows: each hour fills the share of it that was used, split by routine
+  // Usage overlaid on the rule bands, always one colour: each hour fills the share of it that was used
   const blocks = layout.bars
-    .map((bar) => {
-      const segments = bar.segments
-        .map((s) => `<div class="seg" style="flex:${s.minutes} 1 0;background:${fill(colors, s.uid, dark)}"></div>`)
-        .join("");
-      return `<div class="block" style="left:${bar.leftPct}%;width:${round2(bar.usedWidthPct)}%">${segments}</div>`;
-    })
+    .map(
+      (bar) =>
+        `<div class="block" style="left:${bar.leftPct}%;width:${round2(bar.usedWidthPct)}%;background:${NORMAL_COLOR(dark)}"></div>`,
+    )
     .join("");
   const ticks = [];
   for (let h = layout.startHour; h <= layout.endHour; h += 4) {
@@ -264,7 +250,7 @@ export function renderCard(report, { name, tz, dark }) {
     return `${title}<div class="empty">No screen time yet today</div>`;
   }
   const colors = routineColors(report.routines ?? [], dark, report.all_routines ?? report.routines ?? []);
-  return `${title}${headline(report, tz)}${chips(report, colors, dark, stripLayout(report, tz))}${strip(report, colors, tz, dark)}`;
+  return `${title}${headline(report, tz)}${chips(report, dark, stripLayout(report, tz), colors)}${strip(report, colors, tz, dark)}`;
 }
 
 /** Message for a day_report error code. */
