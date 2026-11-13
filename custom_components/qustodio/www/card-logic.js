@@ -180,10 +180,14 @@ function fill(colors, uid, dark) {
 function headline(report, tz) {
   const counted = report.counted_minutes ?? 0;
   const limit = limitMinutes(report);
-  const main =
-    limit === null
-      ? `<span class="big">${wholeMinutes(counted)}</span> <span class="unit">min · no limit</span>`
-      : `<span class="big">${wholeMinutes(counted)}</span> <span class="unit">/ ${wholeMinutes(limit)} min</span>`;
+  let main;
+  if (limit === null) {
+    main = `<span class="big">${wholeMinutes(counted)} min</span> <span class="unit">no limit</span>`;
+  } else {
+    // Share of the limit used, from the unrounded minutes; none for a limit of 0
+    const percent = limit > 0 ? ` <span class="unit">${Math.round((counted / limit) * 100)}%</span>` : "";
+    main = `<span class="big">${wholeMinutes(counted)} / ${wholeMinutes(limit)} min</span>${percent}`;
+  }
   const over = minutesOver(report);
   const reached = limitReachedAt(report);
   const tail = over ? `<div class="over">${wholeMinutes(over)} min over${reached ? ` · limit hit ~${hourLabel(reached, tz)}` : ""}</div>` : "";

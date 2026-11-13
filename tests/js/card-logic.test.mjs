@@ -120,7 +120,8 @@ test("escapeHtml escapes markup characters", () => {
 
 test("renderCard shows counted time against the limit and routine chips", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /<span class="big">114<\/span>/); // 113.5 shown rounded up
+  // 113.5 rounded up, all at the large size; then the share of the limit used, small, no decimals (94.6% -> 95%)
+  assert.match(html, /<span class="big">114 \/ 120 min<\/span> <span class="unit">95%<\/span>/);
   assert.doesNotMatch(html, /\d\.\d+ min/); // whole minutes only
   assert.match(html, /120/);
   assert.match(html, /School/);
@@ -266,4 +267,13 @@ test("whole minutes are rounded up, but exact whole numbers stay as they are", (
   r.routines[0].minutes = 48;
   const html = renderCard(r, { name: "Child One", tz: TZ, dark: false });
   assert.match(html, /After school · 48 min/);
+});
+
+test("headline percentage: over the limit, no limit, and a limit of 0", () => {
+  const opts = { name: "Child One", tz: TZ, dark: false };
+  assert.match(renderCard(report({ quota_minutes: 60 }), opts), /<span class="big">114 \/ 60 min<\/span> <span class="unit">189%<\/span>/);
+  assert.match(renderCard(report({ quota_minutes: null }), opts), /<span class="big">114 min<\/span> <span class="unit">no limit<\/span>/);
+  const zero = renderCard(report({ quota_minutes: 0 }), opts);
+  assert.match(zero, /<span class="big">114 \/ 0 min<\/span>/);
+  assert.doesNotMatch(zero, /class="unit">\d+%/);
 });
