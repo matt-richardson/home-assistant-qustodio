@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
-  NORMAL_COLOR,
   OTHER_COLOR,
+  USED_COLOR,
   countedByHour,
   errorText,
   escapeHtml,
@@ -31,8 +31,6 @@ test("countedByHour splits each hour and excludes routines that don't count", ()
     hours.map((h) => h.counted),
     [20, 0, 25, 25, 43.5],
   );
-  assert.deepEqual(hours[2].byRoutine, { school: 14.2 });
-  assert.equal(hours[2].normal, 25);
 });
 
 test("countedByHour counts minutes under an unknown routine", () => {
@@ -64,22 +62,20 @@ test("limitReachedAt is the hour cumulative counted time reaches the limit", () 
 test("routineColors gives stable, distinct colours by name, then folds into other", () => {
   const routines = "ABCDEFGHI".split("").map((name, i) => ({ uid: `u${i}`, name, counts: i % 2 === 0 }));
   const colors = routineColors(routines, false);
-  const firstSeven = routines.slice(0, 7).map((r) => colors[r.uid].color);
+  const firstSeven = routines.slice(0, 7).map((r) => colors[r.uid]);
   assert.equal(new Set(firstSeven).size, 7);
-  assert.ok(!firstSeven.includes(NORMAL_COLOR(false)));
-  assert.equal(colors.u7.color, OTHER_COLOR(false));
-  assert.equal(colors.u8.color, OTHER_COLOR(false));
-  assert.equal(colors.u0.hatched, false);
-  assert.equal(colors.u1.hatched, true);
+  assert.ok(!firstSeven.includes(USED_COLOR(false)));
+  assert.equal(colors.u7, OTHER_COLOR(false));
+  assert.equal(colors.u8, OTHER_COLOR(false));
   // Same routines in a different order (e.g. sorted by minutes) get the same colours
   const reversed = routineColors([...routines].reverse(), false);
-  assert.equal(reversed.u3.color, colors.u3.color);
-  assert.notEqual(routineColors(routines, true).u0.color, colors.u0.color);
+  assert.equal(reversed.u3, colors.u3);
+  assert.notEqual(routineColors(routines, true).u0, colors.u0);
 });
 
 test("routineColors gives removed routines the other colour", () => {
   const colors = routineColors([{ uid: "x", name: "Removed routine", counts: true, removed: true }], false);
-  assert.equal(colors.x.color, OTHER_COLOR(false));
+  assert.equal(colors.x, OTHER_COLOR(false));
 });
 
 test("stripLayout defaults to 6am-10pm and places windows", () => {
@@ -97,10 +93,6 @@ test("stripLayout defaults to 6am-10pm and places windows", () => {
   const bar = layout.bars.find((b) => b.hour === 15);
   assert.equal(bar.leftPct, (9 / 16) * 100);
   assert.equal(bar.widthPct, 100 / 16);
-  assert.deepEqual(bar.segments, [
-    { uid: null, minutes: 25 },
-    { uid: "school", minutes: 14.2 },
-  ]);
   // The filled width is the share of the hour used: 39.2 of 60 minutes of a 1/16-wide hour
   assert.equal(round2(bar.usedWidthPct), round2((100 / 16) * (39.2 / 60)));
 });
@@ -183,8 +175,7 @@ test("routineColors stays the same when a routine is missing from the day", () =
     all,
   );
   const weekend = routineColors([{ uid: "school", name: "School", counts: false }], false, all);
-  assert.equal(weekend.school.color, weekday.school.color);
-  assert.equal(weekend.school.hatched, true);
+  assert.equal(weekend.school, weekday.school);
 });
 
 test("renderCard uses the report's full routine list for colours", () => {
