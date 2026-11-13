@@ -195,3 +195,8 @@ test("loads card-logic.js with the same version tag as the card", () => {
   assert.doesNotMatch(source, /^import .* from "\.\/card-logic\.js";?$/m);
   assert.match(source, /import\(new URL\("\.\/card-logic\.js" \+ new URL\(import\.meta\.url\)\.search, import\.meta\.url\)/);
 });
+
+test("usage is drawn full height over the routine windows", () => {
+  const source = readFileSync(new URL("../../custom_components/qustodio/www/qustodio-screen-time-card.js", import.meta.url), "utf8");
+  assert.match(source, /\.use \{ position: absolute; inset: 0; \}/);
+});
