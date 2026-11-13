@@ -29,6 +29,8 @@ pytest-asyncio
 pytest-cov
 pytest-xdist
 pytest-mock
+# Node for the card's JavaScript tests, installed into the venv by setup-venv.sh (nodeenv -p)
+nodeenv
 # Real Home Assistant test harness (hass, MockConfigEntry, registries). Each release pins
 # one exact homeassistant version, so bump it together with the HA version under test.
 pytest-homeassistant-custom-component==0.13.375

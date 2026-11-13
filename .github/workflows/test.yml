@@ -74,6 +74,22 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=95
 
+  js-test:
+    name: Test screen time card
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run card tests
+        run: node --test "tests/js/**/*.test.mjs"
+
   validate:
     name: Validate
     runs-on: ubuntu-latest
