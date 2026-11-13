@@ -207,7 +207,7 @@ function chips(report, colors, dark, layout) {
   const used = [`<span class="label">Screen time used</span>`];
   if (normal > 0) used.push(`<span class="chip">${swatch(NORMAL_COLOR(dark))}${wholeMinutes(normal)} min</span>`);
   for (const routine of scheduled.filter((r) => r.minutes)) {
-    const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
+    const note = routine.counts === false ? ` <span class="note">not counted</span>` : "";
     used.push(
       `<span class="chip">${swatch(fill(colors, routine.uid, dark))}${escapeHtml(routine.name)} · ${wholeMinutes(routine.minutes)} min${note}</span>`,
     );

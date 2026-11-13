@@ -124,7 +124,8 @@ test("renderCard shows counted time against the limit and routine chips", () => 
   assert.doesNotMatch(html, /\d\.\d+ min/); // whole minutes only
   assert.match(html, /120/);
   assert.match(html, /School/);
-  assert.match(html, /doesn&#39;t count|doesn’t count/);
+  assert.match(html, /not counted/);
+  assert.doesNotMatch(html, /doesn/);
   assert.doesNotMatch(html, /over/);
 });
 
@@ -251,7 +252,7 @@ test("renderCard legend: screen time used on one row (solid), the rules on the n
   // Row 1: time used, solid swatches. Default-rules time first, then each routine with time.
   assert.match(used[1], /^<span class="label">Screen time used<\/span>/);
   assert.match(used[1], /background:#2a78d6"><\/span>66 min<\/span>/);
-  assert.match(used[1], /School · 32 min <span class="note">doesn’t count<\/span>/);
+  assert.match(used[1], /School · 32 min <span class="note">not counted<\/span>/);
   assert.doesNotMatch(used[1], /color-mix/);
   assert.doesNotMatch(used[1], /Night/); // no time used under Night
   // Row 2: the rules, tinted swatches only
