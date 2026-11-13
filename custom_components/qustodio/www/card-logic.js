@@ -15,6 +15,8 @@ export const OTHER_COLOR = (dark) => OTHER[dark ? "dark" : "light"];
 
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
+// Minutes as shown on the card: whole minutes, rounded up (the maths underneath keeps decimals)
+const wholeMinutes = (n) => Math.ceil(round1(n));
 
 /** Escape text for safe insertion into HTML. */
 export function escapeHtml(text) {
@@ -180,11 +182,11 @@ function headline(report, tz) {
   const limit = limitMinutes(report);
   const main =
     limit === null
-      ? `<span class="big">${counted}</span> <span class="unit">min · no limit</span>`
-      : `<span class="big">${counted}</span> <span class="unit">/ ${limit} min</span>`;
+      ? `<span class="big">${wholeMinutes(counted)}</span> <span class="unit">min · no limit</span>`
+      : `<span class="big">${wholeMinutes(counted)}</span> <span class="unit">/ ${wholeMinutes(limit)} min</span>`;
   const over = minutesOver(report);
   const reached = limitReachedAt(report);
-  const tail = over ? `<div class="over">${over} min over${reached ? ` · limit hit ~${hourLabel(reached, tz)}` : ""}</div>` : "";
+  const tail = over ? `<div class="over">${wholeMinutes(over)} min over${reached ? ` · limit hit ~${hourLabel(reached, tz)}` : ""}</div>` : "";
   return `<div class="headline">${main}</div>${tail}`;
 }
 
@@ -200,7 +202,7 @@ function chips(report, colors, dark, layout) {
   const items = [];
   const normal = round1(countedByHour(report).reduce((a, h) => a + h.normal, 0));
   if (normal > 0 || layout.defaultWindows.length) {
-    const used = normal > 0 ? ` ${swatch(NORMAL_COLOR(dark))}Screen time used · ${normal} min` : "";
+    const used = normal > 0 ? ` ${swatch(NORMAL_COLOR(dark))}Screen time used · ${wholeMinutes(normal)} min` : "";
     items.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules${used}</span>`);
   }
   // Every routine with time or a scheduled window today, so each shaded band on the bar has a label
@@ -214,7 +216,7 @@ function chips(report, colors, dark, layout) {
     }
     const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
     items.push(
-      `<span class="chip">${rules} ${swatch(fill(colors, routine.uid, dark))}${routine.minutes} min used${note}</span>`,
+      `<span class="chip">${rules} ${swatch(fill(colors, routine.uid, dark))}${wholeMinutes(routine.minutes)} min used${note}</span>`,
     );
   }
   return `<div class="chips">${items.join("")}</div>`;

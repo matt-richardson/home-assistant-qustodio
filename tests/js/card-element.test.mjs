@@ -100,7 +100,7 @@ test("fetches today's report and renders it", async () => {
   assert.equal(calls[0].type, "qustodio/day_report");
   assert.equal(calls[0].profile_id, "profile_1");
   assert.match(calls[0].date, /^\d{4}-\d{2}-\d{2}$/);
-  assert.match(card.shadowRoot.innerHTML, /113\.5/);
+  assert.match(card.shadowRoot.innerHTML, /114/);
   assert.equal(card.getCardSize(), 3);
 });
 

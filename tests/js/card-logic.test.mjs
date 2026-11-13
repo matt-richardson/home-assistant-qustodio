@@ -120,7 +120,8 @@ test("escapeHtml escapes markup characters", () => {
 
 test("renderCard shows counted time against the limit and routine chips", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /113\.5/);
+  assert.match(html, /<span class="big">114<\/span>/); // 113.5 shown rounded up
+  assert.doesNotMatch(html, /\d\.\d+ min/); // whole minutes only
   assert.match(html, /120/);
   assert.match(html, /School/);
   assert.match(html, /doesn&#39;t count|doesn’t count/);
@@ -129,7 +130,7 @@ test("renderCard shows counted time against the limit and routine chips", () => 
 
 test("renderCard shows minutes over and when the limit was hit", () => {
   const html = renderCard(report({ quota_minutes: 60 }), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /53\.5 min over/);
+  assert.match(html, /54 min over/);
   assert.match(html, /4pm/);
 });
 
@@ -246,10 +247,17 @@ test("renderCard legend: the tint is the rules, the solid colour is screen time 
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
   // Default rules: dark (tinted) swatch for the rules, bright (solid) swatch for the time used under them
   assert.match(html, /color-mix\(in srgb, #2a78d6 18%, transparent\)"><\/span>Default rules/);
-  assert.match(html, /background:#2a78d6"><\/span>Screen time used · 65\.5 min/);
+  assert.match(html, /background:#2a78d6"><\/span>Screen time used · 66 min/);
   // Routines read the same way: tint + name, then solid + minutes used
   assert.match(html, /color-mix\(in srgb, [^ ]+ 18%, transparent\)"><\/span>School/);
-  assert.match(html, /<\/span>31\.2 min used <span class="note">doesn’t count<\/span>/);
+  assert.match(html, /<\/span>32 min used <span class="note">doesn’t count<\/span>/);
   // A routine scheduled today with no time used has only its tint and name
   assert.match(html, /class="chip idle"><span class="swatch" style="background:color-mix[^"]+"><\/span>Night<\/span>/);
+});
+
+test("whole minutes are rounded up, but exact whole numbers stay as they are", () => {
+  const r = report();
+  r.routines[0].minutes = 48;
+  const html = renderCard(r, { name: "Child One", tz: TZ, dark: false });
+  assert.match(html, /48 min used/);
 });
