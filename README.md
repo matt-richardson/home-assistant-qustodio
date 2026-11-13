@@ -55,6 +55,18 @@ Access via: Devices & Services > Qustodio > Configure
 
 ---
 
+## Screen time card
+
+The integration includes a dashboard card that shows where a child's screen time went today. Nothing extra needs installing: once the integration is set up, the card is available in **Add card → Screen time**. Choose the child's screen time sensor.
+
+The card shows:
+- **Counted time against the daily limit**, e.g. `113.5 / 120 min`, or "no limit". Time in routines set not to count toward the limit (for example a School routine) is left out.
+- **Minutes per routine**, marked "doesn't count" where the routine doesn't count toward the limit.
+- **Minutes over and roughly when the limit was hit**, if it was.
+- **A strip of the day** with each routine's scheduled windows shaded and the time used in each hour.
+
+It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card opens the sensor's details.
+
 ## Screen time day report (websocket API)
 
 The integration provides a websocket command that returns a child's full day. It's intended for the screen time card, and is also usable from scripts or other cards. Nothing here is added to entity attributes.
@@ -154,6 +166,7 @@ Enable write actions in the integration options to resolve this.
 ```bash
 ./dev.sh test          # Run all tests
 ./dev.sh test-cov      # Run tests with coverage (>95%)
+./dev.sh test-js       # Run the screen time card's JavaScript tests (Node in the venv)
 ./dev.sh lint          # Run all linters
 ./dev.sh format        # Format code with black/isort
 ./dev.sh ha-test       # Start Home Assistant
