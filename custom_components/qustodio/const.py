@@ -30,6 +30,12 @@ DEFAULT_APP_USAGE_CACHE_INTERVAL = 60  # minutes (1 hour)
 CONF_ALLOW_WRITES = "allow_writes"
 DEFAULT_ALLOW_WRITES = False
 
+# Day report (websocket API used by the screen time card)
+CONF_REPORT_ADMIN_ONLY = "report_admin_only"
+DEFAULT_REPORT_ADMIN_ONLY = True
+MAX_LOOKBACK_DAYS = 30
+WS_TYPE_DAY_REPORT = "qustodio/day_report"
+
 # API base + write-action constants (confirmed against the Qustodio API)
 API_BASE = "https://api.qustodio.com"
 URL_RULES = "https://api.qustodio.com/v1/accounts/{}/profiles/{}/rules?app_rules=1"

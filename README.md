@@ -49,8 +49,34 @@ After setup, you can configure:
 - **Update Interval**: How often to poll Qustodio API (1-60 minutes, default: 5)
 - **GPS Tracking**: Enable/disable device location tracking
 - **App Usage Cache Interval**: How often to refresh per-app usage data (5-1440 minutes, default: 60)
+- **Only admins can view the screen time report**: Restricts the day report (below) to admin users (default: on). Turn it off if non-admin household accounts should see children's app and website history.
 
 Access via: Devices & Services > Qustodio > Configure
+
+---
+
+## Screen time day report (websocket API)
+
+The integration provides a websocket command that returns a child's full day. It's intended for the screen time card, and is also usable from scripts or other cards. Nothing here is added to entity attributes.
+
+```json
+{"type": "qustodio/day_report", "profile_id": "11282538", "date": "2026-11-10"}
+```
+
+- `profile_id`: the Qustodio profile id (shown as `profile_id` on the screen time sensor).
+- `date`: a local day, `YYYY-MM-DD`, from today back to 30 days ago.
+
+The result includes:
+- `total_minutes`: all screen time.
+- `counted_minutes`: time that counts toward the daily limit.
+- `quota_minutes`: the daily limit, or `null` when there's no limit that day (`0` means no screen time is allowed). For today only, also `extra_time_minutes`.
+- `hours`: each hour with screen time, in Home Assistant's time zone, split into normal time and time per routine.
+- `routines`: every routine with time or a scheduled window that day. Each has its minutes, whether it counts toward the limit, and its windows. Routines deleted since show as "Removed routine".
+- `apps` and `websites`: sorted by minutes. If they can't be fetched, the report still comes back with `"partial": ["apps"]`.
+
+Today and the two days before it are refreshed at most every 5 minutes, because devices can sync their usage late. Older days are cached once fetched. Each profile's routine settings are refreshed at most every 5 minutes. Past days use the profile's **current** routine settings and quota, because Qustodio only reports the current ones.
+
+Errors: `unauthorized` (admin-only is on and the user isn't an admin), `not_found`, `invalid_date`, `auth_failed`, `rate_limited`, `connection_error`, `api_error`.
 
 ---
 

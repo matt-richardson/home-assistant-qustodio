@@ -17,10 +17,12 @@ from .const import (
     CONF_ALLOW_WRITES,
     CONF_APP_USAGE_CACHE_INTERVAL,
     CONF_ENABLE_GPS_TRACKING,
+    CONF_REPORT_ADMIN_ONLY,
     CONF_UPDATE_INTERVAL,
     DEFAULT_ALLOW_WRITES,
     DEFAULT_APP_USAGE_CACHE_INTERVAL,
     DEFAULT_ENABLE_GPS_TRACKING,
+    DEFAULT_REPORT_ADMIN_ONLY,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
@@ -286,6 +288,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_gps = self._config_entry.options.get(CONF_ENABLE_GPS_TRACKING, DEFAULT_ENABLE_GPS_TRACKING)
         current_cache = self._config_entry.options.get(CONF_APP_USAGE_CACHE_INTERVAL, DEFAULT_APP_USAGE_CACHE_INTERVAL)
         current_allow_writes = self._config_entry.options.get(CONF_ALLOW_WRITES, DEFAULT_ALLOW_WRITES)
+        current_admin_only = self._config_entry.options.get(CONF_REPORT_ADMIN_ONLY, DEFAULT_REPORT_ADMIN_ONLY)
 
         options_schema = vol.Schema(
             {
@@ -306,6 +309,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_ALLOW_WRITES,
                     default=current_allow_writes,
+                ): bool,
+                vol.Optional(
+                    CONF_REPORT_ADMIN_ONLY,
+                    default=current_admin_only,
                 ): bool,
             }
         )

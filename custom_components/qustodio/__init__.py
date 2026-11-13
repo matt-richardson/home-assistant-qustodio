@@ -17,6 +17,7 @@ from .coordinator import QustodioDataUpdateCoordinator
 from .models import CoordinatorData
 from .qustodioapi import QustodioApi
 from .services import async_setup_services, async_unload_services
+from .websocket_api import async_register_websocket_api
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     async_setup_services(hass)
+    async_register_websocket_api(hass)
 
     _register_profile_devices(hass, entry, coordinator.data)
 

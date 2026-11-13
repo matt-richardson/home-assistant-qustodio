@@ -802,6 +802,26 @@ class QustodioApi(QustodioRoutinesMixin):  # pylint: disable=too-many-instance-a
             _LOGGER.error("Unexpected error on %s %s: %s", method, url, err)
             raise QustodioAPIError(f"Unexpected error for {method} {url}: {err}") from err
 
+    async def get_hourly_summary(self, profile_uid: str, day: date) -> list[dict[str, Any]]:
+        """Return a profile's hourly screen time for one local day.
+
+        Args:
+            profile_uid: Profile UUID (not the numeric ID).
+            day: The profile's local day.
+
+        Returns:
+            Hourly entries (UTC ``datetime``, ``screen_time_seconds``, default and per-routine seconds).
+
+        Raises:
+            QustodioDataError: The response wasn't a list.
+        """
+        await self._ensure_account_info()
+        url = f"{self._profile_v2_base(profile_uid)}/summary_hourly"
+        result = await self._authenticated_request("GET", url, params={"date": day.isoformat()})
+        if not isinstance(result, list):
+            raise QustodioDataError(f"Unexpected hourly summary response: {result}")
+        return result
+
     async def get_app_usage(self, profile_uid: str, min_date: date, max_date: date) -> dict[str, Any]:
         """Get per-app usage data for a profile.
 
