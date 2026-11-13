@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.qustodio.const import CARD_FILENAME, DOMAIN, FRONTEND_URL_BASE
-from custom_components.qustodio.frontend import async_register_frontend
+from custom_components.qustodio.frontend import async_register_frontend, card_version
 
 from .sample_data import build_coordinator_data
 from .test_setup_real_ha import ENTRY_DATA
@@ -62,8 +62,7 @@ async def test_card_registered_as_module(
     await _setup_entry(hass)
     frontend_loaded.assert_called_once()
     url = frontend_loaded.call_args.args[1]
-    assert url.startswith(f"{CARD_URL}?v=")
-    assert len(url) > len(f"{CARD_URL}?v=")
+    assert url == f"{CARD_URL}?v={card_version()}"
 
 
 async def test_register_frontend_once(
@@ -82,3 +81,14 @@ async def test_card_not_registered_without_frontend(hass: HomeAssistant, enable_
     with patch("custom_components.qustodio.frontend.add_extra_js_url") as add:
         await _setup_entry(hass)
     add.assert_not_called()
+
+
+def test_card_version_changes_with_the_card_files(tmp_path) -> None:
+    """The version tag is a fingerprint of the card files, so any change gives browsers a new URL."""
+    (tmp_path / "a.js").write_text("one")
+    (tmp_path / "b.js").write_text("two")
+    first = card_version(tmp_path)
+    assert len(first) == 12
+    assert card_version(tmp_path) == first
+    (tmp_path / "b.js").write_text("two, changed")
+    assert card_version(tmp_path) != first
