@@ -1,0 +1,219 @@
+// Pure logic and HTML rendering for the screen time card. No DOM access, so it's unit-tested with node --test.
+// Everything from Qustodio (routine and profile names) goes through escapeHtml before reaching markup.
+
+// Categorical palette (validated light/dark steps). Slot 1 is normal time; routines take slots 2-8.
+const PALETTE = {
+  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+  dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+};
+const OTHER = { light: "#a3a29b", dark: "#6b6a64" };
+const DEFAULT_START_HOUR = 6;
+const DEFAULT_END_HOUR = 22;
+
+export const NORMAL_COLOR = (dark) => PALETTE[dark ? "dark" : "light"][0];
+export const OTHER_COLOR = (dark) => OTHER[dark ? "dark" : "light"];
+
+const round1 = (n) => Math.round(n * 10) / 10;
+
+/** Escape text for safe insertion into HTML. */
+export function escapeHtml(text) {
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+/** Per hour: total, counted (normal + routines that count; unknown routines count), and the split. */
+export function countedByHour(report) {
+  const counts = Object.fromEntries((report.routines ?? []).map((r) => [r.uid, r.counts]));
+  return (report.hours ?? []).map((hour) => {
+    const byRoutine = { ...(hour.routines ?? {}) };
+    const routineTotal = Object.values(byRoutine).reduce((a, b) => a + b, 0);
+    const countedRoutines = Object.entries(byRoutine)
+      .filter(([uid]) => counts[uid] !== false)
+      .reduce((a, [, minutes]) => a + minutes, 0);
+    const normal = hour.default_minutes ?? 0;
+    return {
+      start: hour.start,
+      normal,
+      byRoutine,
+      total: round1(normal + routineTotal),
+      counted: round1(normal + countedRoutines),
+    };
+  });
+}
+
+/** The day's limit in minutes (quota plus extra time), or null when there's no limit. */
+export function limitMinutes(report) {
+  if (report.quota_minutes === null || report.quota_minutes === undefined) return null;
+  return report.quota_minutes + (report.extra_time_minutes ?? 0);
+}
+
+/** Minutes counted beyond the limit (0 if within it), or null when there's no limit. */
+export function minutesOver(report) {
+  const limit = limitMinutes(report);
+  if (limit === null) return null;
+  return round1(Math.max(0, (report.counted_minutes ?? 0) - limit));
+}
+
+/** Start of the hour in which cumulative counted time reached the limit, or null. */
+export function limitReachedAt(report) {
+  const limit = limitMinutes(report);
+  if (limit === null) return null;
+  let cumulative = 0;
+  for (const hour of countedByHour(report)) {
+    if (hour.counted <= 0) continue;
+    cumulative += hour.counted;
+    if (cumulative >= limit) return hour.start;
+  }
+  return null;
+}
+
+/** Colour per routine uid: distinct slots by name (stable across days), then a shared "other" grey. */
+export function routineColors(routines, dark) {
+  const palette = PALETTE[dark ? "dark" : "light"];
+  const named = (routines ?? [])
+    .filter((r) => !r.removed)
+    .map((r) => r.name ?? "")
+    .filter((name, i, all) => all.indexOf(name) === i)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  const slotByName = Object.fromEntries(named.map((name, i) => [name, i < palette.length - 1 ? palette[i + 1] : null]));
+  return Object.fromEntries(
+    (routines ?? []).map((r) => [
+      r.uid,
+      { color: (!r.removed && slotByName[r.name ?? ""]) || OTHER_COLOR(dark), hatched: r.counts === false },
+    ]),
+  );
+}
+
+/** Local {hour, minute} of an ISO timestamp in a time zone. */
+function localTime(iso, tz) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return { hour: get("hour"), minute: get("minute") };
+}
+
+/** Local fractional hour; an end at local midnight counts as 24. */
+function localHour(iso, tz, isEnd = false) {
+  const { hour, minute } = localTime(iso, tz);
+  const value = hour + minute / 60;
+  return isEnd && value === 0 ? 24 : value;
+}
+
+/** Positions (as % of the strip) of routine windows and hourly bars between startHour and endHour. */
+export function stripLayout(report, tz) {
+  const hours = report.hours ?? [];
+  const usageHours = hours.map((h) => localTime(h.start, tz).hour);
+  const startHour = Math.min(DEFAULT_START_HOUR, ...usageHours);
+  const endHour = Math.max(DEFAULT_END_HOUR, ...usageHours.map((h) => h + 1));
+  const span = endHour - startHour;
+  const pct = (hour) => ((hour - startHour) / span) * 100;
+
+  const windows = [];
+  for (const routine of report.routines ?? []) {
+    for (const window of routine.windows ?? []) {
+      const from = Math.max(localHour(window.start, tz), startHour);
+      const to = Math.min(localHour(window.end, tz, true), endHour);
+      if (to > from) windows.push({ uid: routine.uid, leftPct: pct(from), widthPct: pct(to) - pct(from) });
+    }
+  }
+  const bars = hours.map((hour) => {
+    const local = localTime(hour.start, tz).hour;
+    const segments = [{ uid: null, minutes: hour.default_minutes ?? 0 }];
+    for (const [uid, minutes] of Object.entries(hour.routines ?? {})) segments.push({ uid, minutes });
+    return { hour: local, leftPct: pct(local), widthPct: 100 / span, segments: segments.filter((s) => s.minutes > 0) };
+  });
+  return { startHour, endHour, windows, bars };
+}
+
+/** Short local hour label, e.g. "4pm". */
+function hourLabel(iso, tz) {
+  const { hour } = localTime(iso, tz);
+  return `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`;
+}
+
+function fill(colors, uid, dark) {
+  const entry = uid === null ? { color: NORMAL_COLOR(dark), hatched: false } : colors[uid] ?? { color: OTHER_COLOR(dark) };
+  return entry.hatched
+    ? `repeating-linear-gradient(45deg, ${entry.color} 0 3px, transparent 3px 6px)`
+    : entry.color;
+}
+
+function headline(report, tz) {
+  const counted = report.counted_minutes ?? 0;
+  const limit = limitMinutes(report);
+  const main =
+    limit === null
+      ? `<span class="big">${counted}</span> <span class="unit">min · no limit</span>`
+      : `<span class="big">${counted}</span> <span class="unit">/ ${limit} min</span>`;
+  const over = minutesOver(report);
+  const reached = limitReachedAt(report);
+  const tail = over ? `<div class="over">${over} min over${reached ? ` · limit hit ~${hourLabel(reached, tz)}` : ""}</div>` : "";
+  return `<div class="headline">${main}</div>${tail}`;
+}
+
+function chips(report, colors, dark) {
+  const normal = countedByHour(report).reduce((a, h) => a + h.normal, 0);
+  const items = [];
+  if (normal > 0) {
+    items.push(
+      `<span class="chip"><span class="swatch" style="background:${fill(colors, null, dark)}"></span>Normal time · ${round1(normal)} min</span>`,
+    );
+  }
+  for (const routine of report.routines ?? []) {
+    if (!routine.minutes) continue;
+    const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
+    items.push(
+      `<span class="chip"><span class="swatch" style="background:${fill(colors, routine.uid, dark)}"></span>${escapeHtml(routine.name)} · ${routine.minutes} min${note}</span>`,
+    );
+  }
+  return `<div class="chips">${items.join("")}</div>`;
+}
+
+function strip(report, colors, tz, dark) {
+  const layout = stripLayout(report, tz);
+  const windows = layout.windows
+    .map(
+      (w) =>
+        `<div class="window" style="left:${w.leftPct}%;width:${w.widthPct}%;background:${(colors[w.uid] ?? {}).color ?? OTHER_COLOR(dark)}"></div>`,
+    )
+    .join("");
+  const bars = layout.bars
+    .map((bar) => {
+      const segments = bar.segments
+        .map((s) => `<div class="seg" style="height:${(s.minutes / 60) * 100}%;background:${fill(colors, s.uid, dark)}"></div>`)
+        .join("");
+      return `<div class="bar" style="left:${bar.leftPct}%;width:${bar.widthPct}%">${segments}</div>`;
+    })
+    .join("");
+  const ticks = [];
+  for (let h = layout.startHour; h <= layout.endHour; h += 4) {
+    const label = `${h % 12 || 12}${h < 12 || h === 24 ? "am" : "pm"}`;
+    ticks.push(`<span style="left:${((h - layout.startHour) / (layout.endHour - layout.startHour)) * 100}%">${label}</span>`);
+  }
+  return `<div class="strip">${windows}${bars}</div><div class="ticks">${ticks.join("")}</div>`;
+}
+
+/** Inner HTML of the card face for one day's report. */
+export function renderCard(report, { name, tz, dark }) {
+  const title = `<div class="title">${escapeHtml(name)}</div>`;
+  if (!(report.hours ?? []).length) {
+    return `${title}<div class="empty">No screen time yet today</div>`;
+  }
+  const colors = routineColors(report.routines ?? [], dark);
+  return `${title}${headline(report, tz)}${chips(report, colors, dark)}${strip(report, colors, tz, dark)}`;
+}
+
+/** Message for a day_report error code. */
+export function errorText(code) {
+  if (code === "unauthorized") return "Only admins can view this report";
+  if (code === "not_found") return "This sensor isn't a child's screen time sensor";
+  return "Couldn't load today's screen time";
+}
