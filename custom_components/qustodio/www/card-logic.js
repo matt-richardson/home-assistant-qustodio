@@ -195,31 +195,32 @@ const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;
 
 /**
- * Legend: for the default rules and each routine, a tinted swatch for the rules and, if any time was used
- * under them, a solid swatch for the screen time used, mirroring the bar's background and blocks.
+ * Legend in two rows, mirroring the bar. Row 1: the screen time used, with solid swatches (default-rules time,
+ * then each routine with time). Row 2: the rules, with tinted swatches (the default rules and every routine with
+ * time or a scheduled window today), so each shaded band on the bar has a label.
  */
 function chips(report, colors, dark, layout) {
-  const items = [];
   const normal = round1(countedByHour(report).reduce((a, h) => a + h.normal, 0));
-  if (normal > 0 || layout.defaultWindows.length) {
-    const used = normal > 0 ? ` ${swatch(NORMAL_COLOR(dark))}Screen time used · ${wholeMinutes(normal)} min` : "";
-    items.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules${used}</span>`);
-  }
-  // Every routine with time or a scheduled window today, so each shaded band on the bar has a label
-  for (const routine of report.routines ?? []) {
-    if (!routine.minutes && !(routine.windows ?? []).length) continue;
-    const color = (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
-    const rules = `${swatch(tint(color))}${escapeHtml(routine.name)}`;
-    if (!routine.minutes) {
-      items.push(`<span class="chip idle">${rules}</span>`);
-      continue;
-    }
+  const scheduled = (report.routines ?? []).filter((r) => r.minutes || (r.windows ?? []).length);
+  const colorOf = (routine) => (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
+
+  const used = [`<span class="label">Screen time used</span>`];
+  if (normal > 0) used.push(`<span class="chip">${swatch(NORMAL_COLOR(dark))}${wholeMinutes(normal)} min</span>`);
+  for (const routine of scheduled.filter((r) => r.minutes)) {
     const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
-    items.push(
-      `<span class="chip">${rules} ${swatch(fill(colors, routine.uid, dark))}${wholeMinutes(routine.minutes)} min used${note}</span>`,
+    used.push(
+      `<span class="chip">${swatch(fill(colors, routine.uid, dark))}${escapeHtml(routine.name)} · ${wholeMinutes(routine.minutes)} min${note}</span>`,
     );
   }
-  return `<div class="chips">${items.join("")}</div>`;
+
+  const rules = [];
+  if (normal > 0 || layout.defaultWindows.length) {
+    rules.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules</span>`);
+  }
+  for (const routine of scheduled) {
+    rules.push(`<span class="chip">${swatch(tint(colorOf(routine)))}${escapeHtml(routine.name)}</span>`);
+  }
+  return `<div class="chips used">${used.join("")}</div><div class="chips rules">${rules.join("")}</div>`;
 }
 
 function strip(report, colors, tz, dark) {

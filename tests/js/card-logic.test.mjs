@@ -206,10 +206,10 @@ test("renderCard overlays usage horizontally: each hour fills the share used, sp
   assert.match(html, /flex:14\.2 1 0/);
 });
 
-test("renderCard labels every routine scheduled today, dimming those with no minutes", () => {
+test("renderCard labels every routine scheduled today in the rules row", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /class="chip idle"[^>]*>.*?Night/s);
-  assert.doesNotMatch(html, /class="chip idle"[^>]*>.*?School/s);
+  const rules = html.match(/<div class="chips rules">(.*?)<\/div>/s)[1];
+  for (const name of ["Default rules", "School", "Homework", "After school", "Night"]) assert.match(rules, new RegExp(name));
 });
 
 test("an hour's filled width is capped at the whole hour", () => {
@@ -243,21 +243,26 @@ test("renderCard tints default-rules time and labels its usage 'Default rules'",
   assert.match(html, /class="window default"[^>]*background:#2a78d6/);
 });
 
-test("renderCard legend: the tint is the rules, the solid colour is screen time used", () => {
+test("renderCard legend: screen time used on one row (solid), the rules on the next (tinted)", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  // Default rules: dark (tinted) swatch for the rules, bright (solid) swatch for the time used under them
-  assert.match(html, /color-mix\(in srgb, #2a78d6 18%, transparent\)"><\/span>Default rules/);
-  assert.match(html, /background:#2a78d6"><\/span>Screen time used · 66 min/);
-  // Routines read the same way: tint + name, then solid + minutes used
-  assert.match(html, /color-mix\(in srgb, [^ ]+ 18%, transparent\)"><\/span>School/);
-  assert.match(html, /<\/span>32 min used <span class="note">doesn’t count<\/span>/);
-  // A routine scheduled today with no time used has only its tint and name
-  assert.match(html, /class="chip idle"><span class="swatch" style="background:color-mix[^"]+"><\/span>Night<\/span>/);
+  const [used, rules] = [...html.matchAll(/<div class="chips (used|rules)">(.*?)<\/div>/gs)].map((m) => [m[1], m[2]]);
+  assert.equal(used[0], "used");
+  assert.equal(rules[0], "rules");
+  // Row 1: time used, solid swatches. Default-rules time first, then each routine with time.
+  assert.match(used[1], /^<span class="label">Screen time used<\/span>/);
+  assert.match(used[1], /background:#2a78d6"><\/span>66 min<\/span>/);
+  assert.match(used[1], /School · 32 min <span class="note">doesn’t count<\/span>/);
+  assert.doesNotMatch(used[1], /color-mix/);
+  assert.doesNotMatch(used[1], /Night/); // no time used under Night
+  // Row 2: the rules, tinted swatches only
+  assert.match(rules[1], /color-mix\(in srgb, #2a78d6 18%, transparent\)"><\/span>Default rules/);
+  assert.match(rules[1], /color-mix\(in srgb, [^ ]+ 18%, transparent\)"><\/span>Night/);
+  assert.doesNotMatch(rules[1], /min/);
 });
 
 test("whole minutes are rounded up, but exact whole numbers stay as they are", () => {
   const r = report();
   r.routines[0].minutes = 48;
   const html = renderCard(r, { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /48 min used/);
+  assert.match(html, /After school · 48 min/);
 });
