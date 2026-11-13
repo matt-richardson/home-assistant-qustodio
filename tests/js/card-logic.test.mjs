@@ -259,7 +259,7 @@ test("renderCard legend: total screen time used on one row, then the rules with 
   // Row 2: each set of rules, tinted, with the minutes used under it; these add up to the total
   assert.match(rules[1], /color-mix\(in srgb, #2a78d6 18%, transparent\)"><\/span>Default rules · 66 min<\/span>/);
   assert.match(rules[1], /After school · 48 min<\/span>/);
-  assert.match(rules[1], /School · 32 min <span class="note">not counted<\/span>/);
+  assert.match(rules[1], /School · 31 min <span class="note">not counted<\/span>/);
   assert.match(rules[1], /Homework · 14 min <span class="note">not counted<\/span>/);
   // A routine scheduled today with no time used is just its name
   assert.match(rules[1], /18%, transparent\)"><\/span>Night<\/span>/);
@@ -294,4 +294,26 @@ test("renderCard order: screen time used above the bar, the rules swatches below
   const ticks = html.indexOf('class="ticks"');
   const rules = html.indexOf('class="chips rules"');
   assert.ok(used < bar && bar < ticks && ticks < rules, `order was used ${used}, bar ${bar}, ticks ${ticks}, rules ${rules}`);
+});
+
+test("the rules rows add up to the screen time used shown above the bar", () => {
+  const opts = { name: "Child One", tz: TZ, dark: false };
+  const sumRows = (html) => {
+    const rules = html.match(/<div class="chips rules">(.*?)<\/div>/s)[1];
+    return [...rules.matchAll(/· (\d+) min/g)].reduce((a, m) => a + Number(m[1]), 0);
+  };
+  const total = (html) => Number(html.match(/Screen time used · (\d+) min/)[1]);
+  const html = renderCard(report(), opts);
+  // 65.5 + 48 + 31.2 + 13.5 = 158.2: shown as 159 in total, so the rows must make 159 too
+  assert.equal(total(html), 159);
+  assert.equal(sumRows(html), 159);
+  // Exact whole numbers stay as they are
+  const exact = report();
+  exact.hours = [{ start: "2026-11-10T08:00:00+11:00", default_minutes: 20, routines: { after: 30 } }];
+  exact.routines = [{ ...exact.routines[0], minutes: 30 }];
+  exact.total_minutes = 50;
+  const exactHtml = renderCard(exact, opts);
+  assert.match(exactHtml, /Default rules · 20 min/);
+  assert.match(exactHtml, /After school · 30 min/);
+  assert.equal(sumRows(exactHtml), 50);
 });

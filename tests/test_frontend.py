@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import shutil
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -9,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.qustodio.const import CARD_FILENAME, DOMAIN, FRONTEND_URL_BASE
-from custom_components.qustodio.frontend import async_register_frontend, card_version
+from custom_components.qustodio.frontend import WWW_DIR, async_register_frontend, card_version
 
 from .sample_data import build_coordinator_data
 from .test_setup_real_ha import ENTRY_DATA
@@ -62,7 +64,8 @@ async def test_card_registered_as_module(
     await _setup_entry(hass)
     frontend_loaded.assert_called_once()
     url = frontend_loaded.call_args.args[1]
-    assert url == f"{CARD_URL}?v={card_version()}"
+    version = url.removeprefix(f"{CARD_URL}?v=")
+    assert re.fullmatch(r"[0-9a-f]{12}", version)
 
 
 async def test_register_frontend_once(
@@ -92,3 +95,13 @@ def test_card_version_changes_with_the_card_files(tmp_path) -> None:
     assert card_version(tmp_path) == first
     (tmp_path / "b.js").write_text("two, changed")
     assert card_version(tmp_path) != first
+
+
+def test_card_version_covers_the_real_card_files(tmp_path) -> None:
+    """Both shipped files are fingerprinted: changing card-logic.js alone changes the version tag."""
+    shutil.copytree(WWW_DIR, tmp_path / "www")
+    before = card_version(tmp_path / "www")
+    assert before == card_version()
+    logic = tmp_path / "www" / "card-logic.js"
+    logic.write_text(logic.read_text() + "\n// changed\n")
+    assert card_version(tmp_path / "www") != before

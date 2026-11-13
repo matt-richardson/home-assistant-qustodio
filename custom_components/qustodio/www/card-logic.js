@@ -188,6 +188,19 @@ function headline(report, tz) {
   return `<div class="headline">${main}</div>${note}${tail}`;
 }
 
+/** Whole-minute shares of values that add up to target (largest remainder; exact whole numbers stay as they are). */
+function apportion(values, target) {
+  const result = values.map((v) => Math.floor(v + 1e-9));
+  let remainder = target - result.reduce((a, b) => a + b, 0);
+  const byFraction = values.map((v, i) => [v - result[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  for (const [fraction, i] of byFraction) {
+    if (remainder <= 0 || fraction <= 1e-9) break;
+    result[i] += 1;
+    remainder -= 1;
+  }
+  return result;
+}
+
 /** The faint version of a colour used for rules (routine windows, default rules) on the bar and in the legend. */
 const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;
@@ -195,22 +208,27 @@ const swatch = (background) => `<span class="swatch" style="background:${backgro
 /**
  * Legend in two parts, mirroring the bar. Above the bar: the total screen time used (solid, the colour of the blocks).
  * Below the bar: the rules (tinted, the colour of the bands): the default rules and every routine with time or a scheduled
- * window today, each with the minutes used under it, so the rows add up.
+ * window today, each with the minutes used under it, apportioned so the rows add up to the total shown.
  */
 function chips(report, dark, layout, colors) {
   const normal = round1(countedByHour(report).reduce((a, h) => a + h.normal, 0));
   const total = report.total_minutes ?? 0;
   const used = `<span class="chip">${swatch(NORMAL_COLOR(dark))}Screen time used · ${wholeMinutes(total)} min</span>`;
 
+  // Minutes under each set of rules, as whole minutes that add up to the total shown above the bar
+  const withTime = (report.routines ?? []).filter((r) => r.minutes);
+  const shares = apportion([normal, ...withTime.map((r) => r.minutes)], wholeMinutes(total));
+  const shareOf = new Map(withTime.map((r, i) => [r.uid, shares[i + 1]]));
+
   const rules = [];
   if (normal > 0 || layout.defaultWindows.length) {
-    const minutes = normal > 0 ? ` · ${wholeMinutes(normal)} min` : "";
+    const minutes = normal > 0 ? ` · ${shares[0]} min` : "";
     rules.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules${minutes}</span>`);
   }
   for (const routine of report.routines ?? []) {
     if (!routine.minutes && !(routine.windows ?? []).length) continue;
     const color = (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
-    const minutes = routine.minutes ? ` · ${wholeMinutes(routine.minutes)} min` : "";
+    const minutes = routine.minutes ? ` · ${shareOf.get(routine.uid)} min` : "";
     const note = routine.minutes && routine.counts === false ? ` <span class="note">not counted</span>` : "";
     rules.push(`<span class="chip">${swatch(tint(color))}${escapeHtml(routine.name)}${minutes}${note}</span>`);
   }

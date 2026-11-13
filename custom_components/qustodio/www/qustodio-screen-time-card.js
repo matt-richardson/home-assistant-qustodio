@@ -8,6 +8,8 @@ const ATTRIBUTION = "Data provided by Qustodio";
 const MIN_REFETCH_MS = 60_000;
 // Just over the server's 5-minute cache for today, so the card catches up even when its sensor stops changing
 const MAX_AGE_MS = 330_000;
+// After failures, wait 1, 2, 4… minutes between retries (at most 15), rather than retrying on every HA update
+const MAX_BACKOFF_MS = 900_000;
 
 const STYLE = `
   ha-card { padding: 16px; cursor: pointer; }
@@ -35,7 +37,7 @@ const STYLE = `
 /** Today's date (YYYY-MM-DD) in a time zone. */
 function localDate(tz) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(),
+    new Date(Date.now()),
   );
 }
 
@@ -65,9 +67,8 @@ class QustodioScreenTimeCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._inFlight = false;
-    this._lastFetch = 0;
-    this._lastSeen = undefined;
+    this._token = 0;
+    this._reset();
     this.addEventListener("click", () => {
       this.dispatchEvent(
         new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId: this._config?.entity } }),
@@ -77,7 +78,20 @@ class QustodioScreenTimeCard extends HTMLElement {
 
   setConfig(config) {
     if (!config?.entity) throw new Error("Please choose a screen time sensor");
+    // A different child: forget the old one's report, and ignore any of its requests still in flight
+    if (this._config && config.entity !== this._config.entity) this._reset();
     this._config = config;
+  }
+
+  _reset() {
+    this._token += 1;
+    this._report = undefined;
+    this._error = null;
+    this._errors = 0;
+    this._inFlight = false;
+    this._lastFetch = 0;
+    this._lastSeen = undefined;
+    this._requestedDate = undefined;
   }
 
   set hass(hass) {
@@ -97,26 +111,38 @@ class QustodioScreenTimeCard extends HTMLElement {
   _shouldFetch(state) {
     if (this._lastSeen === undefined) return true;
     const age = Date.now() - this._lastFetch;
+    // Never sooner than a minute after the last fetch, and back off further after failures
+    const wait = this._errors ? Math.min(MIN_REFETCH_MS * 2 ** (this._errors - 1), MAX_BACKOFF_MS) : MIN_REFETCH_MS;
+    if (age < wait) return false;
+    if (this._errors) return true;
     if (age >= MAX_AGE_MS) return true;
-    if (this._report && this._report.date !== localDate(this._hass.config.time_zone)) return true;
-    return state.last_updated !== this._lastSeen && age >= MIN_REFETCH_MS;
+    if (this._requestedDate !== localDate(this._hass.config.time_zone)) return true;
+    return state.last_updated !== this._lastSeen;
   }
 
   async _fetch(state) {
+    const token = this._token;
+    const date = localDate(this._hass.config.time_zone);
     this._inFlight = true;
     this._lastSeen = state.last_updated;
+    this._requestedDate = date;
+    let report;
+    let error = null;
     try {
-      this._report = await this._hass.callWS({
-        type: "qustodio/day_report",
-        profile_id: state.attributes.profile_id,
-        date: localDate(this._hass.config.time_zone),
-      });
-      this._error = null;
+      report = await this._hass.callWS({ type: "qustodio/day_report", profile_id: state.attributes.profile_id, date });
     } catch (err) {
-      this._error = err?.code ?? "unknown";
-    } finally {
-      this._inFlight = false;
-      this._lastFetch = Date.now();
+      error = err?.code ?? "unknown";
+    }
+    if (token !== this._token) return; // the card was switched to another sensor meanwhile
+    this._inFlight = false;
+    this._lastFetch = Date.now();
+    if (error) {
+      this._error = error;
+      this._errors += 1;
+    } else {
+      this._report = report;
+      this._error = null;
+      this._errors = 0;
     }
     this._renderReport();
   }
@@ -131,7 +157,13 @@ class QustodioScreenTimeCard extends HTMLElement {
       return;
     }
     const dark = Boolean(this._hass.themes?.darkMode);
-    this._render(renderCard(this._report, { name, tz: this._hass.config.time_zone, dark }));
+    try {
+      this._render(renderCard(this._report, { name, tz: this._hass.config.time_zone, dark }));
+    } catch (err) {
+      // Unexpected data shouldn't leave the card on "Loading…"
+      console.error("Screen time card couldn't draw the report", err);
+      this._render(`<div class="title">${escapeHtml(name)}</div><div class="message">${escapeHtml(errorText())}</div>`);
+    }
   }
 
   _render(body) {

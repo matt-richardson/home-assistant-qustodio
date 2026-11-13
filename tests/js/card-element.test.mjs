@@ -100,7 +100,7 @@ test("fetches today's report and renders it", async () => {
   assert.equal(calls[0].type, "qustodio/day_report");
   assert.equal(calls[0].profile_id, "profile_1");
   assert.match(calls[0].date, /^\d{4}-\d{2}-\d{2}$/);
-  assert.match(card.shadowRoot.innerHTML, /114/);
+  assert.match(card.shadowRoot.innerHTML, /<span class="big">114 \/ 120 min<\/span>/);
   assert.equal(card.getCardSize(), 3);
 });
 
@@ -175,19 +175,135 @@ test("refetches once the server's cache has expired, even if the sensor hasn't c
   }
 });
 
-test("refetches when the date has moved on since the shown report", async () => {
+/** Run fn with Date.now() returning a controllable clock; returns {advance(ms)}. */
+async function withClock(startIso, fn) {
+  const realNow = Date.now;
+  let now = Date.parse(startIso);
+  Date.now = () => now;
+  try {
+    await fn({ advance: (ms) => (now += ms) });
+  } finally {
+    Date.now = realNow;
+  }
+}
+
+test("after midnight, refetches for the new day, but no sooner than a minute after the last fetch", async () => {
   const calls = [];
   const card = new Card();
   card.setConfig({ entity: ENTITY });
   const callWS = async (msg) => {
     calls.push(msg);
-    return { ...REPORT, date: "2000-01-01" }; // a report for a day that isn't today
+    return { ...REPORT, date: msg.date };
   };
-  card.hass = makeHass("t1", callWS);
+  await withClock("2026-11-10T23:59:30+11:00", async (clock) => {
+    card.hass = makeHass("t1", callWS);
+    await tick();
+    assert.equal(calls[0].date, "2026-11-10");
+    clock.advance(45_000); // 00:00:15, only 45 s since the last fetch
+    card.hass = makeHass("t1", callWS);
+    await tick();
+    assert.equal(calls.length, 1);
+    clock.advance(30_000); // 75 s since the last fetch
+    card.hass = makeHass("t1", callWS);
+    await tick();
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].date, "2026-11-11");
+  });
+});
+
+test("failing fetches back off instead of retrying on every update", async () => {
+  const calls = [];
+  const card = new Card();
+  card.setConfig({ entity: ENTITY });
+  const callWS = async (msg) => {
+    calls.push(msg);
+    throw { code: "rate_limited" };
+  };
+  await withClock("2026-11-11T00:00:30+11:00", async (clock) => {
+    card.hass = makeHass("t1", callWS);
+    await tick();
+    for (let i = 0; i < 20; i++) {
+      clock.advance(2_000); // lots of HA state changes within the first minute
+      card.hass = makeHass(`u${i}`, callWS);
+      await tick();
+    }
+    assert.equal(calls.length, 1);
+    clock.advance(21_000); // 61 s after the first failure: first retry
+    card.hass = makeHass("v1", callWS);
+    await tick();
+    assert.equal(calls.length, 2);
+    clock.advance(61_000); // only 61 s after the second failure: backing off (needs 120 s)
+    card.hass = makeHass("v2", callWS);
+    await tick();
+    assert.equal(calls.length, 2);
+    clock.advance(60_000); // 121 s after the second failure
+    card.hass = makeHass("v3", callWS);
+    await tick();
+    assert.equal(calls.length, 3);
+  });
+});
+
+function twoChildHass(callWS) {
+  const child = (id, name, profile) => ({
+    entity_id: id,
+    last_updated: "t1",
+    attributes: { profile_id: profile, friendly_name: name, attribution: "Data provided by Qustodio" },
+  });
+  return {
+    states: { "sensor.alice": child("sensor.alice", "Alice", "p_alice"), "sensor.bob": child("sensor.bob", "Bob", "p_bob") },
+    config: { time_zone: "Australia/Sydney" },
+    themes: { darkMode: false },
+    callWS,
+  };
+}
+
+test("changing the sensor fetches the new child straight away", async () => {
+  const calls = [];
+  const card = new Card();
+  const callWS = async (msg) => {
+    calls.push(msg);
+    return REPORT;
+  };
+  card.setConfig({ entity: "sensor.alice" });
+  card.hass = twoChildHass(callWS);
   await tick();
-  card.hass = makeHass("t1", callWS); // same sensor update, within a minute, but the report is from another day
+  card.setConfig({ entity: "sensor.bob" });
+  card.hass = twoChildHass(callWS);
   await tick();
-  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    calls.map((c) => c.profile_id),
+    ["p_alice", "p_bob"],
+  );
+});
+
+test("a response for the previous sensor is ignored", async () => {
+  const pending = [];
+  const card = new Card();
+  const callWS = (msg) => new Promise((resolve) => pending.push({ msg, resolve }));
+  card.setConfig({ entity: "sensor.alice" });
+  card.hass = twoChildHass(callWS);
+  card.setConfig({ entity: "sensor.bob" });
+  card.hass = twoChildHass(callWS);
+  assert.deepEqual(
+    pending.map((p) => p.msg.profile_id),
+    ["p_alice", "p_bob"],
+  );
+  pending[0].resolve({ ...REPORT, counted_minutes: 999 }); // Alice's late answer
+  await tick();
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /999/);
+  pending[1].resolve(REPORT);
+  await tick();
+  assert.match(card.shadowRoot.innerHTML, /<div class="title">Bob<\/div>/);
+  assert.match(card.shadowRoot.innerHTML, /114 \/ 120 min/);
+});
+
+test("a report that can't be drawn shows an error instead of staying on Loading", async () => {
+  const card = new Card();
+  card.setConfig({ entity: ENTITY });
+  card.hass = makeHass("t1", async () => ({ ...REPORT, hours: [{ start: "not a time", default_minutes: 5, routines: {} }] }));
+  await tick();
+  assert.match(card.shadowRoot.innerHTML, /Couldn&#39;t load today&#39;s screen time/); // escaped apostrophes
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /Loading/);
 });
 
 test("loads card-logic.js with the same version tag as the card", () => {
