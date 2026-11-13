@@ -188,21 +188,33 @@ function headline(report, tz) {
   return `<div class="headline">${main}</div>${tail}`;
 }
 
-function chips(report, colors, dark) {
-  const normal = countedByHour(report).reduce((a, h) => a + h.normal, 0);
+/** The faint version of a colour used for rules (routine windows, default rules) on the bar and in the legend. */
+const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
+const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;
+
+/**
+ * Legend: for the default rules and each routine, a tinted swatch for the rules and, if any time was used
+ * under them, a solid swatch for the screen time used, mirroring the bar's background and blocks.
+ */
+function chips(report, colors, dark, layout) {
   const items = [];
-  if (normal > 0) {
-    items.push(
-      `<span class="chip"><span class="swatch" style="background:${fill(colors, null, dark)}"></span>Default rules · ${round1(normal)} min</span>`,
-    );
+  const normal = round1(countedByHour(report).reduce((a, h) => a + h.normal, 0));
+  if (normal > 0 || layout.defaultWindows.length) {
+    const used = normal > 0 ? ` ${swatch(NORMAL_COLOR(dark))}Screen time used · ${normal} min` : "";
+    items.push(`<span class="chip">${swatch(tint(NORMAL_COLOR(dark)))}Default rules${used}</span>`);
   }
-  // Every routine with time or a scheduled window today, so each shaded band on the strip has a label
+  // Every routine with time or a scheduled window today, so each shaded band on the bar has a label
   for (const routine of report.routines ?? []) {
     if (!routine.minutes && !(routine.windows ?? []).length) continue;
+    const color = (colors[routine.uid] ?? {}).color ?? OTHER_COLOR(dark);
+    const rules = `${swatch(tint(color))}${escapeHtml(routine.name)}`;
+    if (!routine.minutes) {
+      items.push(`<span class="chip idle">${rules}</span>`);
+      continue;
+    }
     const note = routine.counts === false ? ` <span class="note">doesn’t count</span>` : "";
-    const cls = routine.minutes ? "chip" : "chip idle";
     items.push(
-      `<span class="${cls}"><span class="swatch" style="background:${fill(colors, routine.uid, dark)}"></span>${escapeHtml(routine.name)} · ${routine.minutes} min${note}</span>`,
+      `<span class="chip">${rules} ${swatch(fill(colors, routine.uid, dark))}${routine.minutes} min used${note}</span>`,
     );
   }
   return `<div class="chips">${items.join("")}</div>`;
@@ -243,7 +255,7 @@ export function renderCard(report, { name, tz, dark }) {
     return `${title}<div class="empty">No screen time yet today</div>`;
   }
   const colors = routineColors(report.routines ?? [], dark, report.all_routines ?? report.routines ?? []);
-  return `${title}${headline(report, tz)}${chips(report, colors, dark)}${strip(report, colors, tz, dark)}`;
+  return `${title}${headline(report, tz)}${chips(report, colors, dark, stripLayout(report, tz))}${strip(report, colors, tz, dark)}`;
 }
 
 /** Message for a day_report error code. */

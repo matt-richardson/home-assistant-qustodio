@@ -207,7 +207,7 @@ test("renderCard overlays usage horizontally: each hour fills the share used, sp
 
 test("renderCard labels every routine scheduled today, dimming those with no minutes", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /class="chip idle"[^>]*>.*?Night · 0 min/s);
+  assert.match(html, /class="chip idle"[^>]*>.*?Night/s);
   assert.doesNotMatch(html, /class="chip idle"[^>]*>.*?School/s);
 });
 
@@ -237,7 +237,19 @@ test("stripLayout with no routine windows is default rules all day", () => {
 
 test("renderCard tints default-rules time and labels its usage 'Default rules'", () => {
   const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
-  assert.match(html, /Default rules · 65\.5 min/);
+  assert.match(html, /Default rules/);
   assert.doesNotMatch(html, /Normal time/);
   assert.match(html, /class="window default"[^>]*background:#2a78d6/);
+});
+
+test("renderCard legend: the tint is the rules, the solid colour is screen time used", () => {
+  const html = renderCard(report(), { name: "Child One", tz: TZ, dark: false });
+  // Default rules: dark (tinted) swatch for the rules, bright (solid) swatch for the time used under them
+  assert.match(html, /color-mix\(in srgb, #2a78d6 18%, transparent\)"><\/span>Default rules/);
+  assert.match(html, /background:#2a78d6"><\/span>Screen time used · 65\.5 min/);
+  // Routines read the same way: tint + name, then solid + minutes used
+  assert.match(html, /color-mix\(in srgb, [^ ]+ 18%, transparent\)"><\/span>School/);
+  assert.match(html, /<\/span>31\.2 min used <span class="note">doesn’t count<\/span>/);
+  // A routine scheduled today with no time used has only its tint and name
+  assert.match(html, /class="chip idle"><span class="swatch" style="background:color-mix[^"]+"><\/span>Night<\/span>/);
 });
