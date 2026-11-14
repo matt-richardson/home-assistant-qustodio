@@ -274,6 +274,29 @@ test("Show all expands the ranked list", async () => {
   assert.equal((el.shadowRoot.innerHTML.match(/class="item"/g) ?? []).length, 12);
 });
 
+test("clicking a header sorts the list, again reverses it, and the sort is kept on other days", async () => {
+  reset();
+  const apps = [
+    { name: "beta", package: "b", platform: "iOS", minutes: 5 },
+    { name: "Alpha", package: "a", platform: "iOS", minutes: 20 },
+  ];
+  const el = open(async (msg) => ({ ...reportFor(msg), apps, websites: [] }));
+  await tick();
+  const order = () => el.shadowRoot.innerHTML.indexOf(">Alpha<") < el.shadowRoot.innerHTML.indexOf(">beta<");
+  assert.ok(order()); // most minutes first
+  action(el, "sort-minutes");
+  assert.ok(!order());
+  assert.equal(focused, '[data-action="sort-minutes"]');
+  action(el, "sort-name");
+  assert.ok(order());
+  action(el, "sort-name");
+  assert.ok(!order());
+  action(el, "prev");
+  await tick();
+  assert.match(el.shadowRoot.innerHTML, /data-action="sort-name">Name ▼</);
+  assert.ok(!order());
+});
+
 test("clicks outside any action do nothing", async () => {
   reset();
   const el = open(async (msg) => reportFor(msg));

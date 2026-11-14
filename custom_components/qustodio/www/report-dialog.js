@@ -5,7 +5,7 @@ const version = new URL(import.meta.url).search;
 const { CARD_STYLE, errorText, escapeHtml, localDate } = await import(
   new URL("./card-logic.js" + version, import.meta.url)
 );
-const { dayLabel, renderReport, stepDay } = await import(new URL("./report-logic.js" + version, import.meta.url));
+const { dayLabel, nextSort, renderReport, stepDay } = await import(new URL("./report-logic.js" + version, import.meta.url));
 
 const TAG = "qustodio-screen-time-report";
 // Today can still change, so a cached report for today is reused for a minute at most; past days are kept
@@ -35,10 +35,14 @@ const STYLE = `
   .close { border: none; font-size: 20px; line-height: 1; }
   .ranked { margin-top: 20px; }
   .ranked h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; }
-  .item { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--divider-color); }
+  .ranked table { width: 100%; margin: 0; font-size: 13px; }
+  .ranked th { padding: 0 12px 4px 0; }
+  .ranked td { padding: 6px 12px 2px 0; }
+  .ranked .sort { border: none; padding: 2px 0; font-weight: 500; color: var(--secondary-text-color); }
   .item .detail { color: var(--secondary-text-color); }
-  .item .minutes { font-variant-numeric: tabular-nums; }
-  .item .share { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--primary-color); }
+  .item .minutes { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .share-row td { padding: 0 0 6px; border-bottom: 1px solid var(--divider-color); }
+  .share { display: block; height: 3px; border-radius: 2px; background: var(--primary-color); }
   .show-all, .retry { margin-top: 10px; }
   details.table { margin-top: 16px; color: var(--secondary-text-color); font-size: 12px; }
   table { border-collapse: collapse; margin-top: 6px; }
@@ -54,6 +58,8 @@ class QustodioScreenTimeReport extends HTMLElement {
     this._token = 0;
     this._closed = false;
     this._showAll = false;
+    // How the apps and websites list is sorted; kept when changing day
+    this._sort = { key: "minutes", dir: "desc" };
     this._onKey = (ev) => {
       if (ev.key === "Escape") this.close();
     };
@@ -138,6 +144,11 @@ class QustodioScreenTimeReport extends HTMLElement {
     }
     if (action === "today") return this._go(this._today, "prev");
     if (action === "retry") return this.showDay(this._date, { refresh: true });
+    if (action.startsWith("sort-")) {
+      this._sort = nextSort(this._sort, action.slice("sort-".length));
+      this._focus = action;
+      return this._render(this._state);
+    }
     if (action === "toggle-all") {
       this._showAll = !this._showAll;
       this._focus = "toggle-all";
@@ -166,7 +177,7 @@ class QustodioScreenTimeReport extends HTMLElement {
       body = `<div class="message">${escapeHtml(errorText(state.error))}</div><button class="retry" data-action="retry">Try again</button>`;
     } else {
       const dark = Boolean(this._hass.themes?.darkMode);
-      const opts = { name: this._name, tz: this._tz, dark, today: this._today, showAll: this._showAll };
+      const opts = { name: this._name, tz: this._tz, dark, today: this._today, showAll: this._showAll, sort: this._sort };
       try {
         body = renderReport(state.report, opts);
       } catch (err) {

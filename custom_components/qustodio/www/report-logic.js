@@ -45,8 +45,20 @@ export function hourlyMinutes(report, tz) {
   }));
 }
 
-/** Apps and websites in one list, largest first (then by name), without zero-minute items. */
-export function rankedUsage(report) {
+const DEFAULT_SORT = { key: "minutes", dir: "desc" };
+const byName = (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" });
+const COMPARE = {
+  name: byName,
+  detail: (a, b) => a.detail.localeCompare(b.detail, undefined, { sensitivity: "base" }),
+  minutes: (a, b) => a.minutes - b.minutes,
+};
+
+/**
+ * Apps and websites in one list, without zero-minute items, sorted by sort.key ("name", "detail" or "minutes") in
+ * sort.dir ("asc" or "desc"); ties go to the most minutes, then the name. sharePct is relative to the largest item.
+ */
+export function rankedUsage(report, sort = DEFAULT_SORT) {
+  const sign = sort.dir === "desc" ? -1 : 1;
   const items = [
     ...(report.apps ?? []).map((a) => ({
       kind: "app",
@@ -57,34 +69,51 @@ export function rankedUsage(report) {
     ...(report.websites ?? []).map((w) => ({ kind: "website", name: w.host, detail: "Website", minutes: w.minutes })),
   ]
     .filter((item) => item.minutes > 0)
-    .sort(
-      (a, b) =>
-        b.minutes - a.minutes || String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" }),
-    );
-  const largest = items.length ? items[0].minutes : 0;
+    .sort((a, b) => sign * COMPARE[sort.key](a, b) || b.minutes - a.minutes || byName(a, b));
+  const largest = Math.max(0, ...items.map((item) => item.minutes));
   return items.map((item) => ({ ...item, sharePct: (item.minutes / largest) * 100 }));
+}
+
+/** The sort after clicking a column's header: the same column reverses; a new one starts A to Z, or most minutes. */
+export function nextSort(sort, key) {
+  if (sort.key === key) return { key, dir: sort.dir === "asc" ? "desc" : "asc" };
+  return { key, dir: key === "minutes" ? "desc" : "asc" };
 }
 
 // ---- Rendering -------------------------------------------------------------------------------------------------
 
-function rankedHtml(report, showAll) {
-  const items = rankedUsage(report);
+const COLUMNS = [
+  ["name", "Name"],
+  ["detail", "Type"],
+  ["minutes", "Minutes"],
+];
+
+function sortHeader([key, label], sort) {
+  const active = sort.key === key;
+  const ariaSort = active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+  const arrow = active ? (sort.dir === "asc" ? " ▲" : " ▼") : "";
+  return `<th aria-sort="${ariaSort}"><button class="sort" data-action="sort-${key}">${label}${arrow}</button></th>`;
+}
+
+function rankedHtml(report, showAll, sort) {
+  const items = rankedUsage(report, sort);
+  if (!items.length) return `<div class="ranked"><h3>Apps and websites</h3><p class="note">No apps or websites recorded.</p></div>`;
   const shown = showAll ? items : items.slice(0, TOP_ITEMS);
+  const head = `<tr>${COLUMNS.map((column) => sortHeader(column, sort)).join("")}</tr>`;
   const rows = shown
     .map(
       (item) =>
-        `<div class="item"><span class="name">${escapeHtml(item.name)}</span>` +
-        `<span class="detail">${escapeHtml(item.detail)}</span>` +
-        `<span class="minutes">${wholeMinutes(item.minutes)} min</span>` +
-        `<span class="share" style="width:${round2(item.sharePct)}%"></span></div>`,
+        `<tr class="item"><td class="name">${escapeHtml(item.name)}</td>` +
+        `<td class="detail">${escapeHtml(item.detail)}</td>` +
+        `<td class="minutes">${wholeMinutes(item.minutes)} min</td></tr>` +
+        `<tr class="share-row"><td colspan="3"><span class="share" style="width:${round2(item.sharePct)}%"></span></td></tr>`,
     )
     .join("");
   const toggle =
     items.length > TOP_ITEMS
       ? `<button class="show-all" data-action="toggle-all">${showAll ? "Show fewer" : `Show all ${items.length}`}</button>`
       : "";
-  const empty = items.length ? "" : `<p class="note">No apps or websites recorded.</p>`;
-  return `<div class="ranked"><h3>Apps and websites</h3>${rows}${empty}${toggle}</div>`;
+  return `<div class="ranked"><h3>Apps and websites</h3><table>${head}${rows}</table>${toggle}</div>`;
 }
 
 function notesHtml(report, today) {
@@ -107,8 +136,8 @@ function tableHtml(report, tz) {
 }
 
 /** Inner HTML of the report popup for one day: the card's summary, apps and websites, notes, and an hourly table. */
-export function renderReport(report, { name, tz, dark, today, showAll }) {
+export function renderReport(report, { name, tz, dark, today, showAll, sort = DEFAULT_SORT }) {
   const summary = renderCard(report, { name, tz, dark });
   if (!(report.hours ?? []).length) return `${summary}${notesHtml(report, today)}`;
-  return `${summary}${rankedHtml(report, showAll)}${notesHtml(report, today)}${tableHtml(report, tz)}`;
+  return `${summary}${rankedHtml(report, showAll, sort)}${notesHtml(report, today)}${tableHtml(report, tz)}`;
 }

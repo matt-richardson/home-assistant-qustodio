@@ -7,6 +7,7 @@ import { renderCard } from "../../custom_components/qustodio/www/card-logic.js";
 import {
   dayLabel,
   hourlyMinutes,
+  nextSort,
   rankedUsage,
   renderReport,
   stepDay,
@@ -84,7 +85,7 @@ test("renderReport ranked list shows the top 10, with Show all for the rest", ()
 
 test("renderReport shows whole minutes in the ranked list", () => {
   const r = report({ apps: [{ name: "Reader", package: "r", platform: "macOS", minutes: 12.2 }], websites: [] });
-  assert.match(renderReport(r, opts()), /Reader<\/span><span class="detail">App · macOS<\/span><span class="minutes">13 min<\/span>/);
+  assert.match(renderReport(r, opts()), /Reader<\/td><td class="detail">App · macOS<\/td><td class="minutes">13 min<\/td>/);
 });
 
 test("renderReport notes: partial data, and past days use today's settings", () => {
@@ -114,7 +115,7 @@ test("renderReport has no hourly chart (the card's bar already shows the hours)"
 
 test("renderReport hourly table lists each hour with usage", () => {
   const html = renderReport(report(), opts());
-  const table = html.match(/<table>(.*?)<\/table>/s)[1];
+  const table = html.match(/<details class="table">.*?<table>(.*?)<\/table>/s)[1];
   assert.equal((table.match(/<tr>/g) ?? []).length, report().hours.length + 1); // + header row
   assert.match(table, /<td>3pm<\/td><td>40<\/td>/);
 });
@@ -140,4 +141,68 @@ test("rankedUsage copes with items that have no name", () => {
     websites: [{ host: null, minutes: 5, pages: 1, blocked_pages: 0 }],
   });
   assert.equal(rankedUsage(r).length, 3);
+});
+
+// ---- Sorting the apps and websites list ----
+
+const MIXED = () =>
+  report({
+    apps: [
+      { name: "beta", package: "b", platform: "iOS", minutes: 5 },
+      { name: "Alpha", package: "a", platform: "Android", minutes: 20 },
+    ],
+    websites: [{ host: "gamma.com", minutes: 10, pages: 1, blocked_pages: 0 }],
+  });
+const names = (items) => items.map((i) => i.name);
+
+test("rankedUsage sorts by name, type or minutes, either way", () => {
+  assert.deepEqual(names(rankedUsage(MIXED())), ["Alpha", "gamma.com", "beta"]); // default: most minutes first
+  assert.deepEqual(names(rankedUsage(MIXED(), { key: "minutes", dir: "asc" })), ["beta", "gamma.com", "Alpha"]);
+  assert.deepEqual(names(rankedUsage(MIXED(), { key: "name", dir: "asc" })), ["Alpha", "beta", "gamma.com"]);
+  assert.deepEqual(names(rankedUsage(MIXED(), { key: "name", dir: "desc" })), ["gamma.com", "beta", "Alpha"]);
+  // Type: "App · Android" < "App · iOS" < "Website"
+  assert.deepEqual(names(rankedUsage(MIXED(), { key: "detail", dir: "asc" })), ["Alpha", "beta", "gamma.com"]);
+  assert.deepEqual(names(rankedUsage(MIXED(), { key: "detail", dir: "desc" })), ["gamma.com", "beta", "Alpha"]);
+});
+
+test("rankedUsage breaks ties by most minutes, then name", () => {
+  const r = report({
+    apps: [
+      { name: "b", package: "b", platform: "iOS", minutes: 5 },
+      { name: "a", package: "a", platform: "iOS", minutes: 5 },
+      { name: "c", package: "c", platform: "iOS", minutes: 9 },
+    ],
+    websites: [],
+  });
+  assert.deepEqual(names(rankedUsage(r, { key: "detail", dir: "asc" })), ["c", "a", "b"]);
+});
+
+test("rankedUsage share bars stay relative to the largest item, whatever the order", () => {
+  const items = rankedUsage(MIXED(), { key: "minutes", dir: "asc" });
+  assert.deepEqual(items.map((i) => i.sharePct), [25, 50, 100]);
+});
+
+test("nextSort: a new column starts A to Z (minutes: largest first); the same column flips", () => {
+  const start = { key: "minutes", dir: "desc" };
+  assert.deepEqual(nextSort(start, "name"), { key: "name", dir: "asc" });
+  assert.deepEqual(nextSort(start, "detail"), { key: "detail", dir: "asc" });
+  assert.deepEqual(nextSort(start, "minutes"), { key: "minutes", dir: "asc" });
+  assert.deepEqual(nextSort({ key: "name", dir: "asc" }, "name"), { key: "name", dir: "desc" });
+  assert.deepEqual(nextSort({ key: "name", dir: "asc" }, "minutes"), { key: "minutes", dir: "desc" });
+});
+
+test("renderReport list has sortable headers showing the current sort", () => {
+  const html = renderReport(MIXED(), opts());
+  assert.match(html, /<th aria-sort="none"><button class="sort" data-action="sort-name">Name<\/button><\/th>/);
+  assert.match(html, /<th aria-sort="none"><button class="sort" data-action="sort-detail">Type<\/button><\/th>/);
+  assert.match(html, /<th aria-sort="descending"><button class="sort" data-action="sort-minutes">Minutes ▼<\/button><\/th>/);
+  const byName = renderReport(MIXED(), opts({ sort: { key: "name", dir: "asc" } }));
+  assert.match(byName, /<th aria-sort="ascending"><button class="sort" data-action="sort-name">Name ▲<\/button>/);
+  assert.match(byName, /<th aria-sort="none"><button class="sort" data-action="sort-minutes">Minutes<\/button>/);
+  assert.ok(byName.indexOf(">Alpha<") < byName.indexOf(">beta<"));
+  assert.ok(byName.indexOf(">beta<") < byName.indexOf(">gamma.com<"));
+});
+
+test("renderReport list has no headers when there's nothing to list", () => {
+  assert.doesNotMatch(renderReport(report({ apps: [], websites: [] }), opts()), /data-action="sort-/);
 });
