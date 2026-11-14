@@ -20,7 +20,7 @@ export const OTHER_COLOR = (dark) => OTHER[dark ? "dark" : "light"];
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
 // Minutes as shown on the card: whole minutes, rounded up (the maths underneath keeps decimals)
-const wholeMinutes = (n) => Math.ceil(round1(n));
+export const wholeMinutes = (n) => Math.ceil(round1(n));
 const sum = (values) => values.reduce((a, b) => a + b, 0);
 
 /** Escape text for safe insertion into HTML. */
@@ -116,15 +116,15 @@ export function routineColors(routines, dark, allRoutines = routines) {
 }
 
 /** A routine's colour, or the "other" grey for one the colour map doesn't know. */
-const colorOf = (colors, uid, dark) => colors[uid] ?? OTHER_COLOR(dark);
+export const colorOf = (colors, uid, dark) => colors[uid] ?? OTHER_COLOR(dark);
 
 /** The faint version of a colour used for rules (routine windows, default rules) on the bar and in the legend. */
-const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
+export const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 
 // ---- Time of day -----------------------------------------------------------------------------------------------
 
 /** Local {hour, minute} of an ISO timestamp in a time zone. */
-function localTime(iso, tz) {
+export function localTime(iso, tz) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz,
     hour: "2-digit",
@@ -143,7 +143,7 @@ function localHour(iso, tz, isEnd = false) {
 }
 
 /** Short label for an hour of the day (0-24), e.g. "4pm"; 0 and 24 are "12am". */
-function hourName(hour) {
+export function hourName(hour) {
   const h = hour % 24;
   return `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
 }
@@ -193,6 +193,36 @@ export function stripLayout(report, tz) {
   });
   return { startHour, endHour, windows, defaultWindows: gaps(windows), bars };
 }
+
+/** Today's date (YYYY-MM-DD) in a time zone. */
+export function localDate(tz) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date(Date.now()),
+  );
+}
+
+/** Styles for the card face (renderCard output), shared by the card and the report popup. */
+export const CARD_STYLE = `
+  .title { font-weight: 500; font-size: 16px; margin-bottom: 4px; }
+  .headline .big { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .headline .unit { color: var(--secondary-text-color); }
+  .counted { font-size: 12px; color: var(--secondary-text-color); margin-top: -2px; }
+  .over { color: var(--primary-text-color); font-size: 13px; margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; font-size: 13px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; outline: 1px solid var(--divider-color); }
+  .note { color: var(--secondary-text-color); font-size: 12px; }
+  .strip { position: relative; height: 28px; border-radius: 4px; background: var(--secondary-background-color); overflow: hidden; }
+  .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
+  .use { position: absolute; inset: 0; }
+  .block { position: absolute; top: 0; bottom: 0; display: flex; }
+  .chips.rules { margin: 14px 0 0; color: var(--secondary-text-color); }
+  .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
+  .ticks span { position: absolute; transform: translateX(-50%); }
+  .ticks span:first-child { transform: none; }
+  .ticks span:last-child { transform: translateX(-100%); }
+  .empty, .message { color: var(--secondary-text-color); margin-top: 8px; }
+`;
 
 // ---- Rendering -------------------------------------------------------------------------------------------------
 
@@ -258,12 +288,17 @@ function strip(layout, colors, dark) {
         `<div class="block" style="left:${bar.leftPct}%;width:${round2(bar.usedWidthPct)}%;background:${USED_COLOR(dark)}"></div>`,
     )
     .join("");
+  return `<div class="strip">${defaults}${windows}<div class="use">${blocks}</div></div>${ticks(layout)}`;
+}
+
+/** Hour labels under a bar or chart laid out with stripLayout, every TICK_EVERY_HOURS hours. */
+export function ticks(layout) {
   const span = layout.endHour - layout.startHour;
-  const ticks = [];
+  const marks = [];
   for (let h = layout.startHour; h <= layout.endHour; h += TICK_EVERY_HOURS) {
-    ticks.push(`<span style="left:${((h - layout.startHour) / span) * 100}%">${hourName(h)}</span>`);
+    marks.push(`<span style="left:${((h - layout.startHour) / span) * 100}%">${hourName(h)}</span>`);
   }
-  return `<div class="strip">${defaults}${windows}<div class="use">${blocks}</div></div><div class="ticks">${ticks.join("")}</div>`;
+  return `<div class="ticks">${marks.join("")}</div>`;
 }
 
 /** Inner HTML of the card face for one day's report. */

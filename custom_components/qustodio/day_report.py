@@ -192,7 +192,7 @@ def _usage_items(usage: dict[str, Any] | None) -> tuple[list[dict[str, Any]], li
         if item.get("type") == USAGE_TYPE_APP:
             apps.append(
                 {
-                    "name": item.get("app_name", "Unknown"),
+                    "name": item.get("app_name") or "Unknown",
                     "package": item.get("exe", ""),
                     "platform": get_platform_name(item.get("platform", -1)),
                     "minutes": minutes,
@@ -202,7 +202,7 @@ def _usage_items(usage: dict[str, Any] | None) -> tuple[list[dict[str, Any]], li
         elif item.get("type") == USAGE_TYPE_WEBSITE:
             websites.append(
                 {
-                    "host": item.get("host", ""),
+                    "host": item.get("host") or "",
                     "minutes": minutes,
                     "pages": item.get("pages", 0),
                     "blocked_pages": item.get("blocked_pages", 0),

@@ -284,3 +284,16 @@ def test_report_lists_all_routines_for_stable_colours() -> None:
         {"uid": "night", "name": "Night"},
         {"uid": "holidays", "name": "Holidays"},
     ]
+
+
+def test_report_usage_items_with_null_names() -> None:
+    """Qustodio sending a null app name or host gives 'Unknown' / '' rather than None."""
+    usage = {
+        "items": [
+            {"type": 301, "app_name": None, "exe": "x", "minutes": 5, "platform": 4},
+            {"type": 101, "host": None, "minutes": 3, "pages": 1, "blocked_pages": 0},
+        ]
+    }
+    report = _report(usage=usage)
+    assert report["apps"][0]["name"] == "Unknown"
+    assert report["websites"][0]["host"] == ""

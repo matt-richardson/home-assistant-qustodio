@@ -67,7 +67,9 @@ The card shows:
 - **Minutes over and roughly when the limit was hit**, if it was.
 - **A bar for the day.** The background shows which rules applied when: each routine's scheduled windows in its colour, and the default rules (no routine) in blue. Over it, solid blocks show the screen time used, each hour filled by the share of it that was used.
 
-It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card opens the sensor's details.
+It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card (or pressing Enter/Space on it) opens the full report: step between days with ◀ ▶ (today back to 30 days), and see apps and websites ranked by time (click a column header to sort by name, type or minutes). Back, Escape or × closes it.
+
+![Screen time report](docs/images/screen-time-report.png)
 
 ## Screen time day report (websocket API)
 
