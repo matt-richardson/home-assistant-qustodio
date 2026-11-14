@@ -1,6 +1,6 @@
-// The screen time report popup, opened by tapping the card: a child's day with a day picker, hourly chart, and apps
-// and websites. A self-contained modal (not HA's internal dialog manager): closes with ×, Escape, the backdrop, or the
-// browser/app Back button. Rendering lives in report-logic.js (unit-tested).
+// The screen time report popup, opened by tapping the card: a child's day with a day picker, and apps and websites.
+// A self-contained modal (not HA's internal dialog manager): closes with ×, Escape, the backdrop, or the browser/app
+// Back button. Rendering lives in report-logic.js (unit-tested).
 const version = new URL(import.meta.url).search;
 const { CARD_STYLE, errorText, escapeHtml, localDate } = await import(
   new URL("./card-logic.js" + version, import.meta.url)
@@ -33,12 +33,6 @@ const STYLE = `
   }
   button:disabled { opacity: 0.35; cursor: default; }
   .close { border: none; font-size: 20px; line-height: 1; }
-  .hourly { margin-top: 20px; }
-  .plot { position: relative; height: 140px; border-radius: 4px; background: var(--secondary-background-color); overflow: hidden; }
-  .band { position: absolute; top: 0; bottom: 0; }
-  .gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--divider-color); }
-  .column { position: absolute; top: 0; bottom: 0; display: flex; align-items: flex-end; padding: 0 1px; box-sizing: border-box; }
-  .fill { width: 100%; border-radius: 2px 2px 0 0; }
   .ranked { margin-top: 20px; }
   .ranked h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; }
   .item { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--divider-color); }

@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { renderCard, stripLayout } from "../../custom_components/qustodio/www/card-logic.js";
+import { renderCard } from "../../custom_components/qustodio/www/card-logic.js";
 import {
   dayLabel,
-  hourlyChart,
+  hourlyMinutes,
   rankedUsage,
   renderReport,
   stepDay,
@@ -41,23 +41,10 @@ test("dayLabel", () => {
   assert.equal(dayLabel("2026-10-31", "2026-11-14"), "Sat 31 Oct");
 });
 
-test("hourlyChart: one column per hour with usage, height is the share of the hour used", () => {
-  const chart = hourlyChart(report(), TZ);
-  const layout = stripLayout(report(), TZ);
-  assert.equal(chart.startHour, layout.startHour);
-  assert.equal(chart.endHour, layout.endHour);
-  assert.deepEqual(chart.bands, { windows: layout.windows, defaultWindows: layout.defaultWindows });
-  assert.equal(chart.columns.length, report().hours.length);
-  const threePm = chart.columns.find((c) => c.hour === 15);
-  assert.equal(threePm.minutes, 39.2);
-  assert.equal(round2(threePm.heightPct), 65.33);
-  assert.equal(threePm.leftPct, (9 / 16) * 100);
-  assert.equal(threePm.label, "3pm · 40 min");
-});
-
-test("hourlyChart caps a column at the full hour", () => {
-  const r = report({ hours: [{ start: "2026-11-10T09:00:00+11:00", default_minutes: 75, routines: {} }] });
-  assert.equal(hourlyChart(r, TZ).columns[0].heightPct, 100);
+test("hourlyMinutes: each hour with usage, in local time", () => {
+  const hours = hourlyMinutes(report(), TZ);
+  assert.equal(hours.length, report().hours.length);
+  assert.deepEqual(hours.find((h) => h.hour === 15), { hour: 15, minutes: 39.2 });
 });
 
 test("rankedUsage merges apps and websites, largest first, dropping zero minutes", () => {
@@ -80,7 +67,6 @@ test("rankedUsage merges apps and websites, largest first, dropping zero minutes
 test("renderReport starts with the card's own summary for the day", () => {
   const html = renderReport(report(), opts());
   assert.ok(html.startsWith(renderCard(report(), { name: "Child One", tz: TZ, dark: false })));
-  assert.match(html, /class="hourly"/);
   assert.match(html, /class="ranked"/);
 });
 
@@ -120,13 +106,10 @@ test("renderReport escapes app names and website hosts", () => {
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
 
-test("renderReport hourly chart has a column per hour, labelled, with gridlines", () => {
+test("renderReport has no hourly chart (the card's bar already shows the hours)", () => {
   const html = renderReport(report(), opts());
-  const chart = html.match(/<div class="hourly">(.*?)<\/div><\/div><\/div>/s)?.[0] ?? html;
-  assert.equal((html.match(/class="column"/g) ?? []).length, report().hours.length);
-  assert.match(html, /title="3pm · 40 min"/);
-  assert.match(chart, /class="gridline" style="bottom:50%"/);
-  assert.match(chart, /class="gridline" style="bottom:100%"/);
+  assert.doesNotMatch(html, /class="hourly"/);
+  assert.doesNotMatch(html, /class="column"/);
 });
 
 test("renderReport hourly table lists each hour with usage", () => {
@@ -139,7 +122,7 @@ test("renderReport hourly table lists each hour with usage", () => {
 test("renderReport for an empty day", () => {
   const html = renderReport(report({ hours: [], routines: [], apps: [], websites: [], total_minutes: 0, counted_minutes: 0 }), opts());
   assert.match(html, /No screen time yet today/);
-  assert.doesNotMatch(html, /class="hourly"/);
+  assert.doesNotMatch(html, /class="ranked"/);
 });
 
 test("loads card-logic.js with the same version tag as the report", () => {

@@ -121,7 +121,7 @@ test("opening adds one history entry, focuses close, and fetches today", async (
   assert.match(el.shadowRoot.innerHTML, /role="dialog"/);
   assert.match(el.shadowRoot.innerHTML, /aria-modal="true"/);
   assert.match(el.shadowRoot.innerHTML, />Today</);
-  assert.match(el.shadowRoot.innerHTML, /class="hourly"/);
+  assert.match(el.shadowRoot.innerHTML, /class="ranked"/);
   assert.equal(focused, '[data-action="close"]');
 });
 
@@ -261,7 +261,7 @@ test("errors show the card's message with Try again, which refetches", async () 
   action(el, "retry");
   await tick();
   assert.equal(calls.length, 2);
-  assert.match(el.shadowRoot.innerHTML, /class="hourly"/);
+  assert.match(el.shadowRoot.innerHTML, /class="ranked"/);
 });
 
 test("Show all expands the ranked list", async () => {
