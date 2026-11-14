@@ -19,7 +19,17 @@ globalThis.HTMLElement = class {
     this.listeners[type] = fn;
   }
   setAttribute(name, value) {
-    this.attributes[name] = value;
+    this.attributes[name] = String(value);
+  }
+  hasAttribute(name) {
+    return name in this.attributes;
+  }
+  // Like the real DOM, tabIndex is reflected as an attribute
+  get tabIndex() {
+    return Number(this.attributes.tabindex ?? -1);
+  }
+  set tabIndex(value) {
+    this.attributes.tabindex = String(value);
   }
   remove() {}
   dispatchEvent(event) {
@@ -154,10 +164,22 @@ test("shows an error message from the API", async () => {
   assert.match(card.shadowRoot.innerHTML, /Only admins can view this report/);
 });
 
-test("is a keyboard-reachable button", () => {
+test("is a keyboard-reachable button once on the page", () => {
   const card = new Card();
+  card.connectedCallback();
   assert.equal(card.attributes.role, "button");
   assert.equal(card.tabIndex, 0);
+});
+
+test("sets no attributes in its constructor (document.createElement rejects that)", () => {
+  assert.deepEqual(new Card().attributes, {});
+});
+
+test("keeps a tabindex the dashboard already set", () => {
+  const card = new Card();
+  card.setAttribute("tabindex", "-1");
+  card.connectedCallback();
+  assert.equal(card.tabIndex, -1);
 });
 
 test("clicking opens the report for the child, not more-info", async () => {

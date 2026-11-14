@@ -51,14 +51,18 @@ class QustodioScreenTimeCard extends HTMLElement {
     this._token = 0;
     this._reset();
     // Tapping (or Enter/Space) opens the full report for the child
-    this.setAttribute("role", "button");
-    this.tabIndex = 0;
     this.addEventListener("click", () => this._openReport());
     this.addEventListener("keydown", (ev) => {
       if (ev.key !== "Enter" && ev.key !== " ") return;
       ev.preventDefault();
       this._openReport();
     });
+  }
+
+  // Attributes are set here, not in the constructor: document.createElement rejects an element that sets its own
+  connectedCallback() {
+    this.setAttribute("role", "button");
+    if (!this.hasAttribute("tabindex")) this.tabIndex = 0;
   }
 
   _openReport() {
