@@ -55,6 +55,20 @@ Access via: Devices & Services > Qustodio > Configure
 
 ---
 
+## Screen time card
+
+The integration includes a dashboard card that shows where a child's screen time went today. Nothing extra needs installing: once the integration is set up, the card is available in **Add card → Screen time**. Choose the child's screen time sensor.
+
+![Screen time card](docs/images/screen-time-card.png)
+
+The card shows:
+- **Counted time against the daily limit**, e.g. `114 / 120 min` (whole minutes, rounded up), or "no limit". Time in routines set not to count toward the limit (for example a School routine) is left out.
+- **Total screen time used**, and the minutes used under each set of rules (the default rules and each routine), marked "not counted" where a routine's time doesn't count toward the limit. These add up to the total.
+- **Minutes over and roughly when the limit was hit**, if it was.
+- **A bar for the day.** The background shows which rules applied when: each routine's scheduled windows in its colour, and the default rules (no routine) in blue. Over it, solid blocks show the screen time used, each hour filled by the share of it that was used.
+
+It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card opens the sensor's details.
+
 ## Screen time day report (websocket API)
 
 The integration provides a websocket command that returns a child's full day. It's intended for the screen time card, and is also usable from scripts or other cards. Nothing here is added to entity attributes.
@@ -70,7 +84,7 @@ The result includes:
 - `total_minutes`: all screen time.
 - `counted_minutes`: time that counts toward the daily limit.
 - `quota_minutes`: the daily limit, or `null` when there's no limit that day (`0` means no screen time is allowed). For today only, also `extra_time_minutes`.
-- `hours`: each hour with screen time, in Home Assistant's time zone, split into normal time and time per routine.
+- `hours`: each hour with screen time, in Home Assistant's time zone, split into time under the default rules (no routine active) and time per routine.
 - `routines`: every routine with time or a scheduled window that day. Each has its minutes, whether it counts toward the limit, and its windows. Routines deleted since show as "Removed routine".
 - `apps` and `websites`: sorted by minutes. If they can't be fetched, the report still comes back with `"partial": ["apps"]`.
 
@@ -154,6 +168,7 @@ Enable write actions in the integration options to resolve this.
 ```bash
 ./dev.sh test          # Run all tests
 ./dev.sh test-cov      # Run tests with coverage (>95%)
+./dev.sh test-js       # Run the screen time card's JavaScript tests (Node in the venv)
 ./dev.sh lint          # Run all linters
 ./dev.sh format        # Format code with black/isort
 ./dev.sh ha-test       # Start Home Assistant

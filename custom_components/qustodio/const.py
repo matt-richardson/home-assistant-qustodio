@@ -36,6 +36,10 @@ DEFAULT_REPORT_ADMIN_ONLY = True
 MAX_LOOKBACK_DAYS = 30
 WS_TYPE_DAY_REPORT = "qustodio/day_report"
 
+# Screen time card (served from custom_components/qustodio/www)
+FRONTEND_URL_BASE = "/qustodio_frontend"
+CARD_FILENAME = "qustodio-screen-time-card.js"
+
 # API base + write-action constants (confirmed against the Qustodio API)
 API_BASE = "https://api.qustodio.com"
 URL_RULES = "https://api.qustodio.com/v1/accounts/{}/profiles/{}/rules?app_rules=1"

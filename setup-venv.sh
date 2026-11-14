@@ -30,6 +30,12 @@ pip install --upgrade pip setuptools wheel
 echo "📚 Installing dependencies..."
 pip install -r requirements-dev.txt
 
+# Node for the screen time card's JavaScript tests, installed into this venv (not system-wide)
+echo "🟢 Installing Node into the virtualenv..."
+if [ ! -x "venv/bin/node" ]; then
+    nodeenv -p --node=22.21.0
+fi
+
 # Create symlink for test environment
 echo "🔗 Setting up test environment..."
 mkdir -p homeassistant_test/custom_components

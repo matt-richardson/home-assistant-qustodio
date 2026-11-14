@@ -1,0 +1,147 @@
+{
+  "profile_id": "profile_1",
+  "profile_name": "Child One",
+  "date": "2026-11-10",
+  "is_today": true,
+  "quota_minutes": 120,
+  "extra_time_minutes": null,
+  "total_minutes": 158.2,
+  "counted_minutes": 113.5,
+  "hours": [
+    {
+      "start": "2026-11-10T08:00:00+11:00",
+      "default_minutes": 20.0,
+      "routines": {}
+    },
+    {
+      "start": "2026-11-10T14:00:00+11:00",
+      "default_minutes": 0.0,
+      "routines": {
+        "school": 17.0
+      }
+    },
+    {
+      "start": "2026-11-10T15:00:00+11:00",
+      "default_minutes": 25.0,
+      "routines": {
+        "school": 14.2
+      }
+    },
+    {
+      "start": "2026-11-10T16:00:00+11:00",
+      "default_minutes": 0.0,
+      "routines": {
+        "homework": 13.5,
+        "after": 25.0
+      }
+    },
+    {
+      "start": "2026-11-10T17:00:00+11:00",
+      "default_minutes": 20.5,
+      "routines": {
+        "after": 23.0
+      }
+    }
+  ],
+  "routines": [
+    {
+      "uid": "after",
+      "name": "After school",
+      "counts": true,
+      "enabled": true,
+      "paused": false,
+      "removed": false,
+      "minutes": 48.0,
+      "windows": [
+        {
+          "start": "2026-11-10T16:30:00+11:00",
+          "end": "2026-11-10T19:00:00+11:00"
+        }
+      ]
+    },
+    {
+      "uid": "school",
+      "name": "School",
+      "counts": false,
+      "enabled": true,
+      "paused": false,
+      "removed": false,
+      "minutes": 31.2,
+      "windows": [
+        {
+          "start": "2026-11-10T08:40:00+11:00",
+          "end": "2026-11-10T15:15:00+11:00"
+        }
+      ]
+    },
+    {
+      "uid": "homework",
+      "name": "Homework",
+      "counts": false,
+      "enabled": true,
+      "paused": false,
+      "removed": false,
+      "minutes": 13.5,
+      "windows": [
+        {
+          "start": "2026-11-10T16:00:00+11:00",
+          "end": "2026-11-10T16:30:00+11:00"
+        }
+      ]
+    },
+    {
+      "uid": "night",
+      "name": "Night",
+      "counts": false,
+      "enabled": true,
+      "paused": false,
+      "removed": false,
+      "minutes": 0.0,
+      "windows": [
+        {
+          "start": "2026-11-10T00:00:00+11:00",
+          "end": "2026-11-10T08:00:00+11:00"
+        },
+        {
+          "start": "2026-11-10T20:00:00+11:00",
+          "end": "2026-11-11T00:00:00+11:00"
+        }
+      ]
+    }
+  ],
+  "apps": [
+    {
+      "name": "Video app",
+      "package": "com.example.video",
+      "platform": "iOS",
+      "minutes": 35.0,
+      "thumbnail": null
+    }
+  ],
+  "websites": [
+    {
+      "host": "example.com",
+      "minutes": 10.0,
+      "pages": 3,
+      "blocked_pages": 0
+    }
+  ],
+  "all_routines": [
+    {
+      "uid": "school",
+      "name": "School"
+    },
+    {
+      "uid": "homework",
+      "name": "Homework"
+    },
+    {
+      "uid": "after",
+      "name": "After school"
+    },
+    {
+      "uid": "night",
+      "name": "Night"
+    }
+  ]
+}
