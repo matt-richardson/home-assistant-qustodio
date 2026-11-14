@@ -20,7 +20,7 @@ export const OTHER_COLOR = (dark) => OTHER[dark ? "dark" : "light"];
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
 // Minutes as shown on the card: whole minutes, rounded up (the maths underneath keeps decimals)
-const wholeMinutes = (n) => Math.ceil(round1(n));
+export const wholeMinutes = (n) => Math.ceil(round1(n));
 const sum = (values) => values.reduce((a, b) => a + b, 0);
 
 /** Escape text for safe insertion into HTML. */
@@ -116,15 +116,15 @@ export function routineColors(routines, dark, allRoutines = routines) {
 }
 
 /** A routine's colour, or the "other" grey for one the colour map doesn't know. */
-const colorOf = (colors, uid, dark) => colors[uid] ?? OTHER_COLOR(dark);
+export const colorOf = (colors, uid, dark) => colors[uid] ?? OTHER_COLOR(dark);
 
 /** The faint version of a colour used for rules (routine windows, default rules) on the bar and in the legend. */
-const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
+export const tint = (color) => `color-mix(in srgb, ${color} 18%, transparent)`;
 
 // ---- Time of day -----------------------------------------------------------------------------------------------
 
 /** Local {hour, minute} of an ISO timestamp in a time zone. */
-function localTime(iso, tz) {
+export function localTime(iso, tz) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz,
     hour: "2-digit",
@@ -143,7 +143,7 @@ function localHour(iso, tz, isEnd = false) {
 }
 
 /** Short label for an hour of the day (0-24), e.g. "4pm"; 0 and 24 are "12am". */
-function hourName(hour) {
+export function hourName(hour) {
   const h = hour % 24;
   return `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
 }
@@ -258,12 +258,17 @@ function strip(layout, colors, dark) {
         `<div class="block" style="left:${bar.leftPct}%;width:${round2(bar.usedWidthPct)}%;background:${USED_COLOR(dark)}"></div>`,
     )
     .join("");
+  return `<div class="strip">${defaults}${windows}<div class="use">${blocks}</div></div>${ticks(layout)}`;
+}
+
+/** Hour labels under a bar or chart laid out with stripLayout, every TICK_EVERY_HOURS hours. */
+export function ticks(layout) {
   const span = layout.endHour - layout.startHour;
-  const ticks = [];
+  const marks = [];
   for (let h = layout.startHour; h <= layout.endHour; h += TICK_EVERY_HOURS) {
-    ticks.push(`<span style="left:${((h - layout.startHour) / span) * 100}%">${hourName(h)}</span>`);
+    marks.push(`<span style="left:${((h - layout.startHour) / span) * 100}%">${hourName(h)}</span>`);
   }
-  return `<div class="strip">${defaults}${windows}<div class="use">${blocks}</div></div><div class="ticks">${ticks.join("")}</div>`;
+  return `<div class="ticks">${marks.join("")}</div>`;
 }
 
 /** Inner HTML of the card face for one day's report. */
