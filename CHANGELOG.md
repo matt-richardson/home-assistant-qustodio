@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v4.0.0...v5.0.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Screen time sensor state, Time Remaining and Has Quota Remaining now exclude time in Qustodio routines set not to count toward the daily limit. The full total is in the new total_screen_time_minutes attribute.
+
+### Features
+
+* add day report websocket API with admin-only option ([#54](https://github.com/matt-richardson/home-assistant-qustodio/issues/54)) ([b2bd44d](https://github.com/matt-richardson/home-assistant-qustodio/commit/b2bd44dd17c7fa66b4fd494d6a2e9f994e7dfa67))
+* add screen time card ([#56](https://github.com/matt-richardson/home-assistant-qustodio/issues/56)) ([224bbd4](https://github.com/matt-richardson/home-assistant-qustodio/commit/224bbd4c76e9390a44fe78b3d17ca83bd6a2d8b8))
+* add screen time counting split by routine ([072fa86](https://github.com/matt-richardson/home-assistant-qustodio/commit/072fa86a95af1dfc524d2f90a100916ddab11137))
+* add total_screen_time_minutes attribute to screen time sensor ([43e7039](https://github.com/matt-richardson/home-assistant-qustodio/commit/43e7039688d43383db4bff0f71425be286963a02))
+* screen time report popup ([#57](https://github.com/matt-richardson/home-assistant-qustodio/issues/57)) ([d7ebf99](https://github.com/matt-richardson/home-assistant-qustodio/commit/d7ebf99ef657107b3af4bd573900af2af87ff38e))
+
+
+### Bug Fixes
+
+* only count screen time that counts toward the daily limit ([1b4434e](https://github.com/matt-richardson/home-assistant-qustodio/commit/1b4434e04bd0fae1c64b3acb5bfc4f41553cf839))
+* reuse last good routine settings when fetching them fails ([a43af8b](https://github.com/matt-richardson/home-assistant-qustodio/commit/a43af8b991c0f3973e8a043cc8e2db9bfc6d5fb8))
+* stop repeating profile and device names in entity names ([079f52e](https://github.com/matt-richardson/home-assistant-qustodio/commit/079f52e1f57bcbc918a72174a7a52dbedf5258c2))
+* treat no daily limit as no limit, not a quota of 0 ([#55](https://github.com/matt-richardson/home-assistant-qustodio/issues/55)) ([9fbb8ee](https://github.com/matt-richardson/home-assistant-qustodio/commit/9fbb8eeec4e64cb9b2faac9c6f1d388b3bb78a11))
+* update device names when they change in Qustodio ([ab28849](https://github.com/matt-richardson/home-assistant-qustodio/commit/ab28849eff46b22b6f458d19926987ab47d2ba98))
+* use current profile names when registering devices ([8569631](https://github.com/matt-richardson/home-assistant-qustodio/commit/8569631705bb262afac8f660ea23f2069704ea6f))
+
 ## [4.0.0](https://github.com/matt-richardson/home-assistant-qustodio/compare/v3.0.1...v4.0.0) (2026-10-24)
 
 
