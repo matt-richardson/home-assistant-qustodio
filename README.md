@@ -69,6 +69,8 @@ The card shows:
 
 It updates when the sensor does. By default only admin users can see it (see **Only admins can view the screen time report** under Options), because it shows children's usage by routine. Tapping the card (or pressing Enter/Space on it) opens the full report: step between days with ◀ ▶ (today back to 30 days), and see apps and websites ranked by time (click a column header to sort by name, type or minutes). Back, Escape or × closes it.
 
+![Screen time report](docs/images/screen-time-report.png)
+
 ## Screen time day report (websocket API)
 
 The integration provides a websocket command that returns a child's full day. It's intended for the screen time card, and is also usable from scripts or other cards. Nothing here is added to entity attributes.
