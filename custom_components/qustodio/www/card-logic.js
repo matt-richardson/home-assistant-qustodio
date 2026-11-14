@@ -194,6 +194,36 @@ export function stripLayout(report, tz) {
   return { startHour, endHour, windows, defaultWindows: gaps(windows), bars };
 }
 
+/** Today's date (YYYY-MM-DD) in a time zone. */
+export function localDate(tz) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date(Date.now()),
+  );
+}
+
+/** Styles for the card face (renderCard output), shared by the card and the report popup. */
+export const CARD_STYLE = `
+  .title { font-weight: 500; font-size: 16px; margin-bottom: 4px; }
+  .headline .big { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .headline .unit { color: var(--secondary-text-color); }
+  .counted { font-size: 12px; color: var(--secondary-text-color); margin-top: -2px; }
+  .over { color: var(--primary-text-color); font-size: 13px; margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; font-size: 13px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; outline: 1px solid var(--divider-color); }
+  .note { color: var(--secondary-text-color); font-size: 12px; }
+  .strip { position: relative; height: 28px; border-radius: 4px; background: var(--secondary-background-color); overflow: hidden; }
+  .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
+  .use { position: absolute; inset: 0; }
+  .block { position: absolute; top: 0; bottom: 0; display: flex; }
+  .chips.rules { margin: 14px 0 0; color: var(--secondary-text-color); }
+  .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
+  .ticks span { position: absolute; transform: translateX(-50%); }
+  .ticks span:first-child { transform: none; }
+  .ticks span:last-child { transform: translateX(-100%); }
+  .empty, .message { color: var(--secondary-text-color); margin-top: 8px; }
+`;
+
 // ---- Rendering -------------------------------------------------------------------------------------------------
 
 const swatch = (background) => `<span class="swatch" style="background:${background}"></span>`;

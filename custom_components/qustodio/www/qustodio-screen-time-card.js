@@ -1,7 +1,7 @@
 // Screen time card for the Qustodio integration: where a child's screen time went today, by routine.
 // Served and registered by the integration; logic and rendering live in card-logic.js (unit-tested).
 // Load the logic with this file's own ?v= version, so an upgraded card never pairs with a cached older logic file
-const { errorText, escapeHtml, renderCard } = await import(new URL("./card-logic.js" + new URL(import.meta.url).search, import.meta.url));
+const { CARD_STYLE, errorText, escapeHtml, localDate, renderCard } = await import(new URL("./card-logic.js" + new URL(import.meta.url).search, import.meta.url));
 
 const CARD_TYPE = "qustodio-screen-time-card";
 const ATTRIBUTION = "Data provided by Qustodio";
@@ -13,33 +13,8 @@ const MAX_BACKOFF_MS = 900_000;
 
 const STYLE = `
   ha-card { padding: 16px; cursor: pointer; }
-  .title { font-weight: 500; font-size: 16px; margin-bottom: 4px; }
-  .headline .big { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .headline .unit { color: var(--secondary-text-color); }
-  .counted { font-size: 12px; color: var(--secondary-text-color); margin-top: -2px; }
-  .over { color: var(--primary-text-color); font-size: 13px; margin-top: 2px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; font-size: 13px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); }
-  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; outline: 1px solid var(--divider-color); }
-  .note { color: var(--secondary-text-color); font-size: 12px; }
-  .strip { position: relative; height: 28px; border-radius: 4px; background: var(--secondary-background-color); overflow: hidden; }
-  .window { position: absolute; top: 0; bottom: 0; opacity: 0.18; }
-  .use { position: absolute; inset: 0; }
-  .block { position: absolute; top: 0; bottom: 0; display: flex; }
-  .chips.rules { margin: 14px 0 0; color: var(--secondary-text-color); }
-  .ticks { position: relative; height: 16px; font-size: 11px; color: var(--secondary-text-color); }
-  .ticks span { position: absolute; transform: translateX(-50%); }
-  .ticks span:first-child { transform: none; }
-  .ticks span:last-child { transform: translateX(-100%); }
-  .empty, .message { color: var(--secondary-text-color); margin-top: 8px; }
+  ${CARD_STYLE}
 `;
-
-/** Today's date (YYYY-MM-DD) in a time zone. */
-function localDate(tz) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(Date.now()),
-  );
-}
 
 class QustodioScreenTimeCard extends HTMLElement {
   static getConfigForm() {
