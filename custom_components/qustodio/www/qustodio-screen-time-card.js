@@ -1,7 +1,11 @@
 // Screen time card for the Qustodio integration: where a child's screen time went today, by routine.
 // Served and registered by the integration; logic and rendering live in card-logic.js (unit-tested).
 // Load the logic with this file's own ?v= version, so an upgraded card never pairs with a cached older logic file
-const { CARD_STYLE, errorText, escapeHtml, localDate, renderCard } = await import(new URL("./card-logic.js" + new URL(import.meta.url).search, import.meta.url));
+const version = new URL(import.meta.url).search;
+const { CARD_STYLE, errorText, escapeHtml, localDate, renderCard } = await import(
+  new URL("./card-logic.js" + version, import.meta.url)
+);
+const { openReport } = await import(new URL("./report-dialog.js" + version, import.meta.url));
 
 const CARD_TYPE = "qustodio-screen-time-card";
 const ATTRIBUTION = "Data provided by Qustodio";
@@ -13,6 +17,8 @@ const MAX_BACKOFF_MS = 900_000;
 
 const STYLE = `
   ha-card { padding: 16px; cursor: pointer; }
+  :host(:focus-visible) { outline: none; }
+  :host(:focus-visible) ha-card { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   ${CARD_STYLE}
 `;
 
@@ -44,10 +50,26 @@ class QustodioScreenTimeCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._token = 0;
     this._reset();
-    this.addEventListener("click", () => {
-      this.dispatchEvent(
-        new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId: this._config?.entity } }),
-      );
+    // Tapping (or Enter/Space) opens the full report for the child
+    this.setAttribute("role", "button");
+    this.tabIndex = 0;
+    this.addEventListener("click", () => this._openReport());
+    this.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      this._openReport();
+    });
+  }
+
+  _openReport() {
+    const state = this._hass?.states[this._config?.entity];
+    if (!state?.attributes?.profile_id) return;
+    openReport({
+      hass: this._hass,
+      entity: this._config.entity,
+      profileId: state.attributes.profile_id,
+      name: state.attributes.friendly_name ?? this._config.entity,
+      returnFocus: this,
     });
   }
 

@@ -9,14 +9,19 @@ globalThis.HTMLElement = class {
   constructor() {
     this.listeners = {};
     this.events = [];
+    this.attributes = {};
   }
   attachShadow() {
-    this.shadowRoot = { innerHTML: "" };
+    this.shadowRoot = { innerHTML: "", addEventListener: () => {}, querySelector: () => null };
     return this.shadowRoot;
   }
   addEventListener(type, fn) {
     this.listeners[type] = fn;
   }
+  setAttribute(name, value) {
+    this.attributes[name] = value;
+  }
+  remove() {}
   dispatchEvent(event) {
     this.events.push(event);
     return true;
@@ -28,6 +33,12 @@ globalThis.CustomEvent = class {
     this.detail = init?.detail;
   }
 };
+// Just enough for the report popup to open
+const opened = [];
+globalThis.document = { createElement: (tag) => new defined[tag](), body: { appendChild: (el) => opened.push(el) } };
+globalThis.history = { pushState: () => {}, back: () => {} };
+globalThis.addEventListener = () => {};
+globalThis.removeEventListener = () => {};
 globalThis.customElements = {
   define: (name, cls) => {
     defined[name] = cls;
@@ -134,12 +145,51 @@ test("shows an error message from the API", async () => {
   assert.match(card.shadowRoot.innerHTML, /Only admins can view this report/);
 });
 
-test("clicking opens more-info for the sensor", async () => {
+test("is a keyboard-reachable button", () => {
+  const card = new Card();
+  assert.equal(card.attributes.role, "button");
+  assert.equal(card.tabIndex, 0);
+});
+
+test("clicking opens the report for the child, not more-info", async () => {
+  opened.length = 0;
   const card = new Card();
   card.setConfig({ entity: ENTITY });
+  card.hass = makeHass("t1", async () => REPORT);
+  await tick();
   card.listeners.click();
-  assert.equal(card.events[0].type, "hass-more-info");
-  assert.deepEqual(card.events[0].detail, { entityId: ENTITY });
+  assert.equal(opened.length, 1);
+  const report = opened[0];
+  assert.ok(report instanceof defined["qustodio-screen-time-report"]);
+  assert.equal(report._profileId, "profile_1");
+  assert.equal(report._name, "Child One");
+  assert.equal(report._returnFocus, card);
+  assert.ok(!card.events.some((e) => e.type === "hass-more-info"));
+});
+
+for (const key of ["Enter", " "]) {
+  test(`${key === " " ? "Space" : key} opens the report`, async () => {
+    opened.length = 0;
+    const card = new Card();
+    card.setConfig({ entity: ENTITY });
+    card.hass = makeHass("t1", async () => REPORT);
+    await tick();
+    let prevented = false;
+    card.listeners.keydown({ key, preventDefault: () => (prevented = true) });
+    assert.equal(opened.length, 1);
+    assert.ok(prevented);
+  });
+}
+
+test("other keys, or no sensor yet, don't open the report", async () => {
+  opened.length = 0;
+  const card = new Card();
+  card.setConfig({ entity: ENTITY });
+  card.listeners.click(); // no hass yet
+  card.hass = makeHass("t1", async () => REPORT);
+  await tick();
+  card.listeners.keydown({ key: "a", preventDefault: () => {} });
+  assert.equal(opened.length, 0);
 });
 
 test("shows a message when the configured sensor doesn't exist", () => {
@@ -309,7 +359,9 @@ test("a report that can't be drawn shows an error instead of staying on Loading"
 test("loads card-logic.js with the same version tag as the card", () => {
   const source = readFileSync(new URL("../../custom_components/qustodio/www/qustodio-screen-time-card.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /^import .* from "\.\/card-logic\.js";?$/m);
-  assert.match(source, /import\(new URL\("\.\/card-logic\.js" \+ new URL\(import\.meta\.url\)\.search, import\.meta\.url\)/);
+  assert.match(source, /const version = new URL\(import\.meta\.url\)\.search;/);
+  assert.match(source, /new URL\("\.\/card-logic\.js" \+ version, import\.meta\.url\)/);
+  assert.match(source, /new URL\("\.\/report-dialog\.js" \+ version, import\.meta\.url\)/);
 });
 
 test("usage is drawn full height over the routine windows", () => {
