@@ -147,3 +147,14 @@ test("loads card-logic.js with the same version tag as the report", () => {
   assert.doesNotMatch(source, /^import .* from "\.\/card-logic\.js";?$/m);
   assert.match(source, /import\(new URL\("\.\/card-logic\.js" \+ new URL\(import\.meta\.url\)\.search, import\.meta\.url\)\)/);
 });
+
+test("rankedUsage copes with items that have no name", () => {
+  const r = report({
+    apps: [
+      { name: null, package: "x", platform: "iOS", minutes: 5 },
+      { name: "Maps", package: "m", platform: "iOS", minutes: 5 },
+    ],
+    websites: [{ host: null, minutes: 5, pages: 1, blocked_pages: 0 }],
+  });
+  assert.equal(rankedUsage(r).length, 3);
+});

@@ -35,8 +35,17 @@ globalThis.CustomEvent = class {
 };
 // Just enough for the report popup to open
 const opened = [];
-globalThis.document = { createElement: (tag) => new defined[tag](), body: { appendChild: (el) => opened.push(el) } };
-globalThis.history = { pushState: () => {}, back: () => {} };
+globalThis.document = {
+  createElement: (tag) => new defined[tag](),
+  body: { appendChild: (el) => opened.push(el) },
+  documentElement: { style: { overflow: "" } },
+};
+globalThis.history = { state: null, pushState: () => {}, back: () => {} };
+// Only one report can be open at a time, so close any left open by an earlier test
+const closeOpened = () => {
+  opened.forEach((el) => el.close?.());
+  opened.length = 0;
+};
 globalThis.addEventListener = () => {};
 globalThis.removeEventListener = () => {};
 globalThis.customElements = {
@@ -152,7 +161,7 @@ test("is a keyboard-reachable button", () => {
 });
 
 test("clicking opens the report for the child, not more-info", async () => {
-  opened.length = 0;
+  closeOpened();
   const card = new Card();
   card.setConfig({ entity: ENTITY });
   card.hass = makeHass("t1", async () => REPORT);
@@ -169,7 +178,7 @@ test("clicking opens the report for the child, not more-info", async () => {
 
 for (const key of ["Enter", " "]) {
   test(`${key === " " ? "Space" : key} opens the report`, async () => {
-    opened.length = 0;
+    closeOpened();
     const card = new Card();
     card.setConfig({ entity: ENTITY });
     card.hass = makeHass("t1", async () => REPORT);
@@ -182,7 +191,7 @@ for (const key of ["Enter", " "]) {
 }
 
 test("other keys, or no sensor yet, don't open the report", async () => {
-  opened.length = 0;
+  closeOpened();
   const card = new Card();
   card.setConfig({ entity: ENTITY });
   card.listeners.click(); // no hass yet

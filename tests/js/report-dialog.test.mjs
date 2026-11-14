@@ -15,9 +15,19 @@ globalThis.addEventListener = (type, fn) => {
 };
 globalThis.removeEventListener = (type, fn) => windowListeners[type]?.delete(fn);
 const fire = (type, event = {}) => [...(windowListeners[type] ?? [])].forEach((fn) => fn(event));
+const historyStack = [null];
 globalThis.history = {
-  pushState: (state) => historyLog.push(["push", state]),
-  back: () => historyLog.push(["back"]),
+  get state() {
+    return historyStack[historyStack.length - 1];
+  },
+  pushState: (state) => {
+    historyLog.push(["push", state]);
+    historyStack.push(state);
+  },
+  back: () => {
+    historyLog.push(["back"]);
+    if (historyStack.length > 1) historyStack.pop();
+  },
 };
 globalThis.HTMLElement = class {
   constructor() {
@@ -41,6 +51,7 @@ globalThis.HTMLElement = class {
   }
 };
 globalThis.document = {
+  documentElement: { style: { overflow: "" } },
   createElement: (tag) => new defined[tag](),
   body: {
     children: new Set(),
@@ -57,6 +68,7 @@ globalThis.customElements = {
 };
 
 const { openReport } = await import("../../custom_components/qustodio/www/report-dialog.js");
+const { dayLabel } = await import("../../custom_components/qustodio/www/report-logic.js");
 
 // ---- Helpers -----------------------------------------------------------------------------------------------------
 const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/day-report-2026-11-10.json", import.meta.url)));
@@ -83,6 +95,11 @@ const reportFor = (msg) => ({ ...FIXTURE, date: msg.date });
 
 function reset() {
   historyLog.length = 0;
+  historyStack.length = 1;
+  document.documentElement.style.overflow = "";
+  for (const el of [...document.body.children]) el.close?.();
+  historyLog.length = 0;
+  historyStack.length = 1;
   for (const key of Object.keys(windowListeners)) windowListeners[key].clear();
   document.body.children.clear();
   focused = null;
@@ -176,15 +193,19 @@ test("◀ stops at 30 days back", async () => {
   assert.match(el.shadowRoot.innerHTML, /data-action="prev"[^>]*disabled/);
   action(el, "prev"); // ignored
   await tick();
-  assert.match(el.shadowRoot.innerHTML, new RegExp(shift(todayString(), -30).slice(8, 10).replace(/^0/, "")));
+  assert.match(el.shadowRoot.innerHTML, new RegExp(`<span class="day">${dayLabel(shift(todayString(), -30), todayString())}</span>`));
 });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 for (const how of ["close", "backdrop"]) {
   test(`closing with ${how} removes it, goes back once, and returns focus`, async () => {
     reset();
     const el = open(async (msg) => reportFor(msg));
     await tick();
-    action(el, how === "close" ? "close" : "close"); // the backdrop carries the same action
+    assert.match(el.shadowRoot.innerHTML, /<div class="backdrop" data-action="backdrop"><\/div>/);
+    if (how === "backdrop") await sleep(320); // a backdrop tap straight after opening is ignored (double-tap)
+    action(el, how);
     assert.ok(el.removed);
     assert.deepEqual(historyLog, [["push", { qustodioReport: true }], ["back"]]);
     assert.equal(focused, "card");
@@ -199,6 +220,7 @@ test("Escape closes it", async () => {
   await tick();
   fire("keydown", { key: "Escape" });
   assert.ok(el.removed);
+  assert.deepEqual(historyLog, [["push", { qustodioReport: true }], ["back"]]);
 });
 
 test("the Back button closes it without going back again", async () => {
@@ -265,4 +287,112 @@ test("loads its modules with the same version tag as itself", () => {
   assert.doesNotMatch(source, /^import .* from "\.\/(card|report)-logic\.js";?$/m);
   assert.match(source, /new URL\("\.\/card-logic\.js" \+ version, import\.meta\.url\)/);
   assert.match(source, /new URL\("\.\/report-logic\.js" \+ version, import\.meta\.url\)/);
+});
+
+
+test("a backdrop tap straight after opening (the second tap of a double-tap) doesn't close it", async () => {
+  reset();
+  const el = open(async (msg) => reportFor(msg));
+  action(el, "backdrop");
+  assert.ok(!el.removed);
+});
+
+test("only one popup at a time: opening again reuses the open one", async () => {
+  reset();
+  const first = open(async (msg) => reportFor(msg));
+  const second = open(async (msg) => reportFor(msg));
+  assert.equal(second, first);
+  assert.equal(document.body.children.size, 1);
+  assert.equal(historyLog.length, 1);
+});
+
+test("× doesn't go back if something else has added a history entry since opening", async () => {
+  reset();
+  const el = open(async (msg) => reportFor(msg));
+  await tick();
+  history.pushState({ somewhereElse: true }, ""); // e.g. Home Assistant navigated
+  action(el, "close");
+  assert.ok(el.removed);
+  assert.ok(!historyLog.some(([kind]) => kind === "back"));
+});
+
+test("Home Assistant navigating closes it without going back", async () => {
+  reset();
+  const el = open(async (msg) => reportFor(msg));
+  await tick();
+  fire("location-changed");
+  assert.ok(el.removed);
+  assert.ok(!historyLog.some(([kind]) => kind === "back"));
+  assert.equal(windowListeners["location-changed"].size, 0);
+});
+
+test("locks the page behind from scrolling while open", async () => {
+  reset();
+  document.documentElement.style.overflow = "auto";
+  const el = open(async (msg) => reportFor(msg));
+  assert.equal(document.documentElement.style.overflow, "hidden");
+  action(el, "close");
+  assert.equal(document.documentElement.style.overflow, "auto");
+});
+
+test("a late failure for a day already shown doesn't replace it", async () => {
+  reset();
+  const pending = [];
+  const el = open((msg) => new Promise((resolve, reject) => pending.push({ msg, resolve, reject })));
+  pending[0].resolve(reportFor(pending[0].msg));
+  await tick();
+  action(el, "prev"); // yesterday, request A (still loading)
+  action(el, "next"); // back to today (cached)
+  action(el, "prev"); // yesterday again, request B
+  assert.deepEqual(pending.slice(1).map((p) => p.msg.date), [shift(todayString(), -1), shift(todayString(), -1)]);
+  pending[2].resolve({ ...reportFor(pending[2].msg), counted_minutes: 77 });
+  await tick();
+  pending[1].reject({ code: "connection_error" }); // A fails late
+  await tick();
+  assert.match(el.shadowRoot.innerHTML, /<span class="big">77 \/ 120 min/);
+  assert.doesNotMatch(el.shadowRoot.innerHTML, /Couldn&#39;t load/);
+});
+
+test("when the button pressed becomes disabled, focus moves to close", async () => {
+  reset();
+  const el = open(async (msg) => reportFor(msg));
+  await tick();
+  action(el, "prev");
+  await tick();
+  assert.equal(focused, '[data-action="prev"]');
+  action(el, "next"); // back on today: ▶ is now disabled
+  await tick();
+  assert.equal(focused, '[data-action="close"]');
+});
+
+test("after midnight, ▶ reaches the new day", async () => {
+  reset();
+  const realNow = Date.now;
+  const start = Date.parse(`${todayString()}T23:59:30+11:00`);
+  let now = start;
+  Date.now = () => now;
+  try {
+    const calls = [];
+    const el = open(async (msg) => {
+      calls.push(msg.date);
+      return reportFor(msg);
+    });
+    await tick();
+    now += 120_000; // 00:01:30 the next day
+    action(el, "next");
+    await tick();
+    assert.equal(calls.at(-1), shift(calls[0], 1));
+    assert.match(el.shadowRoot.innerHTML, />Today</);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test("a day that can't be drawn shows an error with Try again, not Loading", async () => {
+  reset();
+  const el = open(async (msg) => ({ ...reportFor(msg), hours: [{ start: "not a time", default_minutes: 5, routines: {} }] }));
+  await tick();
+  assert.match(el.shadowRoot.innerHTML, /Couldn&#39;t load today&#39;s screen time/);
+  assert.match(el.shadowRoot.innerHTML, /data-action="retry"/);
+  assert.doesNotMatch(el.shadowRoot.innerHTML, /Loading/);
 });

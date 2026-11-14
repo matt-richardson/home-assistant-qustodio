@@ -85,7 +85,10 @@ export function rankedUsage(report) {
     ...(report.websites ?? []).map((w) => ({ kind: "website", name: w.host, detail: "Website", minutes: w.minutes })),
   ]
     .filter((item) => item.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    .sort(
+      (a, b) =>
+        b.minutes - a.minutes || String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" }),
+    );
   const largest = items.length ? items[0].minutes : 0;
   return items.map((item) => ({ ...item, sharePct: (item.minutes / largest) * 100 }));
 }
